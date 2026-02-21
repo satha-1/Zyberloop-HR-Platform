@@ -2,5 +2,7 @@
   "/portal/jobs/[requisitionId]/page": "app/portal/jobs/[requisitionId]/page.js",
   "/(main)/admin/templates/page": "app/(main)/admin/templates/page.js",
   "/(main)/departments/page": "app/(main)/departments/page.js",
-  "/(main)/recruitment/page": "app/(main)/recruitment/page.js"
+  "/(main)/recruitment/page": "app/(main)/recruitment/page.js",
+  "/(main)/payroll/page": "app/(main)/payroll/page.js",
+  "/(main)/payroll/[id]/page": "app/(main)/payroll/[id]/page.js"
 }

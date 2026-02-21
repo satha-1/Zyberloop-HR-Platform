@@ -42,17 +42,40 @@ export default function Recruitment() {
     }
   }, [requisitions, selectedReq]);
 
-  useEffect(() => {
-    if (selectedReq) {
-      api.getCandidates({ requisitionId: selectedReq }).then(setCandidates).catch(() => setCandidates([]));
-    } else {
-      // Load all candidates if no requisition selected
-      api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
-    }
-  }, [selectedReq]);
+  // Load all candidates for accurate counts (always load all, not filtered)
+  const loadAllCandidates = () => {
+    api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
+  };
 
-  const getCandidatesForReq = (reqId: string) =>
-    candidates.filter((c: any) => (c.requisition_id || c.requisitionId) === reqId);
+  // Load all candidates on mount and when requisitions change
+  useEffect(() => {
+    loadAllCandidates();
+  }, [requisitions.length]); // Reload when requisitions change
+
+  // Refresh candidates periodically and when page gains focus
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadAllCandidates();
+    }, 10000); // Refresh every 10 seconds
+
+    const handleFocus = () => {
+      loadAllCandidates();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  const getCandidatesForReq = (reqId: string) => {
+    const reqIdStr = String(reqId);
+    return candidates.filter((c: any) => {
+      const candidateReqId = String(c.requisition_id || c.requisitionId || '');
+      return candidateReqId === reqIdStr;
+    });
+  };
 
   const handleCopyPortalLink = (reqId: string) => {
     const link = `${window.location.origin}/portal/jobs/${reqId}`;
@@ -93,12 +116,8 @@ export default function Recruitment() {
     try {
       await api.updateCandidateApplicationStatus(applicationId, newStatus);
       toast.success("Candidate status updated successfully!");
-      // Refresh candidates
-      if (selectedReq) {
-        api.getCandidates({ requisitionId: selectedReq }).then(setCandidates).catch(() => setCandidates([]));
-      } else {
-        api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
-      }
+      // Refresh all candidates
+      loadAllCandidates();
     } catch (error: any) {
       toast.error(error.message || "Failed to update status");
     }
@@ -250,7 +269,12 @@ export default function Recruitment() {
         <TabsContent value="candidates" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>All Candidates</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>All Candidates</CardTitle>
+                <Button variant="outline" size="sm" onClick={loadAllCandidates}>
+                  Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border overflow-x-auto">
@@ -276,14 +300,15 @@ export default function Recruitment() {
                       </TableRow>
                     ) : (
                       candidates.map((candidate: any) => {
+                        const reqId = String(candidate.requisition_id || candidate.requisitionId || '');
                         const req = requisitions.find(
-                          (r: any) => (r._id || r.id) === (candidate.requisition_id || candidate.requisitionId)
+                          (r: any) => String(r._id || r.id) === reqId
                         );
                         const applicationId = candidate.id || candidate._id;
                         return (
                           <TableRow key={candidate._id || candidate.id}>
-                            <TableCell className="font-medium">{candidate.name}</TableCell>
-                            <TableCell>{candidate.email}</TableCell>
+                            <TableCell className="font-medium">{candidate.name || 'N/A'}</TableCell>
+                            <TableCell>{candidate.email || 'N/A'}</TableCell>
                             <TableCell>{req?.title || "N/A"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">

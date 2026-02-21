@@ -407,6 +407,25 @@ class ApiClient {
     return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);
   }
 
+  async checkApplicationStatus(requisitionId: string, email: string) {
+    // Public endpoint - don't send auth token
+    const url = `${this.baseUrl}/recruitment/public/check-application?requisitionId=${requisitionId}&email=${encodeURIComponent(email)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const result = await response.json();
+    return result.data || result;
+  }
+
   async createCandidateApplication(data: FormData) {
     // Public endpoint - don't send auth token
     const url = `${this.baseUrl}/recruitment/public/applications`;

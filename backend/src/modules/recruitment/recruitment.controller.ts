@@ -287,14 +287,20 @@ export const getCandidates = async (
       success: true,
       data: applications.map((app) => ({
         id: app._id.toString(),
-        name: (app.candidateId as any).fullName,
-        email: (app.candidateId as any).email,
-        phone: (app.candidateId as any).phone,
-        requisition_id: app.requisitionId.toString(),
+        _id: app._id.toString(),
+        name: (app.candidateId as any)?.fullName || 'N/A',
+        email: (app.candidateId as any)?.email || 'N/A',
+        phone: (app.candidateId as any)?.phone || 'N/A',
+        requisition_id: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
+        requisitionId: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
         status: app.status,
-        skill_match: app.skillMatch,
-        experience_match: app.experienceMatch,
-        applied_date: app.createdAt.toISOString(),
+        skill_match: app.skillMatch || 0,
+        skillMatch: app.skillMatch || 0,
+        experience_match: app.experienceMatch || 0,
+        experienceMatch: app.experienceMatch || 0,
+        applied_date: app.createdAt?.toISOString() || new Date().toISOString(),
+        appliedDate: app.createdAt?.toISOString() || new Date().toISOString(),
+        createdAt: app.createdAt?.toISOString() || new Date().toISOString(),
       })),
     });
   } catch (error) {
@@ -403,6 +409,50 @@ export const createCandidateApplication = async (
     });
   } catch (error) {
     console.error('Error creating candidate application:', error);
+    next(error);
+  }
+};
+
+export const checkApplicationStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { requisitionId, email } = req.query;
+
+    if (!requisitionId || !email) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'requisitionId and email are required' },
+      });
+    }
+
+    // Find candidate by email
+    const candidate = await Candidate.findOne({ email: (email as string).toLowerCase() });
+    if (!candidate) {
+      return res.json({
+        success: true,
+        data: { hasApplied: false, application: null },
+      });
+    }
+
+    // Find application for this requisition
+    const application = await CandidateApplication.findOne({
+      candidateId: candidate._id,
+      requisitionId,
+    })
+      .populate('candidateId', 'fullName email phone')
+      .populate('requisitionId', 'title');
+
+    res.json({
+      success: true,
+      data: {
+        hasApplied: !!application,
+        application: application || null,
+      },
+    });
+  } catch (error) {
     next(error);
   }
 };

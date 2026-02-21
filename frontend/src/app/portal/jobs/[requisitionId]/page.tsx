@@ -13,6 +13,12 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
   const { requisitionId } = use(params);
   const [requisition, setRequisition] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeFileName, setResumeFileName] = useState<string>("");
+  const [applicationStatus, setApplicationStatus] = useState<any>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   useEffect(() => {
     api.getPublicRequisition(requisitionId)
@@ -22,10 +28,25 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
       })
       .finally(() => setLoading(false));
   }, [requisitionId]);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeFileName, setResumeFileName] = useState<string>("");
+
+  // Check if user has already applied (when email is entered)
+  const checkApplication = async (email: string) => {
+    if (!email || !email.includes('@')) return;
+    
+    setCheckingStatus(true);
+    try {
+      const result = await api.checkApplicationStatus(requisitionId, email);
+      if (result.hasApplied) {
+        setApplicationStatus(result.application);
+        setSubmitted(true);
+      }
+    } catch (error) {
+      // Silently fail - user might not have applied yet
+      console.error('Error checking application status:', error);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
 
   // Load draft from localStorage
   useEffect(() => {
@@ -134,10 +155,15 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
         applicationData.append('coverLetter', coverLetter as string);
       }
 
-      await api.createCandidateApplication(applicationData);
+      const result = await api.createCandidateApplication(applicationData);
       
       // Clear draft on successful submission
       localStorage.removeItem(`application_draft_${requisitionId}`);
+      
+      // Set application status if returned
+      if (result) {
+        setApplicationStatus(result);
+      }
       
       setSubmitted(true);
       toast.success("Application submitted successfully!");
@@ -172,7 +198,18 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
     );
   }
 
-  if (submitted) {
+  if (submitted || applicationStatus) {
+    const status = applicationStatus?.status || 'APPLIED';
+    const statusColors: Record<string, string> = {
+      APPLIED: 'bg-blue-100 text-blue-800',
+      SCREENING: 'bg-yellow-100 text-yellow-800',
+      INTERVIEW: 'bg-purple-100 text-purple-800',
+      OFFERED: 'bg-green-100 text-green-800',
+      HIRED: 'bg-emerald-100 text-emerald-800',
+      REJECTED: 'bg-red-100 text-red-800',
+    };
+    const statusColor = statusColors[status] || 'bg-gray-100 text-gray-800';
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-2xl w-full">
@@ -192,13 +229,30 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mt-6">Application Submitted!</h2>
-            <p className="text-gray-600 mt-2">
-              Thank you for applying to {requisition.title}. Our team will review your application
+            <h2 className="text-2xl font-bold text-gray-900 mt-6">
+              {applicationStatus ? 'Application Received' : 'Application Submitted!'}
+            </h2>
+            {applicationStatus && (
+              <div className="mt-4">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
+                  Status: {status}
+                </span>
+              </div>
+            )}
+            <p className="text-gray-600 mt-4">
+              Thank you for applying to {requisition?.title || 'this position'}. Our team will review your application
               and get back to you soon.
             </p>
+            {applicationStatus?.createdAt && (
+              <p className="text-sm text-gray-500 mt-2">
+                Applied on: {new Date(applicationStatus.createdAt).toLocaleDateString()}
+              </p>
+            )}
             <p className="text-sm text-gray-500 mt-4">
-              You'll receive a confirmation email at the address you provided.
+              {applicationStatus ? 
+                "You'll receive updates via email as your application progresses." :
+                "You'll receive a confirmation email at the address you provided."
+              }
             </p>
           </CardContent>
         </Card>
@@ -303,7 +357,21 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email *</Label>
-                <Input id="email" name="email" type="email" required />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  required 
+                  onBlur={(e) => {
+                    const email = e.target.value;
+                    if (email && email.includes('@')) {
+                      checkApplication(email);
+                    }
+                  }}
+                />
+                {checkingStatus && (
+                  <p className="text-xs text-gray-500">Checking application status...</p>
+                )}
               </div>
 
               <div className="space-y-2">

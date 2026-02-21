@@ -12,12 +12,14 @@ import {
   createCandidateApplication,
   updateCandidateApplicationStatus,
   getPublicRequisition,
+  checkApplicationStatus,
 } from './recruitment.controller';
 
 export const recruitmentRouter = Router();
 
 // Public route for candidate portal
 recruitmentRouter.get('/public/requisitions/:id', getPublicRequisition);
+recruitmentRouter.get('/public/check-application', checkApplicationStatus);
 recruitmentRouter.post('/public/applications', uploadCandidateResume.single('resume'), createCandidateApplication);
 
 // Protected routes
