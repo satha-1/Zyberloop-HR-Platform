@@ -119,7 +119,18 @@ class ApiClient {
 
   // Employees
   async getEmployees(params?: { search?: string; department?: string; status?: string }) {
-    const query = new URLSearchParams(params as any).toString();
+    // Only include non-empty parameters in the query
+    const queryParams: Record<string, string> = {};
+    if (params?.search && params.search.trim() !== '') {
+      queryParams.search = params.search;
+    }
+    if (params?.department && params.department.trim() !== '' && params.department !== 'all') {
+      queryParams.department = params.department;
+    }
+    if (params?.status && params.status.trim() !== '' && params.status !== 'all') {
+      queryParams.status = params.status;
+    }
+    const query = new URLSearchParams(queryParams).toString();
     return this.request(`/employees${query ? `?${query}` : ''}`);
   }
 
