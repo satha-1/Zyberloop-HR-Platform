@@ -14,6 +14,11 @@ if (!fs.existsSync(employeeDocsDir)) {
   fs.mkdirSync(employeeDocsDir, { recursive: true });
 }
 
+const profilePicturesDir = path.join(uploadsDir, 'profile-pictures');
+if (!fs.existsSync(profilePicturesDir)) {
+  fs.mkdirSync(profilePicturesDir, { recursive: true });
+}
+
 const generatedDocsDir = path.join(uploadsDir, 'generated-documents');
 if (!fs.existsSync(generatedDocsDir)) {
   fs.mkdirSync(generatedDocsDir, { recursive: true });
@@ -28,6 +33,18 @@ const employeeDocStorage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, `emp-doc-${uniqueSuffix}${ext}`);
+  },
+});
+
+// Configure storage for profile pictures
+const profilePictureStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, profilePicturesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `profile-${uniqueSuffix}${ext}`);
   },
 });
 
@@ -66,6 +83,22 @@ export const uploadEmployeeDocuments = multer({
   fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});
+
+// Upload middleware for profile pictures
+export const uploadProfilePicture = multer({
+  storage: profilePictureStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, 'Only image files (JPG, PNG, WEBP) are allowed for profile pictures'));
+    }
+  },
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB
   },
 });
 

@@ -7,15 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
-import { useEmployee } from "../../../lib/hooks";
+import { useEmployee, useEmployees, usePerformanceGoals, usePerformanceCycles } from "../../../lib/hooks";
 import { DocumentGenerator } from "../../../components/DocumentGenerator";
-import { ArrowLeft, Mail, Phone, Calendar, DollarSign, User, Briefcase } from "lucide-react";
+import { EditEmployeeDialog } from "../../../components/EditEmployeeDialog";
+import { LeaveHistoryDialog } from "../../../components/LeaveHistoryDialog";
+import { AssignManagerDialog } from "../../../components/AssignManagerDialog";
+import { ArrowLeft, Mail, Phone, Calendar, DollarSign, User, Briefcase, Edit, UserPlus } from "lucide-react";
 
 export default function EmployeeProfile() {
   const params = useParams();
   const id = params.id as string;
-  const { data: employee, loading } = useEmployee(id);
+  const { data: employee, loading, refetch } = useEmployee(id);
+  const { data: performanceCycles = [] } = usePerformanceCycles();
+  const activeCycle = performanceCycles.find((cycle: any) => cycle.status === 'ACTIVE');
+  const { data: performanceGoals = [], loading: goalsLoading } = usePerformanceGoals(id, activeCycle?._id);
   const [documentGeneratorOpen, setDocumentGeneratorOpen] = useState(false);
+  const [editEmployeeOpen, setEditEmployeeOpen] = useState(false);
+  const [leaveHistoryOpen, setLeaveHistoryOpen] = useState(false);
+  const [assignManagerOpen, setAssignManagerOpen] = useState(false);
 
   if (loading) {
     return (
@@ -56,13 +65,7 @@ export default function EmployeeProfile() {
   const compensationComponents = [
     { name: "Base Salary", amount: salary, frequency: "Monthly" },
     { name: "Housing Allowance", amount: salary * 0.2, frequency: "Monthly" },
-    { name: "Transport Allowance", amount: 500, frequency: "Monthly" },
-  ];
-
-  const performanceGoals = [
-    { name: "Deliver Q1 Project Milestones", weight: 40, progress: 75, status: "On Track" },
-    { name: "Improve Team Collaboration", weight: 30, progress: 90, status: "Ahead" },
-    { name: "Complete Technical Training", weight: 30, progress: 60, status: "On Track" },
+    { name: "Transport Allowance", amount: 5000, frequency: "Monthly" },
   ];
 
   return (
@@ -78,7 +81,14 @@ export default function EmployeeProfile() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Employee Profile</h2>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <Button variant="outline" size="sm" className="w-full sm:w-auto">Edit</Button>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setEditEmployeeOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setAssignManagerOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Assign Manager
+          </Button>
           <Button onClick={() => setDocumentGeneratorOpen(true)} size="sm" className="w-full sm:w-auto">Generate Documents</Button>
         </div>
       </div>
@@ -87,11 +97,33 @@ export default function EmployeeProfile() {
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-2xl sm:text-3xl font-bold text-white">
-                {firstName[0] || ""}
-                {lastName[0] || ""}
-              </span>
+            <div className="relative">
+              {employee.profilePicture ? (
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001'}${employee.profilePicture}`}
+                  alt={`${firstName} ${lastName}`}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-gray-200"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl sm:text-3xl font-bold text-white">
+                    {firstName[0] || ""}
+                    {lastName[0] || ""}
+                  </span>
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0 border-2 border-white"
+                onClick={() => setEditEmployeeOpen(true)}
+                title="Edit profile picture"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
             </div>
             <div className="flex-1 min-w-0 w-full sm:w-auto">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
@@ -199,7 +231,7 @@ export default function EmployeeProfile() {
                   <span className="text-sm text-gray-600">Personal Leave</span>
                   <span className="font-medium">3 days</span>
                 </div>
-                <Button variant="outline" className="w-full mt-4">
+                <Button variant="outline" className="w-full mt-4" onClick={() => setLeaveHistoryOpen(true)}>
                   View Leave History
                 </Button>
               </CardContent>
@@ -220,14 +252,13 @@ export default function EmployeeProfile() {
                       <p className="font-medium">{comp.name}</p>
                       <p className="text-sm text-gray-500">{comp.frequency}</p>
                     </div>
-                    <p className="text-lg font-semibold">${comp.amount.toLocaleString()}</p>
+                    <p className="text-lg font-semibold">LKR {comp.amount.toLocaleString()}</p>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-4 border-t-2">
                   <p className="text-lg font-bold">Total Monthly</p>
                   <p className="text-xl font-bold text-blue-600">
-                    $
-                    {compensationComponents
+                    LKR {compensationComponents
                       .reduce((sum, comp) => sum + comp.amount, 0)
                       .toLocaleString()}
                   </p>
@@ -240,35 +271,57 @@ export default function EmployeeProfile() {
         <TabsContent value="performance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Current Goals (2026)</CardTitle>
+              <CardTitle>
+                {activeCycle ? `Current Goals - ${activeCycle.name}` : "Performance Goals"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {performanceGoals.map((goal, idx) => (
-                  <div key={idx}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-medium">{goal.name}</p>
-                        <p className="text-sm text-gray-500">Weight: {goal.weight}%</p>
+              {goalsLoading ? (
+                <div className="text-center py-8 text-gray-500">Loading goals...</div>
+              ) : performanceGoals.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {activeCycle ? "No goals assigned for this cycle" : "No active performance cycle"}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {performanceGoals.map((goal: any) => (
+                    <div key={goal._id || goal.id}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-medium">{goal.description || goal.name}</p>
+                          <p className="text-sm text-gray-500">Weight: {goal.weight || 0}%</p>
+                        </div>
+                        <Badge
+                          variant={
+                            goal.status === "COMPLETED" || (goal.progress || 0) >= 100
+                              ? "default"
+                              : goal.status === "OVERDUE"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {goal.status === "COMPLETED"
+                            ? "Completed"
+                            : goal.status === "IN_PROGRESS"
+                            ? "In Progress"
+                            : goal.status === "OVERDUE"
+                            ? "Overdue"
+                            : "Not Started"}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant={goal.status === "Ahead" ? "default" : "secondary"}
-                      >
-                        {goal.status}
-                      </Badge>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            (goal.progress || 0) >= 80 ? "bg-green-500" : (goal.progress || 0) >= 50 ? "bg-blue-500" : "bg-yellow-500"
+                          }`}
+                          style={{ width: `${goal.progress || 0}%` }}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{goal.progress || 0}% Complete</p>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          goal.progress >= 80 ? "bg-green-500" : "bg-blue-500"
-                        }`}
-                        style={{ width: `${goal.progress}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">{goal.progress}% Complete</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -299,12 +352,38 @@ export default function EmployeeProfile() {
       </Tabs>
 
       {employee && (
-        <DocumentGenerator
-          employeeId={id}
-          employeeName={`${firstName} ${lastName}`}
-          open={documentGeneratorOpen}
-          onOpenChange={setDocumentGeneratorOpen}
-        />
+        <>
+          <EditEmployeeDialog
+            open={editEmployeeOpen}
+            onOpenChange={setEditEmployeeOpen}
+            employee={employee}
+            onSuccess={() => {
+              refetch();
+              setEditEmployeeOpen(false);
+            }}
+          />
+          <LeaveHistoryDialog
+            open={leaveHistoryOpen}
+            onOpenChange={setLeaveHistoryOpen}
+            employeeId={id}
+            employeeName={`${firstName} ${lastName}`}
+          />
+          <AssignManagerDialog
+            open={assignManagerOpen}
+            onOpenChange={setAssignManagerOpen}
+            employee={employee}
+            onSuccess={() => {
+              refetch();
+              setAssignManagerOpen(false);
+            }}
+          />
+          <DocumentGenerator
+            employeeId={id}
+            employeeName={`${firstName} ${lastName}`}
+            open={documentGeneratorOpen}
+            onOpenChange={setDocumentGeneratorOpen}
+          />
+        </>
       )}
     </div>
   );

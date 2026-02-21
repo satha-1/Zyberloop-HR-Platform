@@ -175,6 +175,29 @@ class ApiClient {
     });
   }
 
+  async updateEmployeeWithFiles(id: string, formData: FormData) {
+    const url = `${this.baseUrl}/employees/${id}`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
   async deleteEmployee(id: string) {
     return this.request(`/employees/${id}`, {
       method: 'DELETE',
@@ -315,6 +338,21 @@ class ApiClient {
     return this.request(`/leave/requests/${id}/reject`, {
       method: 'POST',
     });
+  }
+
+  // Performance
+  async getGoals(params?: { employeeId?: string; cycleId?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/performance/goals${query ? `?${query}` : ''}`);
+  }
+
+  async getAppraisals(params?: { employeeId?: string; cycleId?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/performance/appraisals${query ? `?${query}` : ''}`);
+  }
+
+  async getPerformanceCycles() {
+    return this.request('/performance/cycles');
   }
 
   // Recruitment

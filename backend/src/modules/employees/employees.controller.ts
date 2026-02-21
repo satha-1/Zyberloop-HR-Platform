@@ -219,10 +219,42 @@ export const updateEmployee = async (
 ) => {
   try {
     const { id } = req.params;
-    const employee = await Employee.findByIdAndUpdate(id, req.body, {
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new AppError(400, 'Invalid employee ID format');
+    }
+
+    // Handle profile picture upload
+    const updateData: any = { ...req.body };
+    if (req.file) {
+      updateData.profilePicture = `/uploads/profile-pictures/${req.file.filename}`;
+    }
+    
+    // Validate and handle departmentId
+    if (updateData.departmentId !== undefined) {
+      if (updateData.departmentId === '' || updateData.departmentId === 'null' || updateData.departmentId === 'none') {
+        updateData.departmentId = null;
+      } else if (updateData.departmentId && !mongoose.Types.ObjectId.isValid(updateData.departmentId)) {
+        delete updateData.departmentId;
+      }
+    }
+    
+    // Validate and handle managerId
+    if (updateData.managerId !== undefined) {
+      if (updateData.managerId === '' || updateData.managerId === 'null' || updateData.managerId === 'none') {
+        updateData.managerId = null;
+      } else if (updateData.managerId && !mongoose.Types.ObjectId.isValid(updateData.managerId)) {
+        delete updateData.managerId;
+      }
+    }
+
+    const employee = await Employee.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
-    });
+    })
+      .populate('departmentId', 'name code')
+      .populate('managerId', 'firstName lastName employeeCode');
 
     if (!employee) {
       throw new AppError(404, 'Employee not found');
@@ -230,8 +262,8 @@ export const updateEmployee = async (
 
     await createAuditLog({
       actorId: req.user!.id,
-      actorName: req.user!.name,
-      actorRoles: req.user!.roles,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
       action: 'UPDATE',
       module: 'Employees',
       resourceType: 'employee',

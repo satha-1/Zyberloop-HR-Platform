@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { uploadEmployeeDocuments } from '../../middlewares/upload';
+import { uploadEmployeeDocuments, uploadProfilePicture } from '../../middlewares/upload';
 import {
   getEmployees,
   getEmployeeById,
@@ -29,7 +29,7 @@ employeesRouter.use(authenticate);
 employeesRouter.get('/', getEmployees);
 employeesRouter.get('/:id', getEmployeeById);
 employeesRouter.post('/', uploadEmployeeDocuments.array('documents', 10), createEmployee);
-employeesRouter.patch('/:id', updateEmployee);
+employeesRouter.patch('/:id', uploadProfilePicture.single('profilePicture'), updateEmployee);
 employeesRouter.delete('/:id', deleteEmployee);
 
 // Document Management

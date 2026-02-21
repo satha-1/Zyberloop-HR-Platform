@@ -16,6 +16,8 @@ import { useEmployees, useDepartments } from "../../lib/hooks";
 import { AddEmployeeDialog } from "../../components/AddEmployeeDialog";
 import { Search, Plus, Download, Filter } from "lucide-react";
 import Link from "next/link";
+import { api } from "../../lib/api";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -58,6 +60,56 @@ export default function Employees() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const csvData = filteredEmployees.map((emp: any) => ({
+        "Employee Code": emp.employeeCode || "",
+        "First Name": emp.firstName || "",
+        "Last Name": emp.lastName || "",
+        "Email": emp.email || "",
+        "Phone": emp.phone || "",
+        "Department": emp.departmentId?.name || emp.department || "N/A",
+        "Grade": emp.grade || "",
+        "Manager": emp.managerId 
+          ? `${emp.managerId.firstName || ''} ${emp.managerId.lastName || ''}`.trim()
+          : "N/A",
+        "Status": emp.status || "",
+        "Hire Date": emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : "",
+        "Salary": emp.salary || 0,
+      }));
+
+      // Convert to CSV
+      const headers = Object.keys(csvData[0] || {});
+      const csvRows = [
+        headers.join(","),
+        ...csvData.map((row: any) =>
+          headers.map((header) => {
+            const value = row[header];
+            // Escape commas and quotes in CSV
+            if (typeof value === "string" && (value.includes(",") || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+          }).join(",")
+        ),
+      ];
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `employees_${new Date().toISOString().split("T")[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Employees exported to CSV successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to export CSV");
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
@@ -66,9 +118,9 @@ export default function Employees() {
           <p className="text-gray-600 mt-1">Manage your organization's workforce</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Button onClick={() => setAddEmployeeOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -114,6 +166,7 @@ export default function Employees() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-16"></TableHead>
                   <TableHead>Employee Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
@@ -127,19 +180,37 @@ export default function Employees() {
               <TableBody>
                         {loading ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                               Loading...
                             </TableCell>
                           </TableRow>
                         ) : filteredEmployees.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                               No employees found
                             </TableCell>
                           </TableRow>
                         ) : (
                           filteredEmployees.map((employee: any) => (
                             <TableRow key={employee._id || employee.id}>
+                              <TableCell>
+                                {employee.profilePicture ? (
+                                  <img
+                                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001'}${employee.profilePicture}`}
+                                    alt={`${employee.firstName} ${employee.lastName}`}
+                                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : null}
+                                {!employee.profilePicture && (
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                                    {employee.firstName?.[0] || ""}
+                                    {employee.lastName?.[0] || ""}
+                                  </div>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium">{employee.employeeCode}</TableCell>
                               <TableCell>
                                 {employee.firstName} {employee.lastName}
@@ -147,7 +218,11 @@ export default function Employees() {
                               <TableCell>{employee.email}</TableCell>
                               <TableCell>{employee.departmentId?.name || employee.department || "N/A"}</TableCell>
                               <TableCell>{employee.grade}</TableCell>
-                              <TableCell>{employee.managerId?.firstName || employee.manager || "N/A"}</TableCell>
+                              <TableCell>
+                                {employee.managerId 
+                                  ? `${employee.managerId.firstName || ''} ${employee.managerId.lastName || ''}`.trim() || "N/A"
+                                  : "N/A"}
+                              </TableCell>
                               <TableCell>
                                 <Badge className={getStatusColor(employee.status)}>
                                   {employee.status?.replace("_", " ") || employee.status}

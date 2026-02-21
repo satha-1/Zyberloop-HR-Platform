@@ -229,3 +229,68 @@ export function useDepartments() {
     api.getDepartments().then(setData).catch(setError).finally(() => setLoading(false));
   }};
 }
+
+export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!employeeId) {
+      setLoading(false);
+      return;
+    }
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getGoals({ employeeId, cycleId });
+        setData(result || []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [employeeId, cycleId]);
+
+  return { data, loading, error, refetch: () => {
+    if (!employeeId) return;
+    setLoading(true);
+    api.getGoals({ employeeId, cycleId }).then(setData).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }};
+}
+
+export function usePerformanceCycles() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getPerformanceCycles();
+        setData(result || []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getPerformanceCycles().then(setData).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }};
+}

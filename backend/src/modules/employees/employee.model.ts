@@ -9,6 +9,7 @@ export interface IEmployee extends Document {
   phone: string;
   dob?: Date;
   address?: string;
+  profilePicture?: string;
   grade: string;
   departmentId?: mongoose.Types.ObjectId;
   managerId?: mongoose.Types.ObjectId;
@@ -62,6 +63,7 @@ const employeeSchema = new Schema<IEmployee>(
     },
     dob: Date,
     address: String,
+    profilePicture: String,
     grade: {
       type: String,
       required: true,
