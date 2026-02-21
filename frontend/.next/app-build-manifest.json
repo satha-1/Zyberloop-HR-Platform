@@ -65,6 +65,31 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/page.js"
+    ],
+    "/(main)/departments/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/departments/page.js"
+    ],
+    "/(main)/payroll/templates/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/new/page.js"
+    ],
+    "/(main)/payroll/templates/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/page.js"
+    ],
+    "/(main)/payroll/templates/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/[id]/page.js"
+    ],
+    "/(main)/payroll/templates/[id]/edit/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/[id]/edit/page.js"
     ]
   }
 }

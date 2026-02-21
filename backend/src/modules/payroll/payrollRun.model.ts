@@ -1,13 +1,33 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPayrollRun extends Document {
+  templateId?: mongoose.Types.ObjectId;
+  runName: string;
   periodStart: Date;
   periodEnd: Date;
-  status: 'DRAFT' | 'CALCULATED' | 'REVIEW_PENDING' | 'HR_APPROVED' | 'FINANCE_APPROVED' | 'FINALIZED' | 'PARTIAL_FAILED';
+  paymentDate: Date;
+  status: 'draft' | 'in_progress' | 'completed' | 'locked' | 'DRAFT' | 'CALCULATED' | 'REVIEW_PENDING' | 'HR_APPROVED' | 'FINANCE_APPROVED' | 'FINALIZED' | 'PARTIAL_FAILED';
+  notes?: string;
   createdBy: mongoose.Types.ObjectId;
   totalGross: number;
   totalNet: number;
+  totalDeductions?: number;
   employeeCount: number;
+  employeeLines?: Array<{
+    employeeId: mongoose.Types.ObjectId;
+    employeeName: string;
+    baseSalary: number;
+    payItems: Array<{
+      payItemId: string;
+      code: string;
+      label: string;
+      type: 'earning' | 'deduction' | 'benefit';
+      amount: number;
+    }>;
+    grossPay: number;
+    totalDeductions: number;
+    netPay: number;
+  }>;
   meta?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -15,6 +35,17 @@ export interface IPayrollRun extends Document {
 
 const payrollRunSchema = new Schema<IPayrollRun>(
   {
+    templateId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PayrollTemplate',
+      index: true,
+    },
+    runName: {
+      type: String,
+      required: true,
+      default: 'Payroll Run',
+      index: true,
+    },
     periodStart: {
       type: Date,
       required: true,
@@ -25,12 +56,18 @@ const payrollRunSchema = new Schema<IPayrollRun>(
       required: true,
       index: true,
     },
-    status: {
-      type: String,
-      enum: ['DRAFT', 'CALCULATED', 'REVIEW_PENDING', 'HR_APPROVED', 'FINANCE_APPROVED', 'FINALIZED', 'PARTIAL_FAILED'],
-      default: 'DRAFT',
+    paymentDate: {
+      type: Date,
+      required: true,
       index: true,
     },
+    status: {
+      type: String,
+      enum: ['draft', 'in_progress', 'completed', 'locked', 'DRAFT', 'CALCULATED', 'REVIEW_PENDING', 'HR_APPROVED', 'FINANCE_APPROVED', 'FINALIZED', 'PARTIAL_FAILED'],
+      default: 'draft',
+      index: true,
+    },
+    notes: String,
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -44,10 +81,33 @@ const payrollRunSchema = new Schema<IPayrollRun>(
       type: Number,
       default: 0,
     },
+    totalDeductions: {
+      type: Number,
+      default: 0,
+    },
     employeeCount: {
       type: Number,
       default: 0,
     },
+    employeeLines: [
+      {
+        employeeId: { type: Schema.Types.ObjectId, ref: 'Employee' },
+        employeeName: String,
+        baseSalary: Number,
+        payItems: [
+          {
+            payItemId: String,
+            code: String,
+            label: String,
+            type: { type: String, enum: ['earning', 'deduction', 'benefit'] },
+            amount: Number,
+          },
+        ],
+        grossPay: Number,
+        totalDeductions: Number,
+        netPay: Number,
+      },
+    ],
     meta: Schema.Types.Mixed,
   },
   {
