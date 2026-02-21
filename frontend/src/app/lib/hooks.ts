@@ -12,10 +12,14 @@ export function useEmployees(params?: { search?: string; department?: string; st
     async function fetchData() {
       try {
         setLoading(true);
+        setError(null);
         const result = await api.getEmployees(params);
-        setData(result);
-      } catch (err) {
+        // Ensure result is an array
+        setData(Array.isArray(result) ? result : []);
+      } catch (err: any) {
+        console.error('Error fetching employees:', err);
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -213,10 +217,14 @@ export function useDepartments() {
     async function fetchData() {
       try {
         setLoading(true);
+        setError(null);
         const result = await api.getDepartments();
-        setData(result);
-      } catch (err) {
+        // Ensure result is an array
+        setData(Array.isArray(result) ? result : []);
+      } catch (err: any) {
+        console.error('Error fetching departments:', err);
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -289,6 +297,66 @@ export function usePerformanceCycles() {
   return { data, loading, error, refetch: () => {
     setLoading(true);
     api.getPerformanceCycles().then(setData).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }};
+}
+
+export function useTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getTemplates(params);
+        setData(result || []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.docType, params?.status, params?.locale, params?.search]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getTemplates(params).then(setData).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }};
+}
+
+export function useDocuments(params?: { docType?: string; status?: string; subjectType?: string; subjectId?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getDocuments(params);
+        setData(result || []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.docType, params?.status, params?.subjectType, params?.subjectId]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getDocuments(params).then(setData).catch((err) => {
       setError(err as Error);
       setData([]);
     }).finally(() => setLoading(false));

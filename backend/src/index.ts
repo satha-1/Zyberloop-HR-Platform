@@ -17,6 +17,7 @@ import { workforceRouter } from './modules/workforce/workforce.routes';
 import { engagementRouter } from './modules/engagement/engagement.routes';
 import { complianceRouter } from './modules/compliance/compliance.routes';
 import { logsRouter } from './modules/logs/logs.routes';
+import { documentsRouter } from './modules/documents/documents.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/v1/workforce', workforceRouter);
 app.use('/api/v1/engagement', engagementRouter);
 app.use('/api/v1/compliance', complianceRouter);
 app.use('/api/v1/logs', logsRouter);
+app.use('/api/v1/documents', documentsRouter);
 
 // Error handler
 app.use(errorHandler);

@@ -19,6 +19,8 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  FolderOpen,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -37,6 +39,8 @@ const navigation = [
   { name: "Workforce Planning", href: "/workforce-planning", icon: TrendingUp },
   { name: "Engagement & Surveys", href: "/engagement", icon: MessageSquare },
   { name: "Compliance", href: "/compliance", icon: Shield },
+  { name: "Templates", href: "/admin/templates", icon: FileText },
+  { name: "Documents", href: "/admin/documents", icon: FolderOpen },
   { name: "Admin Logs", href: "/admin/logs", icon: Settings },
 ];
 

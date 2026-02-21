@@ -1,7 +1,5 @@
 {
-  "/(main)/recruitment/page": "app/(main)/recruitment/page.js",
   "/(main)/employees/page": "app/(main)/employees/page.js",
-  "/(main)/page": "app/(main)/page.js",
-  "/(main)/departments/page": "app/(main)/departments/page.js",
-  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js"
+  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js",
+  "/(main)/admin/templates/page": "app/(main)/admin/templates/page.js"
 }

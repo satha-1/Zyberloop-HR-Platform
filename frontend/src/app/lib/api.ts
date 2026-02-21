@@ -84,7 +84,11 @@ class ApiClient {
     }
 
     const data = await response.json();
-    return data.data || data;
+    // Handle both { success: true, data: [...] } and direct array/object responses
+    if (data && typeof data === 'object' && 'data' in data && !Array.isArray(data)) {
+      return data.data;
+    }
+    return data;
   }
 
   // Auth
@@ -427,6 +431,124 @@ class ApiClient {
   async deleteDepartment(id: string) {
     return this.request(`/departments/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Documents & Templates
+  async getTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/documents/templates${query ? `?${query}` : ''}`);
+  }
+
+  async getTemplateById(id: string) {
+    return this.request(`/documents/templates/${id}`);
+  }
+
+  async createTemplate(data: any) {
+    return this.request('/documents/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTemplate(id: string, data: any) {
+    return this.request(`/documents/templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitTemplateForReview(id: string) {
+    return this.request(`/documents/templates/${id}/submit-review`, {
+      method: 'POST',
+    });
+  }
+
+  async approveTemplate(id: string, notes?: string) {
+    return this.request(`/documents/templates/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  }
+
+  async publishTemplate(id: string, effectiveFrom?: string, effectiveTo?: string) {
+    return this.request(`/documents/templates/${id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ effectiveFrom, effectiveTo }),
+    });
+  }
+
+  async deprecateTemplate(id: string) {
+    return this.request(`/documents/templates/${id}/deprecate`, {
+      method: 'POST',
+    });
+  }
+
+  async previewDocument(data: {
+    templateId?: string;
+    locale?: string;
+    docType?: string;
+    subjectType: string;
+    subjectId: string;
+    effectiveOn?: string;
+  }) {
+    return this.request('/documents/documents/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async generateDocument(data: {
+    docType: string;
+    templateId?: string;
+    subjectType: string;
+    subjectId: string;
+    effectiveOn?: string;
+  }) {
+    return this.request('/documents/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getDocuments(params?: {
+    docType?: string;
+    status?: string;
+    subjectType?: string;
+    subjectId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/documents/documents${query ? `?${query}` : ''}`);
+  }
+
+  async getDocumentById(id: string) {
+    return this.request(`/documents/documents/${id}`);
+  }
+
+  async downloadDocument(id: string, artefactKind?: string) {
+    return this.request(`/documents/documents/${id}/download`, {
+      method: 'POST',
+      body: JSON.stringify({ artefactKind }),
+    });
+  }
+
+  async bulkGenerateDocuments(payrollRunId: string, docType: string) {
+    return this.request('/documents/documents/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ payrollRunId, docType }),
+    });
+  }
+
+  async getDocumentJob(jobId: string) {
+    return this.request(`/documents/document-jobs/${jobId}`);
+  }
+
+  async requestDocumentSigning(documentId: string, provider: string, signers: any[]) {
+    return this.request(`/documents/documents/${documentId}/sign-request`, {
+      method: 'POST',
+      body: JSON.stringify({ provider, signers }),
     });
   }
 }
