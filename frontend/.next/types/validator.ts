@@ -162,6 +162,51 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   type __Unused = __Check
 }
 
+// Validate ../../src/app/(main)/payroll/runs/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/runs">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/runs/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/templates/[id]/edit/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/templates/[id]/edit">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/templates/[id]/edit/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/templates/[id]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/templates/[id]">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/templates/[id]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/templates/new/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/templates/new">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/templates/new/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/templates/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/templates">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/templates/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/(main)/performance/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/performance">> = Specific

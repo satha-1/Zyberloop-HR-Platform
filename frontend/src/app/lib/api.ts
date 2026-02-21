@@ -602,6 +602,138 @@ class ApiClient {
       body: JSON.stringify({ provider, signers }),
     });
   }
+
+  // Payroll Templates API
+  async getPayrollTemplates(params?: {
+    search?: string;
+    payFrequency?: string;
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/payroll/templates${query ? `?${query}` : ''}`);
+  }
+
+  async getPayrollTemplateById(id: string) {
+    return this.request(`/payroll/templates/${id}`);
+  }
+
+  async createPayrollTemplate(data: any) {
+    return this.request('/payroll/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePayrollTemplate(id: string, data: any) {
+    return this.request(`/payroll/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePayrollTemplate(id: string) {
+    return this.request(`/payroll/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async duplicatePayrollTemplate(id: string) {
+    return this.request(`/payroll/templates/${id}/duplicate`, {
+      method: 'POST',
+    });
+  }
+
+  // Payroll Runs API (enhanced)
+  async getPayrollRuns(params?: {
+    search?: string;
+    status?: string;
+    templateId?: string;
+    periodStart?: string;
+    periodEnd?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/payroll/runs${query ? `?${query}` : ''}`);
+  }
+
+  async getPayrollRunById(id: string) {
+    return this.request(`/payroll/runs/${id}`);
+  }
+
+  async createPayrollRun(data: any) {
+    return this.request('/payroll/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePayrollRun(id: string, data: any) {
+    return this.request(`/payroll/runs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePayrollRun(id: string) {
+    return this.request(`/payroll/runs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async lockPayrollRun(id: string) {
+    return this.request(`/payroll/runs/${id}/lock`, {
+      method: 'POST',
+    });
+  }
+
+  async recalculatePayrollRun(id: string) {
+    return this.request(`/payroll/runs/${id}/recalculate`, {
+      method: 'POST',
+    });
+  }
+
+  async previewPayrollRun(data: {
+    templateId: string;
+    periodStart: string;
+    periodEnd: string;
+    employeeIds?: string[];
+  }) {
+    return this.request('/payroll/runs/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async exportPayrollRun(id: string, format: 'pdf' | 'csv' = 'pdf') {
+    const response = await fetch(`${this.baseUrl}/payroll/runs/${id}/export?format=${format}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token || localStorage.getItem('auth_token')}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-run-${id}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
+  // Payroll Dashboard Stats
+  async getPayrollStats() {
+    return this.request('/payroll/stats');
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

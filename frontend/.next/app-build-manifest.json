@@ -16,15 +16,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/layout.js"
     ],
-    "/(main)/admin/templates/page": [
+    "/(main)/payroll/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(main)/admin/templates/page.js"
-    ],
-    "/(main)/departments/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(main)/departments/page.js"
+      "static/chunks/app/(main)/payroll/page.js"
     ],
     "/(main)/recruitment/page": [
       "static/chunks/webpack.js",
@@ -36,20 +31,40 @@
       "static/chunks/main-app.js",
       "static/chunks/app/portal/jobs/[requisitionId]/page.js"
     ],
+    "/(main)/admin/templates/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/admin/templates/page.js"
+    ],
+    "/(main)/employees/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/employees/page.js"
+    ],
+    "/(main)/employees/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/employees/[id]/page.js"
+    ],
+    "/(main)/leave/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/leave/page.js"
+    ],
+    "/(main)/learning/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/learning/page.js"
+    ],
     "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/_not-found/page.js"
     ],
-    "/(main)/payroll/page": [
+    "/(main)/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(main)/payroll/page.js"
-    ],
-    "/(main)/payroll/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(main)/payroll/[id]/page.js"
+      "static/chunks/app/(main)/page.js"
     ]
   }
 }
