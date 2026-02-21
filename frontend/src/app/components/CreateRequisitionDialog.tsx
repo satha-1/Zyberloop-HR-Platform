@@ -9,14 +9,16 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { api } from "../lib/api";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 interface CreateRequisitionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  requisition?: any; // For editing
 }
 
-export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: CreateRequisitionDialogProps) {
+export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisition }: CreateRequisitionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -28,13 +30,51 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
     budgetCode: "",
     estimatedSalaryBandMin: "",
     estimatedSalaryBandMax: "",
+    aboutTheRole: "",
+    keyResponsibilities: [""],
+    requirements: [""],
   });
 
   useEffect(() => {
     if (open) {
       fetchDepartments();
+      if (requisition) {
+        // Populate form for editing
+        setFormData({
+          title: requisition.title || "",
+          departmentId: requisition.departmentId?._id || requisition.departmentId || "",
+          location: requisition.location || "",
+          type: requisition.type || "full_time",
+          justification: requisition.justification || "",
+          budgetCode: requisition.budgetCode || "",
+          estimatedSalaryBandMin: requisition.estimatedSalaryBand?.min?.toString() || "",
+          estimatedSalaryBandMax: requisition.estimatedSalaryBand?.max?.toString() || "",
+          aboutTheRole: requisition.aboutTheRole || "",
+          keyResponsibilities: requisition.keyResponsibilities?.length > 0 
+            ? requisition.keyResponsibilities 
+            : [""],
+          requirements: requisition.requirements?.length > 0 
+            ? requisition.requirements 
+            : [""],
+        });
+      } else {
+        // Reset form for new requisition
+        setFormData({
+          title: "",
+          departmentId: "",
+          location: "",
+          type: "full_time",
+          justification: "",
+          budgetCode: "",
+          estimatedSalaryBandMin: "",
+          estimatedSalaryBandMax: "",
+          aboutTheRole: "",
+          keyResponsibilities: [""],
+          requirements: [""],
+        });
+      }
     }
-  }, [open]);
+  }, [open, requisition]);
 
   const fetchDepartments = async () => {
     try {
@@ -62,11 +102,19 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
           min: parseFloat(formData.estimatedSalaryBandMin) || 0,
           max: parseFloat(formData.estimatedSalaryBandMax) || 0,
         },
+        aboutTheRole: formData.aboutTheRole || undefined,
+        keyResponsibilities: formData.keyResponsibilities.filter(r => r.trim() !== ""),
+        requirements: formData.requirements.filter(r => r.trim() !== ""),
       };
 
-      await api.createRequisition(requisitionData);
+      if (requisition) {
+        await api.updateRequisition(requisition._id || requisition.id, requisitionData);
+        toast.success("Requisition updated successfully!");
+      } else {
+        await api.createRequisition(requisitionData);
+        toast.success("Requisition created successfully!");
+      }
       
-      toast.success("Requisition created successfully!");
       onOpenChange(false);
       setFormData({
         title: "",
@@ -77,22 +125,71 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
         budgetCode: "",
         estimatedSalaryBandMin: "",
         estimatedSalaryBandMax: "",
+        aboutTheRole: "",
+        keyResponsibilities: [""],
+        requirements: [""],
       });
       onSuccess?.();
     } catch (error: any) {
-      toast.error(error.message || "Failed to create requisition");
+      toast.error(error.message || `Failed to ${requisition ? 'update' : 'create'} requisition`);
     } finally {
       setLoading(false);
     }
   };
 
+  const addResponsibility = () => {
+    setFormData({
+      ...formData,
+      keyResponsibilities: [...formData.keyResponsibilities, ""],
+    });
+  };
+
+  const removeResponsibility = (index: number) => {
+    setFormData({
+      ...formData,
+      keyResponsibilities: formData.keyResponsibilities.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateResponsibility = (index: number, value: string) => {
+    const updated = [...formData.keyResponsibilities];
+    updated[index] = value;
+    setFormData({
+      ...formData,
+      keyResponsibilities: updated,
+    });
+  };
+
+  const addRequirement = () => {
+    setFormData({
+      ...formData,
+      requirements: [...formData.requirements, ""],
+    });
+  };
+
+  const removeRequirement = (index: number) => {
+    setFormData({
+      ...formData,
+      requirements: formData.requirements.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateRequirement = (index: number, value: string) => {
+    const updated = [...formData.requirements];
+    updated[index] = value;
+    setFormData({
+      ...formData,
+      requirements: updated,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Requisition</DialogTitle>
+          <DialogTitle>{requisition ? "Edit Requisition" : "Create New Requisition"}</DialogTitle>
           <DialogDescription>
-            Fill in the details to create a new job requisition.
+            {requisition ? "Update the requisition details." : "Fill in the details to create a new job requisition."}
           </DialogDescription>
         </DialogHeader>
 
@@ -182,7 +279,7 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="estimatedSalaryBandMin">Min Salary *</Label>
+                <Label htmlFor="estimatedSalaryBandMin">Min Salary (LKR) *</Label>
                 <Input
                   id="estimatedSalaryBandMin"
                   type="number"
@@ -194,7 +291,7 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="estimatedSalaryBandMax">Max Salary *</Label>
+                <Label htmlFor="estimatedSalaryBandMax">Max Salary (LKR) *</Label>
                 <Input
                   id="estimatedSalaryBandMax"
                   type="number"
@@ -205,6 +302,81 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
                   placeholder="0"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="aboutTheRole">About the Role</Label>
+              <Textarea
+                id="aboutTheRole"
+                value={formData.aboutTheRole}
+                onChange={(e) => setFormData({ ...formData, aboutTheRole: e.target.value })}
+                placeholder="Describe the role and what makes it exciting..."
+                rows={4}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Key Responsibilities</Label>
+              {formData.keyResponsibilities.map((resp, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={resp}
+                    onChange={(e) => updateResponsibility(index, e.target.value)}
+                    placeholder={`Responsibility ${index + 1}`}
+                  />
+                  {formData.keyResponsibilities.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeResponsibility(index)}
+                      title="Remove"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addResponsibility}
+              >
+                + Add Responsibility
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Requirements</Label>
+              {formData.requirements.map((req, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={req}
+                    onChange={(e) => updateRequirement(index, e.target.value)}
+                    placeholder={`Requirement ${index + 1}`}
+                  />
+                  {formData.requirements.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeRequirement(index)}
+                      title="Remove"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addRequirement}
+              >
+                + Add Requirement
+              </Button>
             </div>
           </div>
 
@@ -218,7 +390,7 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess }: Creat
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Requisition"}
+              {loading ? (requisition ? "Updating..." : "Creating...") : (requisition ? "Update Requisition" : "Create Requisition")}
             </Button>
           </div>
         </form>

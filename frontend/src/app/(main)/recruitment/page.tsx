@@ -17,7 +17,7 @@ import { useRequisitions, useDepartments } from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { CreateRequisitionDialog } from "../../components/CreateRequisitionDialog";
 import { ViewRequisitionDialog } from "../../components/ViewRequisitionDialog";
-import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter, Eye } from "lucide-react";
+import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter, Eye, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
@@ -32,6 +32,7 @@ export default function Recruitment() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
   const [createRequisitionOpen, setCreateRequisitionOpen] = useState(false);
+  const [editRequisition, setEditRequisition] = useState<any>(null);
   const [viewRequisitionOpen, setViewRequisitionOpen] = useState(false);
   const [viewRequisitionId, setViewRequisitionId] = useState<string | null>(null);
 
@@ -62,6 +63,11 @@ export default function Recruitment() {
   const handleViewRequisition = (reqId: string) => {
     setViewRequisitionId(reqId);
     setViewRequisitionOpen(true);
+  };
+
+  const handleEditRequisition = (req: any) => {
+    setEditRequisition(req);
+    setCreateRequisitionOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -211,6 +217,16 @@ export default function Recruitment() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
+                              {(req.status === 'DRAFT' || req.status === 'MANAGER_APPROVED') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditRequisition(req)}
+                                  title="Edit Requisition"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -360,8 +376,17 @@ export default function Recruitment() {
 
       <CreateRequisitionDialog
         open={createRequisitionOpen}
-        onOpenChange={setCreateRequisitionOpen}
-        onSuccess={() => refetch()}
+        onOpenChange={(open) => {
+          setCreateRequisitionOpen(open);
+          if (!open) {
+            setEditRequisition(null);
+          }
+        }}
+        requisition={editRequisition}
+        onSuccess={() => {
+          refetch();
+          setEditRequisition(null);
+        }}
       />
 
       <ViewRequisitionDialog

@@ -175,6 +175,54 @@ export const createRequisition = async (
   }
 };
 
+export const updateRequisition = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const requisition = await Requisition.findById(id);
+    if (!requisition) {
+      throw new AppError(404, 'Requisition not found');
+    }
+
+    // Only allow editing if status is DRAFT or MANAGER_APPROVED
+    if (requisition.status !== 'DRAFT' && requisition.status !== 'MANAGER_APPROVED') {
+      throw new AppError(400, 'Cannot edit requisition in current status. Only DRAFT and MANAGER_APPROVED requisitions can be edited.');
+    }
+
+    // Update fields
+    Object.keys(updateData).forEach((key) => {
+      if (key !== 'status' && key !== 'createdBy' && key !== '_id') {
+        (requisition as any)[key] = updateData[key];
+      }
+    });
+
+    await requisition.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'UPDATE',
+      module: 'Recruitment',
+      resourceType: 'requisition',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    res.json({
+      success: true,
+      data: requisition,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateRequisitionStatus = async (
   req: Request,
   res: Response,
@@ -199,8 +247,8 @@ export const updateRequisitionStatus = async (
 
     await createAuditLog({
       actorId: req.user!.id,
-      actorName: req.user!.name,
-      actorRoles: req.user!.roles,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
       action: 'UPDATE',
       module: 'Recruitment',
       resourceType: 'requisition',

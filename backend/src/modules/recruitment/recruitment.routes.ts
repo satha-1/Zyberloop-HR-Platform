@@ -4,6 +4,7 @@ import {
   getRequisitions,
   getRequisitionById,
   createRequisition,
+  updateRequisition,
   updateRequisitionStatus,
   getCandidates,
   getCandidateById,
@@ -23,6 +24,7 @@ recruitmentRouter.use(authenticate);
 recruitmentRouter.get('/requisitions', getRequisitions);
 recruitmentRouter.get('/requisitions/:id', getRequisitionById);
 recruitmentRouter.post('/requisitions', createRequisition);
+recruitmentRouter.patch('/requisitions/:id', updateRequisition);
 recruitmentRouter.patch('/requisitions/:id/status', updateRequisitionStatus);
 recruitmentRouter.get('/candidates', getCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);

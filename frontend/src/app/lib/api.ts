@@ -395,6 +395,13 @@ class ApiClient {
     });
   }
 
+  async updateRequisition(id: string, data: any) {
+    return this.request(`/recruitment/requisitions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getCandidates(params?: { requisitionId?: string }) {
     const query = new URLSearchParams(params as any).toString();
     return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);

@@ -129,7 +129,7 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
             <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
-                {requisition.department}
+                {requisition.departmentId?.name || requisition.department || "N/A"}
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
@@ -137,37 +137,46 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                {requisition.type.replace("_", " ")}
+                {requisition.type?.replace("_", " ") || requisition.type}
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">About the Role</h3>
-              <p className="text-gray-600">
-                We are looking for a talented professional to join our {requisition.department}{" "}
-                team. This is an exciting opportunity to work on cutting-edge projects and
-                contribute to our company's growth.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Key Responsibilities</h3>
-              <ul className="list-disc list-inside text-gray-600 space-y-1">
-                <li>Lead and deliver high-impact projects</li>
-                <li>Collaborate with cross-functional teams</li>
-                <li>Drive innovation and continuous improvement</li>
-                <li>Mentor junior team members</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">Requirements</h3>
-              <ul className="list-disc list-inside text-gray-600 space-y-1">
-                <li>5+ years of relevant experience</li>
-                <li>Strong technical and problem-solving skills</li>
-                <li>Excellent communication abilities</li>
-                <li>Bachelor's degree in related field</li>
-              </ul>
-            </div>
+            {requisition.aboutTheRole && (
+              <div>
+                <h3 className="font-semibold mb-2">About the Role</h3>
+                <p className="text-gray-600 whitespace-pre-wrap">
+                  {requisition.aboutTheRole}
+                </p>
+              </div>
+            )}
+            {requisition.keyResponsibilities && requisition.keyResponsibilities.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Key Responsibilities</h3>
+                <ul className="list-disc list-inside text-gray-600 space-y-1">
+                  {requisition.keyResponsibilities.map((resp: string, index: number) => (
+                    <li key={index}>{resp}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {requisition.requirements && requisition.requirements.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Requirements</h3>
+                <ul className="list-disc list-inside text-gray-600 space-y-1">
+                  {requisition.requirements.map((req: string, index: number) => (
+                    <li key={index}>{req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!requisition.aboutTheRole && 
+             (!requisition.keyResponsibilities || requisition.keyResponsibilities.length === 0) &&
+             (!requisition.requirements || requisition.requirements.length === 0) && (
+              <div className="text-gray-500 text-sm italic">
+                Job description details are being prepared. Please check back soon.
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -13,6 +13,9 @@ export interface IRequisition extends Document {
   };
   status: 'DRAFT' | 'MANAGER_APPROVED' | 'FINANCE_APPROVED' | 'HR_APPROVED' | 'PUBLISHED' | 'CLOSED' | 'REJECTED';
   budgetHoldFlag: boolean;
+  aboutTheRole?: string;
+  keyResponsibilities?: string[];
+  requirements?: string[];
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -59,6 +62,15 @@ const requisitionSchema = new Schema<IRequisition>(
       type: Boolean,
       default: false,
     },
+    aboutTheRole: {
+      type: String,
+    },
+    keyResponsibilities: [{
+      type: String,
+    }],
+    requirements: [{
+      type: String,
+    }],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
