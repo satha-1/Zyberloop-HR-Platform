@@ -16,7 +16,8 @@ import {
 import { useRequisitions, useDepartments } from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { CreateRequisitionDialog } from "../../components/CreateRequisitionDialog";
-import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter } from "lucide-react";
+import { ViewRequisitionDialog } from "../../components/ViewRequisitionDialog";
+import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
@@ -31,6 +32,8 @@ export default function Recruitment() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
   const [createRequisitionOpen, setCreateRequisitionOpen] = useState(false);
+  const [viewRequisitionOpen, setViewRequisitionOpen] = useState(false);
+  const [viewRequisitionId, setViewRequisitionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (requisitions.length > 0 && !selectedReq) {
@@ -54,6 +57,11 @@ export default function Recruitment() {
     const link = `${window.location.origin}/portal/jobs/${reqId}`;
     navigator.clipboard.writeText(link);
     toast.success("Public job link copied to clipboard!");
+  };
+
+  const handleViewRequisition = (reqId: string) => {
+    setViewRequisitionId(reqId);
+    setViewRequisitionOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -198,7 +206,16 @@ export default function Recruitment() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleViewRequisition(req._id || req.id)}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleCopyPortalLink(req._id || req.id)}
+                                title="Copy Portal Link"
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>
@@ -345,6 +362,12 @@ export default function Recruitment() {
         open={createRequisitionOpen}
         onOpenChange={setCreateRequisitionOpen}
         onSuccess={() => refetch()}
+      />
+
+      <ViewRequisitionDialog
+        open={viewRequisitionOpen}
+        onOpenChange={setViewRequisitionOpen}
+        requisitionId={viewRequisitionId}
       />
     </div>
   );

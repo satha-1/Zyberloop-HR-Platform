@@ -4,14 +4,13 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Textarea } from "../../../components/ui/textarea";
-"use client";
 import { api } from "../../../lib/api";
 import { Briefcase, MapPin, Clock, Upload } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { toast } from "sonner";
 
-export default function CandidatePortal({ params }: { params: { requisitionId: string } }) {
-  const { requisitionId } = params;
+export default function CandidatePortal({ params }: { params: Promise<{ requisitionId: string }> }) {
+  const { requisitionId } = use(params);
   const [requisition, setRequisition] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

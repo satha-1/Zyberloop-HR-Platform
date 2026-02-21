@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Requisition } from './requisition.model';
 import { Candidate } from './candidate.model';
 import { CandidateApplication } from './candidateApplication.model';
@@ -14,27 +15,56 @@ export const getRequisitions = async (
     const { status, department } = req.query;
     const query: any = {};
 
-    if (status && status !== 'all') {
-      query.status = status;
+    // Map frontend status values to backend enum values
+    // For "open", show all non-closed/non-rejected requisitions
+    if (status && status !== 'all' && status !== 'undefined') {
+      if (status === 'open') {
+        // Show all active requisitions (not closed or rejected)
+        query.status = { $nin: ['CLOSED', 'REJECTED'] };
+      } else if (status === 'closed') {
+        query.status = 'CLOSED';
+      } else if (status === 'draft') {
+        query.status = 'DRAFT';
+      } else {
+        // Use the status as-is if it matches backend enum values
+        query.status = status;
+      }
     }
 
-    if (department) {
-      query.departmentId = department;
+    console.log('Requisitions query:', { status, department, query });
+
+    if (department && department !== 'all' && department !== 'undefined') {
+      // Validate ObjectId format
+      if (mongoose.Types.ObjectId.isValid(department as string)) {
+        query.departmentId = new mongoose.Types.ObjectId(department as string);
+      }
     }
 
     const requisitions = await Requisition.find(query)
-      .populate('departmentId', 'name code')
-      .populate('createdBy', 'name email')
-      .sort({ createdAt: -1 });
+      .populate({
+        path: 'departmentId',
+        select: 'name code',
+        strictPopulate: false, // Don't throw error if department doesn't exist
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email',
+        strictPopulate: false, // Don't throw error if user doesn't exist
+      })
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() for better performance
+
+    console.log(`Found ${requisitions.length} requisitions`);
 
     // Get candidate counts
     const requisitionsWithCounts = await Promise.all(
-      requisitions.map(async (req) => {
+      requisitions.map(async (reqItem: any) => {
         const candidateCount = await CandidateApplication.countDocuments({
-          requisitionId: req._id,
+          requisitionId: reqItem._id,
         });
         return {
-          ...req.toObject(),
+          ...reqItem,
+          id: reqItem._id.toString(),
           candidates: candidateCount,
         };
       })
@@ -45,6 +75,7 @@ export const getRequisitions = async (
       data: requisitionsWithCounts,
     });
   } catch (error) {
+    console.error('Error fetching requisitions:', error);
     next(error);
   }
 };
