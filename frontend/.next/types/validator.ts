@@ -162,6 +162,33 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   type __Unused = __Check
 }
 
+// Validate ../../src/app/(main)/payroll/runs/[id]/edit/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/runs/[id]/edit">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/runs/[id]/edit/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/runs/[id]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/runs/[id]">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/runs/[id]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(main)/payroll/runs/new/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/payroll/runs/new">> = Specific
+  const handler = {} as typeof import("../../src/app/(main)/payroll/runs/new/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/(main)/payroll/runs/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/payroll/runs">> = Specific

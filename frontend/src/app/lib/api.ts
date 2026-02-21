@@ -734,6 +734,21 @@ class ApiClient {
   async getPayrollStats() {
     return this.request('/payroll/stats');
   }
+
+  // Payslip Calculator
+  async calculatePayslip(data: any) {
+    return this.request('/payroll/calculate-payslip', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async calculatePayslipFromJSON(jsonInput: string) {
+    return this.request('/payroll/calculate-payslip-from-json', {
+      method: 'POST',
+      body: JSON.stringify({ json_input: jsonInput }),
+    });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

@@ -280,13 +280,13 @@ export default function PayrollRunsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Link href={`/payroll/runs/${run.id}`}>
+                          <Link href={`/payroll/runs/${run.id || run._id}`}>
                             <Button variant="ghost" size="sm" title="View">
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
                           {canEdit(run.status) && (
-                            <Link href={`/payroll/runs/${run.id}/edit`}>
+                            <Link href={`/payroll/runs/${run.id || run._id}/edit`}>
                               <Button variant="ghost" size="sm" title="Edit">
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -297,7 +297,7 @@ export default function PayrollRunsPage() {
                               variant="ghost"
                               size="sm"
                               title="Lock"
-                              onClick={() => handleLock(run.id)}
+                              onClick={() => handleLock(run.id || run._id)}
                             >
                               <Lock className="h-4 w-4" />
                             </Button>
@@ -308,7 +308,7 @@ export default function PayrollRunsPage() {
                               size="sm"
                               title="Delete"
                               onClick={() => {
-                                setRunToDelete(run.id);
+                                setRunToDelete(run.id || run._id);
                                 setDeleteDialogOpen(true);
                               }}
                             >

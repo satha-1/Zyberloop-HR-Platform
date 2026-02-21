@@ -24,6 +24,10 @@ import {
   deletePayrollTemplate,
   duplicatePayrollTemplate,
 } from './payrollTemplate.controller';
+import {
+  calculatePayslipEndpoint,
+  calculatePayslipFromJSONEndpoint,
+} from './payslipCalculator.controller';
 
 export const payrollRouter = Router();
 
@@ -55,3 +59,7 @@ payrollRouter.get('/runs/:id/entries', getPayrollEntries);
 
 // Dashboard Stats
 payrollRouter.get('/stats', getPayrollStats);
+
+// Payslip Calculator
+payrollRouter.post('/calculate-payslip', calculatePayslipEndpoint);
+payrollRouter.post('/calculate-payslip-from-json', calculatePayslipFromJSONEndpoint);
