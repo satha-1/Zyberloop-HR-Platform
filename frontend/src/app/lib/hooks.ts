@@ -1,0 +1,192 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { api } from './api';
+
+export function useEmployees(params?: { search?: string; department?: string; status?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getEmployees(params);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.search, params?.department, params?.status]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getEmployees(params).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function usePayrollRuns() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getPayrollRuns();
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getPayrollRuns().then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function useLeaveRequests(params?: { status?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getLeaveRequests(params);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.status]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getLeaveRequests(params).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function useRequisitions(params?: { status?: string; department?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getRequisitions(params);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.status, params?.department]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getRequisitions(params).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function useLogs(params?: { search?: string; module?: string; action?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getLogs(params);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.search, params?.module, params?.action]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getLogs(params).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function useEmployee(id: string) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getEmployeeById(id);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getEmployeeById(id).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function usePayrollRun(id: string) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getPayrollRunById(id);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [id]);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getPayrollRunById(id).then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}
+
+export function useAuditLogs() {
+  return useLogs();
+}
