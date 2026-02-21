@@ -7,8 +7,11 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { api } from "../lib/api";
 import { toast } from "sonner";
+import { TemplateEditor } from "./TemplateEditor/TemplateEditor";
+import { parseHandlebarsToVisual } from "./TemplateEditor/utils/parser";
 
 interface TemplateDialogProps {
   open: boolean;
@@ -19,6 +22,7 @@ interface TemplateDialogProps {
 
 export function TemplateDialog({ open, onOpenChange, template, onSuccess }: TemplateDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [useVisualEditor, setUseVisualEditor] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     docType: "",
@@ -40,6 +44,7 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
         content: template.content || "",
         tags: (template.tags || []).join(", "),
       });
+      setUseVisualEditor(false); // Reset to code view when editing existing template
     } else if (open && !template) {
       setFormData({
         name: "",
@@ -50,6 +55,7 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
         content: "",
         tags: "",
       });
+      setUseVisualEditor(false); // Reset to code view for new template
     }
   }, [open, template]);
 
@@ -79,6 +85,47 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
       setLoading(false);
     }
   };
+
+  // If using visual editor and docType is set, show full-page editor
+  if (useVisualEditor && formData.docType && open) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+        <DialogContent className="max-w-full w-full h-full max-h-[100vh] p-0 m-0">
+          <TemplateEditor
+            template={template ? parseHandlebarsToVisual(template.content, formData.docType) : undefined}
+            docType={formData.docType}
+            locale={formData.locale}
+            onSave={async (serialized) => {
+              try {
+                setLoading(true);
+                const dataToSubmit = {
+                  ...formData,
+                  content: serialized.handlebars,
+                  tags: formData.tags.split(",").map((t) => t.trim()).filter(Boolean),
+                };
+
+                if (template) {
+                  await api.updateTemplate(template._id || template.id, dataToSubmit);
+                  toast.success("Template updated successfully!");
+                } else {
+                  await api.createTemplate(dataToSubmit);
+                  toast.success("Template created successfully!");
+                }
+
+                onOpenChange(false);
+                onSuccess?.();
+              } catch (error: any) {
+                toast.error(error.message || "Failed to save template");
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,19 +192,58 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
             <Input id="tags" value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g., standard, offer, letter" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="content">Template Content (Handlebars) *</Label>
-            <Textarea
-              id="content"
-              required
-              rows={15}
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Use {{variable}} syntax for placeholders. Example: {{employee.fullName}}, {{employee.salary}}"
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-gray-500">
-              Available variables: employee.*, company.*, payroll.* (for payslips)
-            </p>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="content">Template Content *</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant={useVisualEditor ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (!formData.docType) {
+                      toast.error("Please select document type first");
+                      return;
+                    }
+                    setUseVisualEditor(true);
+                  }}
+                >
+                  Visual Editor
+                </Button>
+                <Button
+                  type="button"
+                  variant={!useVisualEditor ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUseVisualEditor(false)}
+                >
+                  Handlebars Code
+                </Button>
+              </div>
+            </div>
+            {useVisualEditor ? (
+              <div className="border rounded-lg p-4 bg-gray-50 text-center">
+                <p className="text-sm text-gray-600 mb-2">
+                  Click "Visual Editor" button above to open the visual template editor
+                </p>
+                <p className="text-xs text-gray-500">
+                  The visual editor provides a DocHub-like experience for creating templates
+                </p>
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  id="content"
+                  required={!useVisualEditor}
+                  rows={15}
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  placeholder="Use {{variable}} syntax for placeholders. Example: {{employee.fullName}}, {{employee.salary}}"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500">
+                  Available variables: employee.*, company.*, payroll.* (for payslips)
+                </p>
+              </>
+            )}
           </div>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>

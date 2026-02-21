@@ -16,16 +16,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/layout.js"
     ],
-    "/(main)/employees/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(main)/employees/page.js"
-    ],
-    "/(main)/employees/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(main)/employees/[id]/page.js"
-    ],
     "/(main)/admin/templates/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",

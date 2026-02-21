@@ -1,5 +1,3 @@
 {
-  "/(main)/employees/page": "app/(main)/employees/page.js",
-  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js",
   "/(main)/admin/templates/page": "app/(main)/admin/templates/page.js"
 }
