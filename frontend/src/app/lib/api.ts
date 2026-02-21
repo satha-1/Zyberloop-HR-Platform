@@ -370,7 +370,22 @@ class ApiClient {
   }
 
   async getPublicRequisition(id: string) {
-    return this.request(`/recruitment/public/requisitions/${id}`);
+    // Public endpoint - don't send auth token
+    const url = `${this.baseUrl}/recruitment/public/requisitions/${id}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const data = await response.json();
+    return data.data || data;
   }
 
   async createRequisition(data: any) {

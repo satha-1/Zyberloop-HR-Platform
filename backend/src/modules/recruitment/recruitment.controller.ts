@@ -119,10 +119,18 @@ export const getPublicRequisition = async (
   try {
     const { id } = req.params;
     const requisition = await Requisition.findById(id)
-      .populate('departmentId', 'name code');
+      .populate('departmentId', 'name code')
+      .lean();
 
-    if (!requisition || requisition.status !== 'PUBLISHED') {
+    if (!requisition) {
       throw new AppError(404, 'Job posting not found');
+    }
+
+    // Allow viewing requisitions that are not CLOSED or REJECTED
+    // This allows admins to preview DRAFT and approval-stage requisitions
+    // Only block CLOSED and REJECTED from public view
+    if (requisition.status === 'CLOSED' || requisition.status === 'REJECTED') {
+      throw new AppError(404, 'Job posting is no longer available');
     }
 
     res.json({
@@ -130,6 +138,7 @@ export const getPublicRequisition = async (
       data: requisition,
     });
   } catch (error) {
+    console.error('Error fetching public requisition:', error);
     next(error);
   }
 };
