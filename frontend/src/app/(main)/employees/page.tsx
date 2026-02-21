@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { useEmployees } from "../../lib/hooks";
+import { useEmployees, useDepartments } from "../../lib/hooks";
+import { AddEmployeeDialog } from "../../components/AddEmployeeDialog";
 import { Search, Plus, Download, Filter } from "lucide-react";
 import Link from "next/link";
 import {
@@ -26,7 +27,9 @@ import {
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const { data: employees = [], loading } = useEmployees({
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const { data: departments = [] } = useDepartments();
+  const { data: employees = [], loading, refetch } = useEmployees({
     search: searchTerm || undefined,
     department: departmentFilter !== "all" ? departmentFilter : undefined,
   });
@@ -41,8 +44,6 @@ export default function Employees() {
       emp.email?.toLowerCase().includes(searchLower)
     );
   });
-
-  const departments = Array.from(new Set(employees.map((e: any) => e.departmentId?.name || e.department).filter(Boolean)));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -69,7 +70,7 @@ export default function Employees() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button>
+          <Button onClick={() => setAddEmployeeOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
@@ -95,11 +96,15 @@ export default function Employees() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>
-                    {dept}
-                  </SelectItem>
-                ))}
+                {departments.map((dept: any) => {
+                  const deptId = dept._id || dept.id;
+                  if (!deptId) return null;
+                  return (
+                    <SelectItem key={String(deptId)} value={String(deptId)}>
+                      {dept.name}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -168,6 +173,12 @@ export default function Employees() {
                   </div>
         </CardContent>
       </Card>
+
+      <AddEmployeeDialog
+        open={addEmployeeOpen}
+        onOpenChange={setAddEmployeeOpen}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

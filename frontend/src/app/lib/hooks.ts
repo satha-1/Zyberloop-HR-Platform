@@ -190,3 +190,29 @@ export function usePayrollRun(id: string) {
 export function useAuditLogs() {
   return useLogs();
 }
+
+export function useDepartments() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getDepartments();
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  return { data, loading, error, refetch: () => {
+    setLoading(true);
+    api.getDepartments().then(setData).catch(setError).finally(() => setLoading(false));
+  }};
+}

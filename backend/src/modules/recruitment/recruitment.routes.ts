@@ -8,6 +8,7 @@ import {
   getCandidates,
   getCandidateById,
   createCandidateApplication,
+  updateCandidateApplicationStatus,
   getPublicRequisition,
 } from './recruitment.controller';
 
@@ -25,3 +26,4 @@ recruitmentRouter.post('/requisitions', createRequisition);
 recruitmentRouter.patch('/requisitions/:id/status', updateRequisitionStatus);
 recruitmentRouter.get('/candidates', getCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);
+recruitmentRouter.patch('/applications/:id/status', updateCandidateApplicationStatus);

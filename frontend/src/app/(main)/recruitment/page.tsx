@@ -13,15 +13,24 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { useRequisitions } from "../../lib/hooks";
+import { useRequisitions, useDepartments } from "../../lib/hooks";
 import { api } from "../../lib/api";
-import { Plus, ExternalLink, Users, Briefcase } from "lucide-react";
+import { CreateRequisitionDialog } from "../../components/CreateRequisitionDialog";
+import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Input } from "../../components/ui/input";
 
 export default function Recruitment() {
-  const { data: requisitions = [], loading: requisitionsLoading } = useRequisitions({ status: "open" });
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const { data: departments = [] } = useDepartments();
+  const { data: requisitions = [], loading: requisitionsLoading, refetch } = useRequisitions({ 
+    status: "open",
+    department: departmentFilter !== "all" ? departmentFilter : undefined,
+  });
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
+  const [createRequisitionOpen, setCreateRequisitionOpen] = useState(false);
 
   useEffect(() => {
     if (requisitions.length > 0 && !selectedReq) {
@@ -32,6 +41,9 @@ export default function Recruitment() {
   useEffect(() => {
     if (selectedReq) {
       api.getCandidates({ requisitionId: selectedReq }).then(setCandidates).catch(() => setCandidates([]));
+    } else {
+      // Load all candidates if no requisition selected
+      api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
     }
   }, [selectedReq]);
 
@@ -51,6 +63,42 @@ export default function Recruitment() {
     return "bg-orange-100 text-orange-800";
   };
 
+  const getCandidateStatusColor = (status: string) => {
+    const statusMap: Record<string, string> = {
+      APPLIED: "bg-blue-100 text-blue-800",
+      SCREENING: "bg-yellow-100 text-yellow-800",
+      INTERVIEW: "bg-purple-100 text-purple-800",
+      OFFERED: "bg-green-100 text-green-800",
+      HIRED: "bg-emerald-100 text-emerald-800",
+      REJECTED: "bg-red-100 text-red-800",
+    };
+    return statusMap[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
+    try {
+      await api.updateCandidateApplicationStatus(applicationId, newStatus);
+      toast.success("Candidate status updated successfully!");
+      // Refresh candidates
+      if (selectedReq) {
+        api.getCandidates({ requisitionId: selectedReq }).then(setCandidates).catch(() => setCandidates([]));
+      } else {
+        api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update status");
+    }
+  };
+
+  // Calculate pipeline counts from real data
+  const pipelineCounts = {
+    APPLIED: candidates.filter((c: any) => c.status === "APPLIED").length,
+    SCREENING: candidates.filter((c: any) => c.status === "SCREENING").length,
+    INTERVIEW: candidates.filter((c: any) => c.status === "INTERVIEW").length,
+    OFFERED: candidates.filter((c: any) => c.status === "OFFERED").length,
+    HIRED: candidates.filter((c: any) => c.status === "HIRED").length,
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -58,7 +106,7 @@ export default function Recruitment() {
           <h2 className="text-2xl font-bold text-gray-900">Recruitment</h2>
           <p className="text-gray-600 mt-1">Manage requisitions and candidates</p>
         </div>
-        <Button>
+        <Button onClick={() => setCreateRequisitionOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Requisition
         </Button>
@@ -74,7 +122,27 @@ export default function Recruitment() {
         <TabsContent value="requisitions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Open Requisitions</CardTitle>
+              <div className="flex flex-col md:flex-row gap-4">
+                <CardTitle className="flex-1">Open Requisitions</CardTitle>
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map((dept: any) => {
+                      const deptId = dept._id || dept.id;
+                      if (!deptId) return null;
+                      return (
+                        <SelectItem key={String(deptId)} value={String(deptId)}>
+                          {dept.name}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border">
@@ -114,12 +182,12 @@ export default function Recruitment() {
                               {req.type?.replace("_", " ") || req.type}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-gray-400" />
-                              {req.candidates || 0}
-                            </div>
-                          </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-gray-400" />
+                            {getCandidatesForReq(req._id || req.id).length}
+                          </div>
+                        </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(req.status)}>
                               {req.status}
@@ -163,12 +231,13 @@ export default function Recruitment() {
                       <TableHead>Experience Match</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Applied</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {candidates.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                           No candidates found
                         </TableCell>
                       </TableRow>
@@ -177,6 +246,7 @@ export default function Recruitment() {
                         const req = requisitions.find(
                           (r: any) => (r._id || r.id) === (candidate.requisition_id || candidate.requisitionId)
                         );
+                        const applicationId = candidate.id || candidate._id;
                         return (
                           <TableRow key={candidate._id || candidate.id}>
                             <TableCell className="font-medium">{candidate.name}</TableCell>
@@ -205,10 +275,30 @@ export default function Recruitment() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary">{candidate.status}</Badge>
+                              <Badge className={getCandidateStatusColor(candidate.status)}>
+                                {candidate.status}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               {new Date(candidate.applied_date || candidate.appliedDate || candidate.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={candidate.status}
+                                onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}
+                              >
+                                <SelectTrigger className="w-32 h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="APPLIED">Applied</SelectItem>
+                                  <SelectItem value="SCREENING">Screening</SelectItem>
+                                  <SelectItem value="INTERVIEW">Interview</SelectItem>
+                                  <SelectItem value="OFFERED">Offered</SelectItem>
+                                  <SelectItem value="HIRED">Hired</SelectItem>
+                                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                           </TableRow>
                         );
@@ -222,24 +312,40 @@ export default function Recruitment() {
         </TabsContent>
 
         <TabsContent value="pipeline" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {["Applied", "Screening", "Interview", "Offer"].map((stage, idx) => {
-              const count = idx === 0 ? 45 : idx === 1 ? 23 : idx === 2 ? 8 : 3;
-              return (
-                <Card key={stage}>
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">{stage}</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">{count}</p>
-                      <p className="text-xs text-gray-500 mt-1">candidates</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recruitment Pipeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {[
+                  { label: "Applied", status: "APPLIED", count: pipelineCounts.APPLIED },
+                  { label: "Screening", status: "SCREENING", count: pipelineCounts.SCREENING },
+                  { label: "Interview", status: "INTERVIEW", count: pipelineCounts.INTERVIEW },
+                  { label: "Offered", status: "OFFERED", count: pipelineCounts.OFFERED },
+                  { label: "Hired", status: "HIRED", count: pipelineCounts.HIRED },
+                ].map((stage) => (
+                  <Card key={stage.status} className="border-2">
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">{stage.label}</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{stage.count}</p>
+                        <p className="text-xs text-gray-500 mt-1">candidates</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      <CreateRequisitionDialog
+        open={createRequisitionOpen}
+        onOpenChange={setCreateRequisitionOpen}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -7,12 +8,14 @@ import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { useEmployee } from "../../../lib/hooks";
+import { DocumentGenerator } from "../../../components/DocumentGenerator";
 import { ArrowLeft, Mail, Phone, Calendar, DollarSign, User, Briefcase } from "lucide-react";
 
 export default function EmployeeProfile() {
   const params = useParams();
   const id = params.id as string;
   const { data: employee, loading } = useEmployee(id);
+  const [documentGeneratorOpen, setDocumentGeneratorOpen] = useState(false);
 
   if (loading) {
     return (
@@ -75,7 +78,7 @@ export default function EmployeeProfile() {
           <h2 className="text-2xl font-bold text-gray-900">Employee Profile</h2>
         </div>
         <Button variant="outline">Edit</Button>
-        <Button>Generate Documents</Button>
+        <Button onClick={() => setDocumentGeneratorOpen(true)}>Generate Documents</Button>
       </div>
 
       {/* Employee Header */}
@@ -286,6 +289,15 @@ export default function EmployeeProfile() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {employee && (
+        <DocumentGenerator
+          employeeId={id}
+          employeeName={`${firstName} ${lastName}`}
+          open={documentGeneratorOpen}
+          onOpenChange={setDocumentGeneratorOpen}
+        />
+      )}
     </div>
   );
 }

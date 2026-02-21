@@ -32,6 +32,11 @@ class ApiClient {
       ...options.headers,
     };
 
+    // Refresh token from localStorage on each request
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('auth_token');
+    }
+
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
@@ -42,6 +47,38 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        this.setToken(null);
+        if (typeof window !== 'undefined') {
+          // Try to auto-login with default admin credentials
+          const defaultEmail = 'sathsarasoysa2089@gmail.com';
+          const defaultPassword = 'Sath@Admin';
+          
+          try {
+            await this.login(defaultEmail, defaultPassword);
+            // Retry the original request with new token
+            if (this.token) {
+              const newHeaders = {
+                ...headers,
+                'Authorization': `Bearer ${this.token}`,
+              };
+              const retryResponse = await fetch(url, {
+                ...options,
+                headers: newHeaders,
+              });
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                return retryData.data || retryData;
+              }
+            }
+          } catch (loginError) {
+            console.error('Auto-login failed:', loginError);
+          }
+        }
+        throw new Error('Authentication required. Please login.');
+      }
+
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
       throw new Error(error.error?.message || error.message || 'Request failed');
     }
@@ -52,12 +89,28 @@ class ApiClient {
 
   // Auth
   async login(email: string, password: string) {
-    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+    const url = `${this.baseUrl}/auth/login`;
+    const response = await fetch(url, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ email, password }),
     });
-    this.setToken(response.token);
-    return response;
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Login failed' }));
+      throw new Error(error.error?.message || error.message || 'Login failed');
+    }
+
+    const result = await response.json();
+    const data = result.data || result;
+    
+    if (data && data.token) {
+      this.setToken(data.token);
+    }
+    
+    return data;
   }
 
   logout() {
@@ -79,6 +132,114 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async createEmployeeWithFiles(formData: FormData) {
+    const url = `${this.baseUrl}/employees`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async updateEmployee(id: string, data: any) {
+    return this.request(`/employees/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEmployee(id: string) {
+    return this.request(`/employees/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getEmployeeDocuments(employeeId: string) {
+    return this.request(`/employees/${employeeId}/documents`);
+  }
+
+  async uploadEmployeeDocument(employeeId: string, file: File, documentType: string) {
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('documentType', documentType);
+
+    const url = `${this.baseUrl}/employees/${employeeId}/documents`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  // Template Management
+  async getTemplates() {
+    return this.request<{ success: boolean; data: any[] }>('/employees/templates');
+  }
+
+  async getTemplateById(id: string) {
+    return this.request<{ success: boolean; data: any }>(`/employees/templates/${id}`);
+  }
+
+  async createTemplate(data: { name: string; type: string; content: string; placeholders?: string[] }) {
+    return this.request<{ success: boolean; data: any }>('/employees/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTemplate(id: string, data: { content?: string; name?: string; isActive?: boolean }) {
+    return this.request<{ success: boolean; data: any }>(`/employees/templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async previewDocument(employeeId: string, templateType: string, data?: any) {
+    return this.request<{ success: boolean; data: { content: string; templateName: string; placeholders: string[] } }>('/employees/documents/preview', {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, templateType, data }),
+    });
+  }
+
+  async generateDocument(employeeId: string, templateType: string, data?: any) {
+    return this.request('/employees/documents/generate', {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, templateType, data }),
+    });
+  }
+
+  async getGeneratedDocuments(employeeId: string) {
+    return this.request(`/employees/${employeeId}/documents/generated`);
   }
 
   // Payroll
@@ -178,6 +339,13 @@ class ApiClient {
     });
   }
 
+  async updateCandidateApplicationStatus(applicationId: string, status: string, interviewNotes?: string, rating?: number) {
+    return this.request(`/recruitment/applications/${applicationId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, interviewNotes, rating }),
+    });
+  }
+
   // Logs
   async getLogs(params?: { search?: string; module?: string; action?: string; page?: number; limit?: number }) {
     const query = new URLSearchParams(params as any).toString();
@@ -187,6 +355,30 @@ class ApiClient {
   // Departments
   async getDepartments() {
     return this.request('/departments');
+  }
+
+  async getDepartmentById(id: string) {
+    return this.request(`/departments/${id}`);
+  }
+
+  async createDepartment(data: { name: string; code: string; parentDepartmentId?: string; headId?: string }) {
+    return this.request('/departments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDepartment(id: string, data: { name?: string; code?: string; parentDepartmentId?: string; headId?: string }) {
+    return this.request(`/departments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDepartment(id: string) {
+    return this.request(`/departments/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 

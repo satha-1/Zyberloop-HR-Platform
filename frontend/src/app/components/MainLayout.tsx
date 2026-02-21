@@ -16,14 +16,17 @@ import {
   Settings,
   Menu,
   X,
+  Building2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
+import { initializeAuth } from "../lib/auth";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Employees", href: "/employees", icon: Users },
+  { name: "Departments", href: "/departments", icon: Building2 },
   { name: "Recruitment", href: "/recruitment", icon: Briefcase },
   { name: "Payroll", href: "/payroll", icon: DollarSign },
   { name: "Leave & Attendance", href: "/leave", icon: Calendar },
@@ -38,6 +41,11 @@ const navigation = [
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Initialize authentication on mount
+  useEffect(() => {
+    initializeAuth().catch(console.error);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50">

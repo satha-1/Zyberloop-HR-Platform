@@ -274,3 +274,54 @@ export const createCandidateApplication = async (
     next(error);
   }
 };
+
+export const updateCandidateApplicationStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { status, interviewNotes, rating } = req.body;
+
+    const application = await CandidateApplication.findById(id)
+      .populate('candidateId')
+      .populate('requisitionId');
+
+    if (!application) {
+      throw new AppError(404, 'Application not found');
+    }
+
+    application.status = status;
+
+    // Add interview history if provided
+    if (interviewNotes || rating) {
+      application.interviewHistory.push({
+        date: new Date(),
+        interviewer: req.user!.name,
+        notes: interviewNotes || '',
+        rating: rating || 0,
+      });
+    }
+
+    await application.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name,
+      actorRoles: req.user!.roles,
+      action: 'UPDATE',
+      module: 'Recruitment',
+      resourceType: 'candidate_application',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    res.json({
+      success: true,
+      data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
