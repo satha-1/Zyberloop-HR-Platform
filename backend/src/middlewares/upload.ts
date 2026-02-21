@@ -24,6 +24,11 @@ if (!fs.existsSync(generatedDocsDir)) {
   fs.mkdirSync(generatedDocsDir, { recursive: true });
 }
 
+const candidateResumesDir = path.join(uploadsDir, 'candidate-resumes');
+if (!fs.existsSync(candidateResumesDir)) {
+  fs.mkdirSync(candidateResumesDir, { recursive: true });
+}
+
 // Configure storage for employee documents
 const employeeDocStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -56,6 +61,18 @@ const generatedDocStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `gen-doc-${uniqueSuffix}.pdf`);
+  },
+});
+
+// Configure storage for candidate resumes
+const candidateResumeStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, candidateResumesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `resume-${uniqueSuffix}${ext}`);
   },
 });
 
@@ -110,6 +127,26 @@ export const uploadGeneratedDocument = multer({
       cb(null, true);
     } else {
       cb(new AppError(400, 'Only PDF files are allowed for generated documents'));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
+
+// Upload middleware for candidate resumes
+export const uploadCandidateResume = multer({
+  storage: candidateResumeStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, 'Only PDF, DOC, and DOCX files are allowed for resumes'));
     }
   },
   limits: {

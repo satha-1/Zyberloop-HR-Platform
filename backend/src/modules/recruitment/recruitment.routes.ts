@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middlewares/auth';
+import { uploadCandidateResume } from '../../middlewares/upload';
 import {
   getRequisitions,
   getRequisitionById,
@@ -17,7 +18,7 @@ export const recruitmentRouter = Router();
 
 // Public route for candidate portal
 recruitmentRouter.get('/public/requisitions/:id', getPublicRequisition);
-recruitmentRouter.post('/public/applications', createCandidateApplication);
+recruitmentRouter.post('/public/applications', uploadCandidateResume.single('resume'), createCandidateApplication);
 
 // Protected routes
 recruitmentRouter.use(authenticate);

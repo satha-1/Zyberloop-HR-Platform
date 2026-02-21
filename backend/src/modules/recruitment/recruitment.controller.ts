@@ -332,13 +332,56 @@ export const createCandidateApplication = async (
   next: NextFunction
 ) => {
   try {
-    const { requisitionId, ...candidateData } = req.body;
+    const { requisitionId, fullName, email, phone, experienceYears, currentCompany, coverLetter } = req.body;
+
+    // Handle resume file upload if present
+    let resumeUrl: string | undefined;
+    if (req.file) {
+      resumeUrl = `/uploads/candidate-resumes/${req.file.filename}`;
+    } else if (req.body.resumeUrl) {
+      resumeUrl = req.body.resumeUrl;
+    }
 
     // Create or find candidate
-    let candidate = await Candidate.findOne({ email: candidateData.email });
+    let candidate = await Candidate.findOne({ email: email.toLowerCase() });
     if (!candidate) {
-      candidate = new Candidate(candidateData);
+      candidate = new Candidate({
+        fullName,
+        email: email.toLowerCase(),
+        phone,
+        resumeUrl,
+        experienceYears: experienceYears ? parseInt(experienceYears) : 0,
+        currentCompany: currentCompany || undefined,
+        notes: coverLetter || undefined,
+        skills: [], // Can be extracted from resume later
+      });
       await candidate.save();
+    } else {
+      // Update existing candidate with new resume if provided
+      if (resumeUrl) {
+        candidate.resumeUrl = resumeUrl;
+      }
+      if (fullName) candidate.fullName = fullName;
+      if (phone) candidate.phone = phone;
+      if (experienceYears) candidate.experienceYears = parseInt(experienceYears);
+      if (currentCompany) candidate.currentCompany = currentCompany;
+      if (coverLetter) candidate.notes = coverLetter;
+      await candidate.save();
+    }
+
+    // Check if application already exists for this requisition
+    const existingApplication = await CandidateApplication.findOne({
+      candidateId: candidate._id,
+      requisitionId,
+    });
+
+    if (existingApplication) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'You have already applied for this position',
+        },
+      });
     }
 
     // Create application
@@ -359,6 +402,7 @@ export const createCandidateApplication = async (
       data: application,
     });
   } catch (error) {
+    console.error('Error creating candidate application:', error);
     next(error);
   }
 };

@@ -407,11 +407,21 @@ class ApiClient {
     return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);
   }
 
-  async createCandidateApplication(data: any) {
-    return this.request('/recruitment/public/applications', {
+  async createCandidateApplication(data: FormData) {
+    // Public endpoint - don't send auth token
+    const url = `${this.baseUrl}/recruitment/public/applications`;
+    const response = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data, // FormData includes file
     });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    const result = await response.json();
+    return result.data || result;
   }
 
   async updateCandidateApplicationStatus(applicationId: string, status: string, interviewNotes?: string, rating?: number) {
