@@ -89,18 +89,18 @@ export default function PayrollRun() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         <Link href="/payroll">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
         </Link>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
             Payroll Run - {new Date(payrollRun.periodStart || payrollRun.period_start).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">
             {new Date(payrollRun.periodStart || payrollRun.period_start).toLocaleDateString()} -{" "}
             {new Date(payrollRun.periodEnd || payrollRun.period_end).toLocaleDateString()}
           </p>
@@ -119,7 +119,7 @@ export default function PayrollRun() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Employees</p>

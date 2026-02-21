@@ -22,7 +22,7 @@ export default function Performance() {
   const ratingFormula = "final_rating = 0.5 * manager_score + 0.3 * okr_achievement + 0.2 * peer_feedback";
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Performance Management</h2>

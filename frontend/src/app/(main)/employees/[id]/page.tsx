@@ -67,37 +67,39 @@ export default function EmployeeProfile() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         <Link href="/employees">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
         </Link>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">Employee Profile</h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Employee Profile</h2>
         </div>
-        <Button variant="outline">Edit</Button>
-        <Button onClick={() => setDocumentGeneratorOpen(true)}>Generate Documents</Button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">Edit</Button>
+          <Button onClick={() => setDocumentGeneratorOpen(true)} size="sm" className="w-full sm:w-auto">Generate Documents</Button>
+        </div>
       </div>
 
       {/* Employee Header */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-start gap-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <span className="text-3xl font-bold text-white">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl sm:text-3xl font-bold text-white">
                 {firstName[0] || ""}
                 {lastName[0] || ""}
               </span>
             </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
+            <div className="flex-1 min-w-0 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                     {firstName} {lastName}
                   </h3>
-                  <p className="text-gray-600 mt-1">{grade}</p>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">{grade}</p>
                 </div>
                 <Badge
                   className={
@@ -109,7 +111,7 @@ export default function EmployeeProfile() {
                   {status.replace("_", " ")}
                 </Badge>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-gray-400" />
                   <div>
@@ -147,7 +149,7 @@ export default function EmployeeProfile() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Employment Information</CardTitle>

@@ -17,6 +17,8 @@ import {
   Menu,
   X,
   Building2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -41,11 +43,24 @@ const navigation = [
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Initialize authentication on mount
   useEffect(() => {
     initializeAuth().catch(console.error);
   }, []);
+
+  // Persist sidebar state in localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved !== null) {
+      setSidebarCollapsed(JSON.parse(saved));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -60,31 +75,50 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed lg:static inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          sidebarCollapsed ? "w-16 lg:w-16" : "w-64 lg:w-64"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+            <div className={cn(
+              "flex items-center gap-2 transition-opacity duration-300",
+              sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+            )}>
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-sm">NG</span>
               </div>
-              <span className="font-semibold text-gray-900">NG-IHRP</span>
+              <span className="font-semibold text-gray-900 whitespace-nowrap">NG-IHRP</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden lg:flex"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
+          <nav className="flex-1 overflow-y-auto p-2 lg:p-4">
             <ul className="space-y-1">
               {navigation.map((item) => {
                 const isActive =
@@ -95,15 +129,27 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
                         isActive
                           ? "bg-blue-50 text-blue-700"
-                          : "text-gray-700 hover:bg-gray-100"
+                          : "text-gray-700 hover:bg-gray-100",
+                        sidebarCollapsed && "justify-center"
                       )}
                       onClick={() => setSidebarOpen(false)}
+                      title={sidebarCollapsed ? item.name : undefined}
                     >
-                      <item.icon className="h-5 w-5" />
-                      {item.name}
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className={cn(
+                        "transition-opacity duration-300 whitespace-nowrap",
+                        sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                      )}>
+                        {item.name}
+                      </span>
+                      {sidebarCollapsed && (
+                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                          {item.name}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
@@ -112,12 +158,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* User info */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+          <div className={cn(
+            "p-4 border-t border-gray-200",
+            sidebarCollapsed && "px-2"
+          )}>
+            <div className={cn(
+              "flex items-center gap-3",
+              sidebarCollapsed && "justify-center"
+            )}>
+              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-gray-700 text-sm font-medium">AD</span>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className={cn(
+                "flex-1 min-w-0 transition-opacity duration-300",
+                sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+              )}>
                 <p className="text-sm font-medium text-gray-900 truncate">Admin User</p>
                 <p className="text-xs text-gray-500 truncate">admin@company.com</p>
               </div>
@@ -127,9 +182,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6 shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -138,8 +193,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold text-gray-900">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold text-gray-900 truncate">
               {navigation.find(
                 (item) =>
                   pathname === item.href ||
@@ -150,8 +205,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
-          {children}
+        <main className="flex-1 overflow-auto min-w-0">
+          <div className="w-full max-w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
