@@ -31,7 +31,7 @@ export default function EmployeeProfile() {
 
   if (!employee) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-gray-600">Employee not found</p>
@@ -157,21 +157,27 @@ export default function EmployeeProfile() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-500">Employee Code</p>
-                  <p className="font-medium">{employee.employee_code}</p>
+                  <p className="font-medium">{employee.employeeCode || employee.employee_code || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Hire Date</p>
                   <p className="font-medium">
-                    {new Date(employee.hire_date).toLocaleDateString()}
+                    {employee.hireDate || employee.hire_date 
+                      ? new Date(employee.hireDate || employee.hire_date).toLocaleDateString()
+                      : "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Manager</p>
-                  <p className="font-medium">{employee.manager}</p>
+                  <p className="font-medium">
+                    {employee.managerId 
+                      ? `${employee.managerId.firstName || ''} ${employee.managerId.lastName || ''}`.trim() || "N/A"
+                      : "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Grade</p>
-                  <p className="font-medium">{employee.grade}</p>
+                  <p className="font-medium">{grade || "N/A"}</p>
                 </div>
               </CardContent>
             </Card>

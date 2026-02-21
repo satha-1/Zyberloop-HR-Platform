@@ -9,7 +9,6 @@ import { Label } from "./ui/label";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { FileText, Download, Eye, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface DocumentGeneratorProps {
   employeeId: string;

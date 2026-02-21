@@ -139,14 +139,21 @@ export function useEmployee(id: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
     async function fetchData() {
       try {
         setLoading(true);
+        setError(null);
         const result = await api.getEmployeeById(id);
         setData(result);
       } catch (err) {
+        console.error('Error fetching employee:', err);
         setError(err as Error);
+        setData(null);
       } finally {
         setLoading(false);
       }
@@ -155,8 +162,14 @@ export function useEmployee(id: string) {
   }, [id]);
 
   return { data, loading, error, refetch: () => {
+    if (!id) return;
     setLoading(true);
-    api.getEmployeeById(id).then(setData).catch(setError).finally(() => setLoading(false));
+    setError(null);
+    api.getEmployeeById(id).then(setData).catch((err) => {
+      console.error('Error refetching employee:', err);
+      setError(err as Error);
+      setData(null);
+    }).finally(() => setLoading(false));
   }};
 }
 

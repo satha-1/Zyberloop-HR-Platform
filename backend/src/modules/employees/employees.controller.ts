@@ -36,20 +36,43 @@ export const getEmployees = async (
       }
     }
 
-    if (status && status !== 'undefined' && status !== 'null') {
-      query.status = status;
+    // Only filter by status if explicitly provided and not empty
+    // Convert status to lowercase to match enum values
+    if (status && status !== 'undefined' && status !== 'null' && String(status).trim() !== '') {
+      const statusValue = String(status).toLowerCase();
+      // Map common status values to enum values
+      if (['active', 'inactive', 'on_leave', 'terminated'].includes(statusValue)) {
+        query.status = statusValue;
+      }
     }
 
+    // Debug logging (remove in production)
+    console.log('Employee query params:', { search, department, status });
+    console.log('Employee query:', JSON.stringify(query, null, 2));
+    
+    // First, check total count without filters for debugging
+    const totalCount = await Employee.countDocuments({});
+    console.log(`Total employees in database: ${totalCount}`);
+    
     const employees = await Employee.find(query)
       .populate('departmentId', 'name code')
       .populate('managerId', 'firstName lastName employeeCode')
       .sort({ createdAt: -1 });
+
+    console.log(`Found ${employees.length} employees matching query`);
+    
+    // If no employees found but there are employees in DB, log a sample
+    if (employees.length === 0 && totalCount > 0) {
+      const sampleEmployee = await Employee.findOne().lean();
+      console.log('Sample employee from DB:', JSON.stringify(sampleEmployee, null, 2));
+    }
 
     res.json({
       success: true,
       data: employees,
     });
   } catch (error) {
+    console.error('Error fetching employees:', error);
     next(error);
   }
 };
@@ -61,19 +84,28 @@ export const getEmployeeById = async (
 ) => {
   try {
     const { id } = req.params;
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new AppError(400, 'Invalid employee ID format');
+    }
+    
     const employee = await Employee.findById(id)
       .populate('departmentId', 'name code')
-      .populate('managerId', 'firstName lastName employeeCode employeeCode');
+      .populate('managerId', 'firstName lastName employeeCode');
 
     if (!employee) {
       throw new AppError(404, 'Employee not found');
     }
+
+    console.log(`Employee found: ${employee.firstName} ${employee.lastName} (${employee.employeeCode})`);
 
     res.json({
       success: true,
       data: employee,
     });
   } catch (error) {
+    console.error('Error fetching employee by ID:', error);
     next(error);
   }
 };
@@ -111,6 +143,7 @@ export const createEmployee = async (
       hireDate,
       salary: parseFloat(salary),
       employeeCode: code,
+      status: req.body.status || 'active', // Explicitly set status, default to 'active'
     };
 
     // Add optional fields only if they have valid values
