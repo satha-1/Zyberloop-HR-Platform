@@ -195,7 +195,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          sidebarCollapsed ? "w-16 lg:w-16" : "w-64 lg:w-64"
+          sidebarCollapsed ? "w-16 lg:w-16" : "w-72 lg:w-72"
         )}
       >
         <div className="flex flex-col h-full">
@@ -266,14 +266,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                           sidebarCollapsed && "justify-center"
                         )}
                         onClick={() => setSidebarOpen(false)}
-                        title={sidebarCollapsed ? section.title : undefined}
+                        title={section.title}
                         aria-current={hasActiveChild ? "page" : undefined}
                       >
                         <section.icon className="h-5 w-5 flex-shrink-0" />
-                        <span className={cn(
-                          "transition-opacity duration-300 whitespace-nowrap",
-                          sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                        )}>
+                        <span 
+                          className={cn(
+                            "transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
+                            sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                          )}
+                          title={section.title}
+                        >
                           {section.title}
                         </span>
                         {sidebarCollapsed && (
@@ -295,15 +298,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                           "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                           sidebarCollapsed && "justify-center"
                         )}
-                        title={sidebarCollapsed ? section.title : undefined}
+                        title={section.title}
                         type="button"
                         aria-expanded={isExpanded}
                       >
                         <section.icon className="h-5 w-5 flex-shrink-0 text-gray-500" />
-                        <span className={cn(
-                          "flex-1 text-left transition-opacity duration-300 whitespace-nowrap truncate",
-                          sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                        )}>
+                        <span 
+                          className={cn(
+                            "flex-1 text-left transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
+                            sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                          )}
+                          title={section.title}
+                        >
                           {section.title}
                         </span>
                         {!sidebarCollapsed && (
@@ -344,14 +350,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                                   sidebarCollapsed && "justify-center"
                                 )}
                                 onClick={() => setSidebarOpen(false)}
-                                title={sidebarCollapsed ? item.name : undefined}
+                                title={item.name}
                                 aria-current={isActive ? "page" : undefined}
                               >
                                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                                <span className={cn(
-                                  "transition-opacity duration-300 whitespace-nowrap truncate",
-                                  sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                                )}>
+                                <span 
+                                  className={cn(
+                                    "transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
+                                    sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                                  )}
+                                  title={item.name}
+                                >
                                   {item.name}
                                 </span>
                                 {sidebarCollapsed && (

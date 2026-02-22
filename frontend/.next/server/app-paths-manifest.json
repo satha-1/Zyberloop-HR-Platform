@@ -1,8 +1,8 @@
 {
-  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js",
-  "/(main)/payroll/runs/page": "app/(main)/payroll/runs/page.js",
   "/(main)/payroll/runs/[id]/edit/page": "app/(main)/payroll/runs/[id]/edit/page.js",
   "/(main)/recruitment/page": "app/(main)/recruitment/page.js",
   "/(main)/engagement/page": "app/(main)/engagement/page.js",
-  "/(main)/employees/page": "app/(main)/employees/page.js"
+  "/(main)/employees/page": "app/(main)/employees/page.js",
+  "/(main)/performance/page": "app/(main)/performance/page.js",
+  "/(main)/page": "app/(main)/page.js"
 }

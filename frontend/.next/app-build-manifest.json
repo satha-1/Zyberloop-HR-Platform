@@ -100,6 +100,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/engagement/page.js"
+    ],
+    "/(main)/performance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/performance/page.js"
     ]
   }
 }
