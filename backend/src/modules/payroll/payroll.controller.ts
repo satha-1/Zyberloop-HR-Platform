@@ -7,6 +7,8 @@ import { calculatePayroll } from './payroll.service';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
 import mongoose from 'mongoose';
+import PDFDocument from 'pdfkit';
+import { PassThrough } from 'stream';
 
 export const getPayrollRuns = async (
   req: Request,
@@ -656,22 +658,199 @@ export const exportPayrollRun = async (
       throw new AppError(400, 'Invalid payroll run ID');
     }
 
-    const run = await PayrollRun.findById(id).populate('templateId', 'name');
+    const run = await PayrollRun.findById(id)
+      .populate('templateId', 'name')
+      .populate('createdBy', 'name email');
 
     if (!run) {
       throw new AppError(404, 'Payroll run not found');
     }
 
-    // TODO: Implement actual PDF/CSV export
-    // For now, return a placeholder response
-    res.json({
-      success: true,
-      message: 'Export functionality will be implemented',
-      data: {
-        runId: id,
-        format,
-        downloadUrl: `/api/v1/payroll/runs/${id}/export?format=${format}`,
-      },
+    if (format === 'csv') {
+      // CSV Export
+      const entries = await PayrollEntry.find({ payrollRunId: id })
+        .populate('employeeId', 'firstName lastName employeeCode');
+
+      const csvRows = [
+        ['Employee Code', 'Employee Name', 'Gross Pay', 'Deductions', 'Net Pay'].join(','),
+        ...entries.map((entry: any) => {
+          const emp = entry.employeeId;
+          const empName = emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : 'Unknown';
+          const empCode = emp?.employeeCode || 'N/A';
+          return [
+            empCode,
+            `"${empName}"`,
+            entry.gross || 0,
+            (entry.statutoryDeductions?.epfEmployee || 0) + (entry.statutoryDeductions?.tax || 0) + (entry.otherDeductions || 0),
+            entry.net || 0,
+          ].join(',');
+        }),
+      ];
+
+      const csvContent = csvRows.join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="payroll-run-${id}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+      return;
+    }
+
+    // PDF Export using PDFKit
+    let entries = await PayrollEntry.find({ payrollRunId: id })
+      .populate('employeeId', 'firstName lastName employeeCode departmentId')
+      .sort({ 'employeeId.employeeCode': 1 });
+
+    // If no entries found, use employeeLines from the run
+    if (entries.length === 0 && run.employeeLines && run.employeeLines.length > 0) {
+      // Use employeeLines data - populate employee info
+      for (const line of run.employeeLines) {
+        const emp = await Employee.findById(line.employeeId).populate('departmentId', 'name');
+        entries.push({
+          employeeId: emp,
+          gross: line.grossPay,
+          net: line.netPay,
+          totalDeductions: line.totalDeductions,
+          components: line.payItems?.map((item: any) => ({
+            name: item.label,
+            type: item.type === 'earning' ? 'EARNING' : 'DEDUCTION',
+            amount: item.amount,
+          })) || [],
+          statutoryDeductions: {},
+          otherDeductions: 0,
+        } as any);
+      }
+    }
+
+    if (entries.length === 0) {
+      throw new AppError(404, 'No employee data found for this payroll run');
+    }
+
+    // Create a stream for the PDF
+    const stream = new PassThrough();
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payroll-run-${run.runName || id}-${new Date().toISOString().split('T')[0]}.pdf"`);
+    
+    // Create PDF document
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    doc.pipe(stream);
+    stream.pipe(res);
+
+    // Header
+    doc.fontSize(20).text('Payroll Run Summary', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12);
+    doc.text(`Run Name: ${run.runName || 'N/A'}`, { align: 'left' });
+    doc.text(`Period: ${new Date(run.periodStart).toLocaleDateString()} - ${new Date(run.periodEnd).toLocaleDateString()}`, { align: 'left' });
+    doc.text(`Payment Date: ${new Date(run.paymentDate).toLocaleDateString()}`, { align: 'left' });
+    doc.text(`Status: ${run.status}`, { align: 'left' });
+    doc.moveDown();
+
+    // Summary
+    doc.fontSize(14).text('Summary', { underline: true });
+    doc.fontSize(12);
+    doc.text(`Total Employees: ${run.employeeCount || 0}`);
+    doc.text(`Total Gross: LKR ${(run.totalGross || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    doc.text(`Total Deductions: LKR ${(run.totalDeductions || (run.totalGross - run.totalNet) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    doc.text(`Total Net: LKR ${(run.totalNet || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    doc.moveDown(2);
+
+    // Employee Details
+    doc.fontSize(14).text('Employee Payslips', { underline: true });
+    doc.moveDown();
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry: any = entries[i];
+      const emp = entry.employeeId;
+      
+      // Add new page for each employee (except first)
+      if (i > 0) {
+        doc.addPage();
+      }
+
+      // Employee Header
+      doc.fontSize(16).text('Payslip', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12);
+      
+      if (emp) {
+        doc.text(`Employee Code: ${emp.employeeCode || 'N/A'}`);
+        doc.text(`Employee Name: ${emp.firstName || ''} ${emp.lastName || ''}`);
+        if (emp.departmentId) {
+          doc.text(`Department: ${(emp.departmentId as any).name || 'N/A'}`);
+        }
+      } else {
+        doc.text('Employee: Unknown');
+      }
+      
+      doc.text(`Period: ${new Date(run.periodStart).toLocaleDateString()} - ${new Date(run.periodEnd).toLocaleDateString()}`);
+      doc.moveDown();
+
+      // Earnings
+      doc.fontSize(14).text('Earnings', { underline: true });
+      doc.fontSize(12);
+      
+      if (entry.components && Array.isArray(entry.components)) {
+        entry.components
+          .filter((c: any) => c.type === 'EARNING')
+          .forEach((component: any) => {
+            doc.text(`${component.name}: LKR ${(component.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+          });
+      }
+      
+      doc.text(`Gross Pay: LKR ${(entry.gross || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
+      doc.moveDown();
+
+      // Deductions
+      doc.fontSize(14).text('Deductions', { underline: true });
+      doc.fontSize(12);
+      
+      if (entry.statutoryDeductions) {
+        if (entry.statutoryDeductions.epfEmployee) {
+          doc.text(`EPF (Employee): LKR ${entry.statutoryDeductions.epfEmployee.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+        }
+        if (entry.statutoryDeductions.tax) {
+          doc.text(`Income Tax: LKR ${entry.statutoryDeductions.tax.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+        }
+      }
+      
+      if (entry.components && Array.isArray(entry.components)) {
+        entry.components
+          .filter((c: any) => c.type === 'DEDUCTION')
+          .forEach((component: any) => {
+            doc.text(`${component.name}: LKR ${(component.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+          });
+      }
+      
+      if (entry.otherDeductions) {
+        doc.text(`Other Deductions: LKR ${entry.otherDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      }
+      
+      const totalDeductions = (entry.statutoryDeductions?.epfEmployee || 0) + 
+                              (entry.statutoryDeductions?.tax || 0) + 
+                              (entry.otherDeductions || 0);
+      doc.text(`Total Deductions: LKR ${totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
+      doc.moveDown();
+
+      // Net Pay
+      doc.fontSize(14).text(`Net Pay: LKR ${(entry.net || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { 
+        align: 'right',
+        underline: true 
+      });
+    }
+
+    // Finalize PDF
+    doc.end();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'EXPORT',
+      module: 'Payroll',
+      resourceType: 'payroll_run',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
     });
   } catch (error) {
     next(error);
