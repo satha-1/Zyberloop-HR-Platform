@@ -95,6 +95,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/payroll/runs/[id]/edit/page.js"
+    ],
+    "/(main)/engagement/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/engagement/page.js"
     ]
   }
 }

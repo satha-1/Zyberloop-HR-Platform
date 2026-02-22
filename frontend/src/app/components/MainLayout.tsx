@@ -19,35 +19,145 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   FileText,
   FolderOpen,
+  Home,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
 import { initializeAuth } from "../lib/auth";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Employees", href: "/employees", icon: Users },
-  { name: "Departments", href: "/departments", icon: Building2 },
-  { name: "Recruitment", href: "/recruitment", icon: Briefcase },
-  { name: "Payroll", href: "/payroll", icon: DollarSign },
-  { name: "Leave & Attendance", href: "/leave", icon: Calendar },
-  { name: "Performance", href: "/performance", icon: Target },
-  { name: "Learning & Development", href: "/learning", icon: GraduationCap },
-  { name: "Workforce Planning", href: "/workforce-planning", icon: TrendingUp },
-  { name: "Engagement & Surveys", href: "/engagement", icon: MessageSquare },
-  { name: "Compliance", href: "/compliance", icon: Shield },
-  { name: "Templates", href: "/admin/templates", icon: FileText },
-  { name: "Documents", href: "/admin/documents", icon: FolderOpen },
-  { name: "Admin Logs", href: "/admin/logs", icon: Settings },
+// Navigation structure with grouped sections
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavSection {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href?: string; // Optional href for sections that can navigate directly (like Home)
+  items: NavItem[];
+}
+
+const navigationSections: NavSection[] = [
+  {
+    title: "Home",
+    icon: Home,
+    href: "/", // Home section navigates directly to Dashboard
+    items: [
+      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "Workforce Management",
+    icon: Users,
+    items: [
+      { name: "Employees", href: "/employees", icon: Users },
+      { name: "Departments", href: "/departments", icon: Building2 },
+    ],
+  },
+  {
+    title: "Talent Management",
+    icon: Briefcase,
+    items: [
+      { name: "Recruitment", href: "/recruitment", icon: Briefcase },
+      { name: "Performance Management", href: "/performance", icon: Target },
+      { name: "Learning & Development", href: "/learning", icon: GraduationCap },
+      { name: "Workforce Planning", href: "/workforce-planning", icon: TrendingUp },
+    ],
+  },
+  {
+    title: "Attendance & Compensation",
+    icon: DollarSign,
+    items: [
+      { name: "Compensation & Payroll", href: "/payroll", icon: DollarSign },
+      { name: "Leave & Attendance", href: "/leave", icon: Calendar },
+    ],
+  },
+  {
+    title: "Engagement & Experience",
+    icon: MessageSquare,
+    items: [
+      { name: "Engagement & Surveys", href: "/engagement", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "Compliance & Administration",
+    icon: Shield,
+    items: [
+      { name: "Regulatory Compliance", href: "/compliance", icon: Shield },
+      { name: "Document Templates", href: "/admin/templates", icon: FileText },
+      { name: "Documents & Letters", href: "/admin/documents", icon: FolderOpen },
+      { name: "System Audit Logs", href: "/admin/logs", icon: Settings },
+    ],
+  },
 ];
+
+// Flattened navigation for header title lookup (backward compatibility)
+const navigation: NavItem[] = navigationSections.flatMap(section => section.items);
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Track expanded/collapsed state for each section
+  // Load from localStorage or initialize with default collapsed state
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+    // Only access localStorage in the browser
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sidebarExpandedSections');
+        if (saved) {
+          return JSON.parse(saved);
+        }
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    
+    // Default: all sections collapsed
+    const initialState: Record<string, boolean> = {};
+    navigationSections.forEach((section) => {
+      initialState[section.title] = false;
+    });
+    return initialState;
+  });
+
+  // Auto-expand section if it contains the active item (on initial load and route change)
+  useEffect(() => {
+    navigationSections.forEach((section) => {
+      const hasActiveItem = section.items.some(
+        (item) =>
+          pathname === item.href ||
+          (item.href !== "/" && pathname.startsWith(item.href))
+      );
+      if (hasActiveItem) {
+        setExpandedSections((prev) => ({
+          ...prev,
+          [section.title]: true,
+        }));
+      }
+    });
+  }, [pathname]);
+
+  // Persist expanded sections state to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebarExpandedSections', JSON.stringify(expandedSections));
+    }
+  }, [expandedSections]);
+
+  const toggleSection = (sectionTitle: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionTitle]: !prev[sectionTitle],
+    }));
+  };
 
   // Initialize authentication on mount
   useEffect(() => {
@@ -56,14 +166,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Persist sidebar state in localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('sidebarCollapsed');
-    if (saved !== null) {
-      setSidebarCollapsed(JSON.parse(saved));
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarCollapsed');
+      if (saved !== null) {
+        setSidebarCollapsed(JSON.parse(saved));
+      }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    }
   }, [sidebarCollapsed]);
 
   return (
@@ -123,42 +237,138 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-2 lg:p-4">
-            <ul className="space-y-1">
-              {navigation.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+            <div className="space-y-1">
+              {navigationSections.map((section) => {
+                // Check if any child item in this section is active
+                const hasActiveChild = section.items.some(
+                  (item) =>
+                    pathname === item.href ||
+                    (item.href !== "/" && pathname.startsWith(item.href))
+                );
+
+                const isExpanded = expandedSections[section.title] ?? false;
+                const isHome = section.title === "Home";
+                // All sections except Home are collapsible accordions (even with single child)
+                const isCollapsible = !isHome;
+
                 return (
-                  <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
-                        isActive
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-700 hover:bg-gray-100",
-                        sidebarCollapsed && "justify-center"
-                      )}
-                      onClick={() => setSidebarOpen(false)}
-                      title={sidebarCollapsed ? item.name : undefined}
-                    >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span className={cn(
-                        "transition-opacity duration-300 whitespace-nowrap",
-                        sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                      )}>
-                        {item.name}
-                      </span>
-                      {sidebarCollapsed && (
-                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-                          {item.name}
+                  <div key={section.title} className="space-y-1">
+                    {/* Section Header */}
+                    {isHome && section.href ? (
+                      // Home section: direct link to Dashboard
+                      <Link
+                        href={section.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                          hasActiveChild
+                            ? "bg-blue-50 text-blue-700"
+                            : "text-gray-700 hover:bg-gray-100",
+                          sidebarCollapsed && "justify-center"
+                        )}
+                        onClick={() => setSidebarOpen(false)}
+                        title={sidebarCollapsed ? section.title : undefined}
+                        aria-current={hasActiveChild ? "page" : undefined}
+                      >
+                        <section.icon className="h-5 w-5 flex-shrink-0" />
+                        <span className={cn(
+                          "transition-opacity duration-300 whitespace-nowrap",
+                          sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                        )}>
+                          {section.title}
                         </span>
-                      )}
-                    </Link>
-                  </li>
+                        {sidebarCollapsed && (
+                          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                            {section.title}
+                          </span>
+                        )}
+                      </Link>
+                    ) : (
+                      // Other sections: accordion header (non-routable, toggle only)
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleSection(section.title);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                          // Neutral hover, never active highlight for parent headers
+                          "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          sidebarCollapsed && "justify-center"
+                        )}
+                        title={sidebarCollapsed ? section.title : undefined}
+                        type="button"
+                        aria-expanded={isExpanded}
+                      >
+                        <section.icon className="h-5 w-5 flex-shrink-0 text-gray-500" />
+                        <span className={cn(
+                          "flex-1 text-left transition-opacity duration-300 whitespace-nowrap truncate",
+                          sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                        )}>
+                          {section.title}
+                        </span>
+                        {!sidebarCollapsed && (
+                          <ChevronRight
+                            className={cn(
+                              "h-4 w-4 transition-transform duration-200 flex-shrink-0 text-gray-400 ml-auto",
+                              isExpanded && "transform rotate-90"
+                            )}
+                          />
+                        )}
+                        {sidebarCollapsed && (
+                          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                            {section.title}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    
+                    {/* Section Items - Only shown when expanded (or when sidebar is collapsed) */}
+                    {!isHome && (!sidebarCollapsed ? isExpanded : true) && (
+                      <ul className={cn(
+                        "space-y-1 transition-all duration-200",
+                        !sidebarCollapsed && "ml-6 pl-2" // Indent child items with padding
+                      )}>
+                        {section.items.map((item) => {
+                          const isActive =
+                            pathname === item.href ||
+                            (item.href !== "/" && pathname.startsWith(item.href));
+                          return (
+                            <li key={item.name}>
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                                  isActive
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "text-gray-700 hover:bg-gray-100",
+                                  sidebarCollapsed && "justify-center"
+                                )}
+                                onClick={() => setSidebarOpen(false)}
+                                title={sidebarCollapsed ? item.name : undefined}
+                                aria-current={isActive ? "page" : undefined}
+                              >
+                                <item.icon className="h-5 w-5 flex-shrink-0" />
+                                <span className={cn(
+                                  "transition-opacity duration-300 whitespace-nowrap truncate",
+                                  sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                                )}>
+                                  {item.name}
+                                </span>
+                                {sidebarCollapsed && (
+                                  <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                                    {item.name}
+                                  </span>
+                                )}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </nav>
 
           {/* User info */}
