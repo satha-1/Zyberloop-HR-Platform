@@ -6,8 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
-import { ArrowLeft, Mail, Phone, User, Briefcase, Building2, Users, DollarSign, Calendar, Target, GraduationCap, FileText, Shield, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Mail, Phone, User, Briefcase, Building2, Users, DollarSign, Calendar, Target, GraduationCap, FileText, Shield, MoreHorizontal, Inbox } from "lucide-react";
 import { api } from "../../../../lib/api";
 import {
   Table,
@@ -17,6 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "../../../../components/ui/table";
+import { ProfileSectionCard } from "./components/ProfileSectionCard";
+import { ProfileSectionHeader } from "./components/ProfileSectionHeader";
+import { ProfileDataTable, ProfileTableRow, ProfileTableCell, ProfileEmptyState } from "./components/ProfileDataTable";
+import { cn } from "../../../../components/ui/utils";
 
 // Profile section types
 type ProfileSection = 'summary' | 'job' | 'compensation' | 'performance' | 'career' | 'contact' | 'personal' | 'pay' | 'absence' | 'benefits';
@@ -275,9 +278,9 @@ export default function EmployeeProfile360() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/employees">
             <Button variant="outline" size="sm">
@@ -303,25 +306,44 @@ export default function EmployeeProfile360() {
       </div>
 
       {/* Top Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProfileTab)}>
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="job-details">Job Details</TabsTrigger>
-          <TabsTrigger value="service-dates">Service Dates</TabsTrigger>
-          <TabsTrigger value="assigned-roles">My Assigned Roles</TabsTrigger>
-          <TabsTrigger value="support-roles">Support Roles</TabsTrigger>
-          <TabsTrigger value="external-interactions">External Interactions</TabsTrigger>
-          <TabsTrigger value="additional-data">Additional Data</TabsTrigger>
-          <TabsTrigger value="organizations">Organizations</TabsTrigger>
-          <TabsTrigger value="management-chain">Management Chain</TabsTrigger>
-          <TabsTrigger value="more" disabled>
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-1 overflow-x-auto -mb-px" aria-label="Tabs">
+          {[
+            { id: 'job-details', label: 'Job Details' },
+            { id: 'service-dates', label: 'Service Dates' },
+            { id: 'assigned-roles', label: 'My Assigned Roles' },
+            { id: 'support-roles', label: 'Support Roles' },
+            { id: 'external-interactions', label: 'External Interactions' },
+            { id: 'additional-data', label: 'Additional Data' },
+            { id: 'organizations', label: 'Organizations' },
+            { id: 'management-chain', label: 'Management Chain' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as ProfileTab)}
+              className={cn(
+                "px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                activeTab === tab.id
+                  ? "border-blue-600 text-blue-600 font-semibold"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button
+            disabled
+            className="px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
+          >
             <MoreHorizontal className="h-4 w-4" />
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </nav>
+      </div>
 
-        <TabsContent value={activeTab} className="mt-6">
-          {renderTabContent()}
-        </TabsContent>
-      </Tabs>
+      {/* Tab Content */}
+      <div className="mt-6">
+        {renderTabContent()}
+      </div>
     </div>
   );
 }
@@ -720,246 +742,255 @@ function BenefitsSection({ data }: { data: any }) {
 
 // Tab Components
 function ServiceDatesTab({ data }: { data: any }) {
+  const serviceDates = [
+    { label: "Hire Date", value: new Date(data.hireDate).toLocaleDateString() },
+    { label: "Original Hire Date", value: data.originalHireDate ? new Date(data.originalHireDate).toLocaleDateString() : 'N/A' },
+    { label: "Continuous Service Date", value: data.continuousServiceDate ? new Date(data.continuousServiceDate).toLocaleDateString() : 'N/A' },
+    { label: "Length of Service", value: data.lengthOfService, highlight: true },
+    { label: "Benefit Service Date", value: data.benefitServiceDate ? new Date(data.benefitServiceDate).toLocaleDateString() : 'N/A' },
+    { label: "Company Service Date", value: data.companyServiceDate ? new Date(data.companyServiceDate).toLocaleDateString() : 'N/A' },
+    { label: "Seniority Date", value: data.seniorityDate ? new Date(data.seniorityDate).toLocaleDateString() : 'N/A' },
+    { label: "Probation End Date", value: data.probationEndDate ? new Date(data.probationEndDate).toLocaleDateString() : 'N/A' },
+  ];
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Service Dates</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableBody>
-            <TableRow>
-              <TableCell className="font-medium w-1/3">Hire Date</TableCell>
-              <TableCell>{new Date(data.hireDate).toLocaleDateString()}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Original Hire Date</TableCell>
-              <TableCell>{data.originalHireDate ? new Date(data.originalHireDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Continuous Service Date</TableCell>
-              <TableCell>{data.continuousServiceDate ? new Date(data.continuousServiceDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Length of Service</TableCell>
-              <TableCell className="font-semibold">{data.lengthOfService}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Benefit Service Date</TableCell>
-              <TableCell>{data.benefitServiceDate ? new Date(data.benefitServiceDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Company Service Date</TableCell>
-              <TableCell>{data.companyServiceDate ? new Date(data.companyServiceDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Seniority Date</TableCell>
-              <TableCell>{data.seniorityDate ? new Date(data.seniorityDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-medium">Probation End Date</TableCell>
-              <TableCell>{data.probationEndDate ? new Date(data.probationEndDate).toLocaleDateString() : 'N/A'}</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="Service Dates"
+        subtitle="Employment and service-related dates"
+      />
+      
+      <ProfileDataTable headers={["Date Type", "Value"]}>
+        {serviceDates.map((item, idx) => (
+          <ProfileTableRow key={idx}>
+            <ProfileTableCell>
+              <span className="font-medium text-gray-700">{item.label}</span>
+            </ProfileTableCell>
+            <ProfileTableCell>
+              <span className={item.highlight ? "font-semibold text-gray-900" : "text-gray-600"}>
+                {item.value}
+              </span>
+            </ProfileTableCell>
+          </ProfileTableRow>
+        ))}
+      </ProfileDataTable>
+    </ProfileSectionCard>
   );
 }
 
 function AssignedRolesTab({ data }: { data: any }) {
+  const roles = data.roles || [];
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>My Assigned Roles</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.roles && data.roles.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Organization Name</TableHead>
-                <TableHead>Organization Type</TableHead>
-                <TableHead>Date Assigned</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.roles.map((role: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">{role.roleName}</TableCell>
-                  <TableCell>{role.organizationName}</TableCell>
-                  <TableCell>{role.organizationType}</TableCell>
-                  <TableCell>{new Date(role.dateAssigned).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-gray-500">No assigned roles.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="My Assigned Roles"
+        subtitle="Roles assigned for this worker's position"
+        itemCount={roles.length}
+      />
+      
+      {roles.length > 0 ? (
+        <ProfileDataTable
+          headers={["Role Name", "Organization Name", "Organization Type", "Date Assigned"]}
+        >
+          {roles.map((role: any, idx: number) => (
+            <ProfileTableRow key={idx}>
+              <ProfileTableCell>
+                <span className="font-medium text-gray-900">{role.roleName}</span>
+              </ProfileTableCell>
+              <ProfileTableCell>{role.organizationName}</ProfileTableCell>
+              <ProfileTableCell>{role.organizationType}</ProfileTableCell>
+              <ProfileTableCell>
+                {new Date(role.dateAssigned).toLocaleDateString()}
+              </ProfileTableCell>
+            </ProfileTableRow>
+          ))}
+        </ProfileDataTable>
+      ) : (
+        <ProfileEmptyState
+          message="No roles are currently assigned to this employee."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
 
 function SupportRolesTab({ data }: { data: any }) {
+  const roles = data.roles || [];
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Support Roles</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.roles && data.roles.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Assignable Role</TableHead>
-                <TableHead>Worker Name</TableHead>
-                <TableHead>Organization</TableHead>
-                <TableHead>Effective Start</TableHead>
-                <TableHead>Effective End</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.roles.map((role: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">{role.assignableRole}</TableCell>
-                  <TableCell>{role.workerName}</TableCell>
-                  <TableCell>{role.organization}</TableCell>
-                  <TableCell>{role.effectiveStartDate ? new Date(role.effectiveStartDate).toLocaleDateString() : 'N/A'}</TableCell>
-                  <TableCell>{role.effectiveEndDate ? new Date(role.effectiveEndDate).toLocaleDateString() : 'N/A'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-gray-500">No support roles.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="Support Roles"
+        subtitle="Support roles assigned to this employee"
+        itemCount={roles.length}
+      />
+      
+      {roles.length > 0 ? (
+        <ProfileDataTable
+          headers={["Assignable Role", "Worker Name", "Organization", "Effective Start", "Effective End"]}
+        >
+          {roles.map((role: any, idx: number) => (
+            <ProfileTableRow key={idx}>
+              <ProfileTableCell>
+                <span className="font-medium text-gray-900">{role.assignableRole}</span>
+              </ProfileTableCell>
+              <ProfileTableCell>{role.workerName}</ProfileTableCell>
+              <ProfileTableCell>{role.organization}</ProfileTableCell>
+              <ProfileTableCell>
+                {role.effectiveStartDate ? new Date(role.effectiveStartDate).toLocaleDateString() : 'N/A'}
+              </ProfileTableCell>
+              <ProfileTableCell>
+                {role.effectiveEndDate ? new Date(role.effectiveEndDate).toLocaleDateString() : 'N/A'}
+              </ProfileTableCell>
+            </ProfileTableRow>
+          ))}
+        </ProfileDataTable>
+      ) : (
+        <ProfileEmptyState
+          message="No support roles are currently assigned to this employee."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
 
 function ExternalInteractionsTab({ data }: { data: any }) {
+  const answers = data.answers || {};
+  const answerCount = Object.keys(answers).length;
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>External Interactions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600">Compliance questionnaire data will be displayed here.</p>
-        {Object.keys(data.answers || {}).length > 0 ? (
-          <div className="mt-4 space-y-2">
-            {Object.entries(data.answers).map(([key, value]: [string, any]) => (
-              <div key={key} className="p-3 border rounded">
-                <p className="font-medium text-sm">{key}</p>
-                <p className="text-sm text-gray-600">{String(value)}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 mt-4">No external interaction data available.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="External Interactions"
+        subtitle="Compliance questionnaire data"
+        itemCount={answerCount}
+      />
+      
+      {answerCount > 0 ? (
+        <div className="space-y-3">
+          {Object.entries(answers).map(([key, value]: [string, any]) => (
+            <div key={key} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <p className="font-medium text-sm text-gray-900 mb-1">{key}</p>
+              <p className="text-sm text-gray-600">{String(value)}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ProfileEmptyState
+          message="No external interaction data available."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
 
 function AdditionalDataTab({ data }: { data: any }) {
+  const dataGroups = data.dataGroups || {};
+  const groupCount = Object.keys(dataGroups).length;
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Additional Data</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {Object.keys(data.dataGroups || {}).length > 0 ? (
-          <div className="space-y-4">
-            {Object.entries(data.dataGroups).map(([groupName, groupData]: [string, any]) => (
-              <div key={groupName} className="border rounded p-4">
-                <h4 className="font-medium mb-2">{groupName}</h4>
-                <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto">
-                  {JSON.stringify(groupData, null, 2)}
-                </pre>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No additional data available.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="Additional Data"
+        subtitle="Additional employee data groups"
+        itemCount={groupCount}
+      />
+      
+      {groupCount > 0 ? (
+        <div className="space-y-4">
+          {Object.entries(dataGroups).map(([groupName, groupData]: [string, any]) => (
+            <div key={groupName} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <h4 className="font-medium text-gray-900 mb-3">{groupName}</h4>
+              <pre className="text-xs bg-white p-3 rounded border border-gray-200 overflow-auto">
+                {JSON.stringify(groupData, null, 2)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ProfileEmptyState
+          message="No additional data available."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
 
 function OrganizationsTab({ data }: { data: any }) {
+  const organizations = data.organizations || [];
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Organizations</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.organizations && data.organizations.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Organization Name</TableHead>
-                <TableHead>Organization Type</TableHead>
-                <TableHead>Subtype</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.organizations.map((org: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">{org.organizationName}</TableCell>
-                  <TableCell>{org.organizationType}</TableCell>
-                  <TableCell>{org.organizationSubtype || 'N/A'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-gray-500">No organization memberships.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="Organizations"
+        subtitle="Organization memberships for this employee"
+        itemCount={organizations.length}
+      />
+      
+      {organizations.length > 0 ? (
+        <ProfileDataTable
+          headers={["Organization Name", "Organization Type", "Subtype"]}
+        >
+          {organizations.map((org: any, idx: number) => (
+            <ProfileTableRow key={idx}>
+              <ProfileTableCell>
+                <span className="font-medium text-gray-900">{org.organizationName}</span>
+              </ProfileTableCell>
+              <ProfileTableCell>{org.organizationType}</ProfileTableCell>
+              <ProfileTableCell>{org.organizationSubtype || 'N/A'}</ProfileTableCell>
+            </ProfileTableRow>
+          ))}
+        </ProfileDataTable>
+      ) : (
+        <ProfileEmptyState
+          message="No organization memberships found."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
 
 function ManagementChainTab({ data }: { data: any }) {
+  const chain = data.chain || [];
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Management Chain</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.chain && data.chain.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Level</TableHead>
-                <TableHead>Organization</TableHead>
-                <TableHead>Manager Name</TableHead>
-                <TableHead>Manager Title</TableHead>
-                <TableHead>Phone Number</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.chain.map((item: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell>{item.levelIndex + 1}</TableCell>
-                  <TableCell>{item.organizationName}</TableCell>
-                  <TableCell className="font-medium">{item.managerName}</TableCell>
-                  <TableCell>{item.managerTitle}</TableCell>
-                  <TableCell>{item.phoneNumber}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-gray-500">No management chain data available.</p>
-        )}
-      </CardContent>
-    </Card>
+    <ProfileSectionCard>
+      <ProfileSectionHeader
+        title="Management Chain"
+        subtitle="Reporting hierarchy for this employee"
+        itemCount={chain.length}
+      />
+      
+      {chain.length > 0 ? (
+        <ProfileDataTable
+          headers={["Level", "Organization", "Manager Name", "Manager Title", "Phone Number"]}
+        >
+          {chain.map((item: any, idx: number) => (
+            <ProfileTableRow key={idx}>
+              <ProfileTableCell>
+                <span className="font-medium text-gray-900">{item.levelIndex + 1}</span>
+              </ProfileTableCell>
+              <ProfileTableCell>{item.organizationName}</ProfileTableCell>
+              <ProfileTableCell>
+                <span className="font-medium text-gray-900">{item.managerName}</span>
+              </ProfileTableCell>
+              <ProfileTableCell>{item.managerTitle}</ProfileTableCell>
+              <ProfileTableCell>{item.phoneNumber}</ProfileTableCell>
+            </ProfileTableRow>
+          ))}
+        </ProfileDataTable>
+      ) : (
+        <ProfileEmptyState
+          message="No management chain data available."
+          icon={<Inbox className="h-8 w-8" />}
+        />
+      )}
+    </ProfileSectionCard>
   );
 }
