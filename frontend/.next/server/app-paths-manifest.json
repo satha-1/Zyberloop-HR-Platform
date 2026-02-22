@@ -1,9 +1,8 @@
 {
-  "/(main)/payroll/templates/new/page": "app/(main)/payroll/templates/new/page.js",
-  "/(main)/payroll/templates/page": "app/(main)/payroll/templates/page.js",
-  "/(main)/payroll/templates/[id]/page": "app/(main)/payroll/templates/[id]/page.js",
   "/(main)/payroll/runs/new/page": "app/(main)/payroll/runs/new/page.js",
   "/(main)/payroll/runs/[id]/page": "app/(main)/payroll/runs/[id]/page.js",
   "/(main)/employees/page": "app/(main)/employees/page.js",
-  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js"
+  "/(main)/employees/[id]/page": "app/(main)/employees/[id]/page.js",
+  "/(main)/payroll/runs/page": "app/(main)/payroll/runs/page.js",
+  "/(main)/payroll/runs/[id]/edit/page": "app/(main)/payroll/runs/[id]/edit/page.js"
 }
