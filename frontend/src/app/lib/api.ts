@@ -754,6 +754,43 @@ class ApiClient {
     return this.request('/payroll/stats');
   }
 
+  // Generate and download individual employee payslip
+  async downloadEmployeePayslip(runId: string, employeeId: string): Promise<void> {
+    try {
+      const url = `${this.baseUrl}/payroll/runs/${runId}/employees/${employeeId}/payslip`;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to generate payslip' }));
+        throw new Error(error.error?.message || error.message || 'Failed to generate payslip');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `payslip-${employeeId}-${runId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error: any) {
+      // Handle network errors (backend not running, CORS, etc.)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
   // Payslip Calculator
   async calculatePayslip(data: any) {
     return this.request('/payroll/calculate-payslip', {

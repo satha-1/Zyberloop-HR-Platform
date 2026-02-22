@@ -574,3 +574,308 @@ export async function generatePayrollRunPDF(html: string): Promise<Buffer> {
     await browser.close();
   }
 }
+
+/**
+ * Generate individual employee payslip HTML
+ */
+export function generateEmployeePayslipHTML(data: {
+  employeeCode: string;
+  employeeName: string;
+  department?: string;
+  periodStart: Date | string;
+  periodEnd: Date | string;
+  paymentDate: Date | string;
+  runName: string;
+  earnings: Array<{ name: string; amount: number }>;
+  deductions: Array<{ name: string; amount: number }>;
+  grossPay: number;
+  totalDeductions: number;
+  netPay: number;
+}): string {
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payslip - ${data.employeeName}</title>
+  <style>
+    @page {
+      margin: 20mm 15mm;
+      size: A4 portrait;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1f2937;
+      background: #ffffff;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .company-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .document-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      text-align: right;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+
+    .info-table th,
+    .info-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    .info-table th {
+      font-weight: 500;
+      color: #6b7280;
+      width: 35%;
+    }
+
+    .info-table td {
+      font-weight: 400;
+      color: #111827;
+    }
+
+    .info-table td.text-right {
+      text-align: right;
+      font-family: 'Courier New', monospace;
+    }
+
+    .info-table tr:last-child th,
+    .info-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #d1d5db;
+    }
+
+    .tables-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .table-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .data-table th {
+      background: #f9fafb;
+      color: #374151;
+      font-weight: 600;
+      padding: 4px 6px;
+      text-align: left;
+      border: 1px solid #e5e7eb;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table th:last-child {
+      text-align: right;
+    }
+
+    .data-table td {
+      padding: 4px 6px;
+      border: 1px solid #e5e7eb;
+      color: #111827;
+    }
+
+    .data-table td:last-child {
+      text-align: right;
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+    }
+
+    .data-table tbody tr:last-child {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+
+    .data-table tbody tr:last-child td {
+      border-top: 2px solid #d1d5db;
+    }
+
+    .net-pay-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 2px solid #111827;
+      text-align: right;
+    }
+
+    .net-pay-label {
+      font-size: 10px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .net-pay-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      font-family: 'Courier New', monospace;
+    }
+
+    @media print {
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="company-name">ZyberHR</div>
+    <div class="document-title">Payslip</div>
+  </div>
+
+  <!-- EMPLOYEE INFO -->
+  <table class="info-table">
+    <tr>
+      <th>Employee Code</th>
+      <td>${data.employeeCode}</td>
+    </tr>
+    <tr>
+      <th>Employee Name</th>
+      <td>${data.employeeName}</td>
+    </tr>
+    <tr>
+      <th>Department</th>
+      <td>${data.department || 'N/A'}</td>
+    </tr>
+    <tr>
+      <th>Period</th>
+      <td>${formatDate(data.periodStart)} – ${formatDate(data.periodEnd)}</td>
+    </tr>
+    <tr>
+      <th>Payment Date</th>
+      <td>${formatDate(data.paymentDate)}</td>
+    </tr>
+    <tr>
+      <th>Payroll Run</th>
+      <td>${data.runName}</td>
+    </tr>
+  </table>
+
+  <!-- EARNINGS & DEDUCTIONS -->
+  <div class="section-title">Pay Details</div>
+  <div class="tables-container">
+    <!-- Earnings Table -->
+    <div>
+      <div class="table-title">Earnings</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.earnings.length > 0 
+            ? data.earnings.map(earning => `
+                <tr>
+                  <td>${earning.name}</td>
+                  <td>${formatCurrency(earning.amount)}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="2" class="text-muted">No earnings items</td></tr>'
+          }
+          <tr>
+            <td class="font-bold">Gross Pay</td>
+            <td class="font-bold">${formatCurrency(data.grossPay)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Deductions Table -->
+    <div>
+      <div class="table-title">Deductions</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.deductions.length > 0
+            ? data.deductions.map(deduction => `
+                <tr>
+                  <td>${deduction.name}</td>
+                  <td>${formatCurrency(deduction.amount)}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="2" class="text-muted">No deductions</td></tr>'
+          }
+          <tr>
+            <td class="font-bold">Total Deductions</td>
+            <td class="font-bold">${formatCurrency(data.totalDeductions)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NET PAY -->
+  <div class="net-pay-section">
+    <div class="net-pay-label">Net Pay</div>
+    <div class="net-pay-value">${formatCurrency(data.netPay)}</div>
+  </div>
+</body>
+</html>
+  `;
+
+  return html;
+}
