@@ -16,15 +16,50 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/layout.js"
     ],
-    "/(main)/payroll/templates/page": [
+    "/(main)/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(main)/payroll/templates/page.js"
+      "static/chunks/app/(main)/page.js"
+    ],
+    "/(main)/recruitment/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/recruitment/page.js"
+    ],
+    "/portal/jobs/[requisitionId]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/portal/jobs/[requisitionId]/page.js"
+    ],
+    "/(main)/employees/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/employees/page.js"
+    ],
+    "/(main)/employees/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/employees/[id]/page.js"
     ],
     "/(main)/payroll/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/payroll/page.js"
+    ],
+    "/(main)/payroll/templates/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/new/page.js"
+    ],
+    "/(main)/payroll/templates/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/page.js"
+    ],
+    "/(main)/payroll/templates/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/payroll/templates/[id]/page.js"
     ],
     "/(main)/payroll/runs/new/page": [
       "static/chunks/webpack.js",
@@ -35,11 +70,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/payroll/runs/[id]/page.js"
-    ],
-    "/_not-found/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

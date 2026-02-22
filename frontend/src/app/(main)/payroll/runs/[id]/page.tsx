@@ -36,6 +36,7 @@ export default function PayrollRunDetailPage() {
   const id = params.id as string;
   const [payrollRun, setPayrollRun] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -49,10 +50,13 @@ export default function PayrollRunDetailPage() {
   const loadPayrollRun = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.getPayrollRunById(id);
       setPayrollRun(data);
     } catch (error: any) {
-      toast.error(error.message || "Failed to load payroll run");
+      const errorMessage = error.message || "Failed to load payroll run";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -114,6 +118,29 @@ export default function PayrollRunDetailPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-gray-500">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Connection Error</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={loadPayrollRun} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+              <Link href="/payroll/runs">
+                <Button variant="outline">Back to Payroll Runs</Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

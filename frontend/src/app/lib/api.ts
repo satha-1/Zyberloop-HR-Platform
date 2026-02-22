@@ -41,54 +41,63 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
 
-    if (!response.ok) {
-      // Handle 401 Unauthorized
-      if (response.status === 401) {
-        this.setToken(null);
-        if (typeof window !== 'undefined') {
-          // Try to auto-login with default admin credentials
-          const defaultEmail = 'sathsarasoysa2089@gmail.com';
-          const defaultPassword = 'Sath@Admin';
-          
-          try {
-            await this.login(defaultEmail, defaultPassword);
-            // Retry the original request with new token
-            if (this.token) {
-              const newHeaders = {
-                ...headers,
-                'Authorization': `Bearer ${this.token}`,
-              };
-              const retryResponse = await fetch(url, {
-                ...options,
-                headers: newHeaders,
-              });
-              if (retryResponse.ok) {
-                const retryData = await retryResponse.json();
-                return retryData.data || retryData;
+      if (!response.ok) {
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          this.setToken(null);
+          if (typeof window !== 'undefined') {
+            // Try to auto-login with default admin credentials
+            const defaultEmail = 'sathsarasoysa2089@gmail.com';
+            const defaultPassword = 'Sath@Admin';
+            
+            try {
+              await this.login(defaultEmail, defaultPassword);
+              // Retry the original request with new token
+              if (this.token) {
+                const newHeaders = {
+                  ...headers,
+                  'Authorization': `Bearer ${this.token}`,
+                };
+                const retryResponse = await fetch(url, {
+                  ...options,
+                  headers: newHeaders,
+                });
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  return retryData.data || retryData;
+                }
               }
+            } catch (loginError) {
+              console.error('Auto-login failed:', loginError);
             }
-          } catch (loginError) {
-            console.error('Auto-login failed:', loginError);
           }
+          throw new Error('Authentication required. Please login.');
         }
-        throw new Error('Authentication required. Please login.');
+
+        const error = await response.json().catch(() => ({ message: 'Request failed' }));
+        throw new Error(error.error?.message || error.message || 'Request failed');
       }
 
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const data = await response.json();
+      // Handle both { success: true, data: [...] } and direct array/object responses
+      if (data && typeof data === 'object' && 'data' in data && !Array.isArray(data)) {
+        return data.data;
+      }
+      return data;
+    } catch (error: any) {
+      // Handle network errors (backend not running, CORS, etc.)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      }
+      // Re-throw other errors
+      throw error;
     }
-
-    const data = await response.json();
-    // Handle both { success: true, data: [...] } and direct array/object responses
-    if (data && typeof data === 'object' && 'data' in data && !Array.isArray(data)) {
-      return data.data;
-    }
-    return data;
   }
 
   // Auth
@@ -708,26 +717,36 @@ class ApiClient {
   }
 
   async exportPayrollRun(id: string, format: 'pdf' | 'csv' = 'pdf') {
-    const response = await fetch(`${this.baseUrl}/payroll/runs/${id}/export?format=${format}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.token || localStorage.getItem('auth_token')}`,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Export failed');
+    try {
+      const response = await fetch(`${this.baseUrl}/payroll/runs/${id}/export?format=${format}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.token || localStorage.getItem('auth_token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Export failed' }));
+        throw new Error(error.error?.message || error.message || 'Export failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payroll-run-${id}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      // Handle network errors (backend not running, CORS, etc.)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      }
+      // Re-throw other errors
+      throw error;
     }
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `payroll-run-${id}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
   }
 
   // Payroll Dashboard Stats
