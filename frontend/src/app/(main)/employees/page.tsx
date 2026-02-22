@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { PageCard } from "../../components/ui/PageCard";
-import { DataTable, DataTableRow, DataTableCell } from "../../components/ui/DataTable";
+import { EnterpriseTable, EnterpriseTableColumn, TableLink } from "../../components/ui/EnterpriseTable";
 import { EmployeeAvatar } from "../../components/ui/EmployeeAvatar";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
@@ -123,10 +122,11 @@ export default function Employees() {
         </div>
       </div>
 
-      <PageCard
+      <EnterpriseTable
         title="Employees"
-        description="View and manage all employees in your organization"
-        action={
+        subtitle="View and manage all employees in your organization"
+        itemCountLabel={loading ? "Loading..." : `${filteredEmployees.length} of ${employees.length} employees`}
+        headerActions={
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -157,64 +157,99 @@ export default function Employees() {
             </Select>
           </div>
         }
-      >
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading employees...</div>
-        ) : (
-          <>
-            <DataTable
-              headers={["", "Employee Code", "Name", "Email", "Department", "Grade", "Manager", "Status", "Actions"]}
-              emptyMessage="No employees found. Try adjusting your search or filters."
-            >
-              {filteredEmployees.map((employee: any) => (
-                <DataTableRow key={employee._id || employee.id}>
-                  <DataTableCell className="w-12 px-2">
-                    <div className="flex items-center justify-center">
-                      <EmployeeAvatar
-                        profilePicture={employee.profilePicture}
-                        firstName={employee.firstName}
-                        lastName={employee.lastName}
-                        size="md"
-                      />
-                    </div>
-                  </DataTableCell>
-                  <DataTableCell>
-                    <span className="font-medium text-gray-900">{employee.employeeCode}</span>
-                  </DataTableCell>
-                  <DataTableCell>
-                    {employee.firstName} {employee.lastName}
-                  </DataTableCell>
-                  <DataTableCell>{employee.email}</DataTableCell>
-                  <DataTableCell>{employee.departmentId?.name || employee.department || "N/A"}</DataTableCell>
-                  <DataTableCell>{employee.grade}</DataTableCell>
-                  <DataTableCell>
-                    {employee.managerId 
-                      ? `${employee.managerId.firstName || ''} ${employee.managerId.lastName || ''}`.trim() || "N/A"
-                      : "N/A"}
-                  </DataTableCell>
-                  <DataTableCell>
-                    <Badge className={getStatusColor(employee.status)}>
-                      {employee.status?.replace("_", " ") || employee.status}
-                    </Badge>
-                  </DataTableCell>
-                  <DataTableCell align="right">
-                    <Link href={`/employees/${employee._id || employee.id}/profile`}>
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </Link>
-                  </DataTableCell>
-                </DataTableRow>
-              ))}
-            </DataTable>
-            <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500">
-                Showing {filteredEmployees.length} of {employees.length} employees
-              </p>
-            </div>
-          </>
-        )}
-      </PageCard>
+        columns={[
+          {
+            key: "avatar",
+            header: "",
+            widthClassName: "w-12",
+            align: "center",
+            render: (employee: any) => (
+              <div className="flex items-center justify-center">
+                <EmployeeAvatar
+                  profilePicture={employee.profilePicture}
+                  firstName={employee.firstName}
+                  lastName={employee.lastName}
+                  size="md"
+                />
+              </div>
+            ),
+          },
+          {
+            key: "employeeCode",
+            header: "Employee Code",
+            render: (employee: any) => (
+              <span className="font-medium text-gray-900">
+                {employee.employeeCode}
+              </span>
+            ),
+          },
+          {
+            key: "name",
+            header: "Name",
+            render: (employee: any) => (
+              <span>
+                {employee.firstName} {employee.lastName}
+              </span>
+            ),
+          },
+          {
+            key: "email",
+            header: "Email",
+            render: (employee: any) => (
+              <TableLink href={`mailto:${employee.email}`}>
+                {employee.email}
+              </TableLink>
+            ),
+          },
+          {
+            key: "department",
+            header: "Department",
+            render: (employee: any) =>
+              employee.departmentId?.name || employee.department || "N/A",
+          },
+          {
+            key: "grade",
+            header: "Grade",
+            render: (employee: any) => employee.grade || "N/A",
+          },
+          {
+            key: "manager",
+            header: "Manager",
+            render: (employee: any) =>
+              employee.managerId
+                ? `${employee.managerId.firstName || ""} ${employee.managerId.lastName || ""}`.trim() || "N/A"
+                : "N/A",
+          },
+          {
+            key: "status",
+            header: "Status",
+            render: (employee: any) => (
+              <Badge className={getStatusColor(employee.status)}>
+                {employee.status?.replace("_", " ") || employee.status}
+              </Badge>
+            ),
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            align: "right",
+            widthClassName: "w-20",
+            render: (employee: any) => (
+              <TableLink
+                href={`/employees/${employee._id || employee.id}/profile`}
+              >
+                View
+              </TableLink>
+            ),
+          },
+        ]}
+        data={loading ? [] : filteredEmployees}
+        getRowKey={(employee: any) => employee._id || employee.id}
+        emptyStateText={loading ? "Loading employees..." : "No employees found. Try adjusting your search or filters."}
+        onRowClick={(employee: any) => {
+          window.location.href = `/employees/${employee._id || employee.id}/profile`;
+        }}
+      />
 
       <AddEmployeeDialog
         open={addEmployeeOpen}

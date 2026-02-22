@@ -1,17 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../components/ui/table";
+import { EnterpriseTable, TableLink } from "../../components/ui/EnterpriseTable";
 import { useDepartments } from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
@@ -89,78 +81,94 @@ export default function Departments() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search departments by name or code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+      <EnterpriseTable
+        title="Departments"
+        subtitle="Manage organizational departments"
+        itemCountLabel={`${filteredDepartments.length} department${filteredDepartments.length !== 1 ? 's' : ''}`}
+        headerActions={
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search departments..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full text-sm"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Parent Department</TableHead>
-                  <TableHead>Head</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDepartments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      {searchTerm ? "No departments found matching your search" : "No departments found. Create one to get started."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredDepartments.map((dept: any) => (
-                    <TableRow key={dept._id || dept.id}>
-                      <TableCell className="font-mono font-medium">{dept.code}</TableCell>
-                      <TableCell className="font-medium">{dept.name}</TableCell>
-                      <TableCell>
-                        {dept.parentDepartmentId?.name || dept.parentDepartment?.name || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {dept.headId
-                          ? `${dept.headId.firstName || ""} ${dept.headId.lastName || ""}`.trim() || dept.headId.employeeCode || "-"
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(dept)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(dept._id || dept.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+        }
+        columns={[
+          {
+            key: "code",
+            header: "Code",
+            widthClassName: "w-24",
+            render: (dept: any) => (
+              <span className="font-mono font-medium text-gray-900">
+                {dept.code}
+              </span>
+            ),
+          },
+          {
+            key: "name",
+            header: "Name",
+            render: (dept: any) => (
+              <span className="font-medium text-gray-900">{dept.name}</span>
+            ),
+          },
+          {
+            key: "parent",
+            header: "Parent Department",
+            render: (dept: any) =>
+              dept.parentDepartmentId?.name || dept.parentDepartment?.name || "-",
+          },
+          {
+            key: "head",
+            header: "Head",
+            render: (dept: any) =>
+              dept.headId
+                ? `${dept.headId.firstName || ""} ${dept.headId.lastName || ""}`.trim() || dept.headId.employeeCode || "-"
+                : "-",
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            align: "right",
+            widthClassName: "w-24",
+            render: (dept: any) => (
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(dept);
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(dept._id || dept.id);
+                  }}
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={filteredDepartments}
+        getRowKey={(dept: any) => dept._id || dept.id}
+        emptyStateText={
+          searchTerm
+            ? "No departments found matching your search"
+            : "No departments found. Create one to get started."
+        }
+      />
 
       <DepartmentDialog
         open={dialogOpen}

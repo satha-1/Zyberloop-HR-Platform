@@ -110,6 +110,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/employees/[id]/profile/page.js"
+    ],
+    "/(main)/workforce-planning/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/workforce-planning/page.js"
     ]
   }
 }

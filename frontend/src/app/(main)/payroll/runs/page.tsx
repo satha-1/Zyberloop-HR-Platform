@@ -1,18 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { Input } from "../../../components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../../components/ui/table";
+import { EnterpriseTable, TableLink } from "../../../components/ui/EnterpriseTable";
 import {
   Select,
   SelectContent,
@@ -155,17 +147,19 @@ export default function PayrollRunsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
+      <EnterpriseTable
+        title="Payroll Runs"
+        subtitle="Manage and process payroll runs"
+        itemCountLabel={loading ? "Loading..." : `${runs.length} run${runs.length !== 1 ? 's' : ''}`}
+        headerActions={
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search runs..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full text-sm"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -195,136 +189,140 @@ export default function PayrollRunsPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Runs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payroll Runs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Run Name</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Employees</TableHead>
-                  <TableHead>Total Gross</TableHead>
-                  <TableHead>Total Net</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : runs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
-                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        No Payroll Runs Found
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        {search || statusFilter !== "all" || templateFilter !== "all"
-                          ? "Try adjusting your filters"
-                          : "Get started by creating your first payroll run"}
-                      </p>
-                      {(!search && statusFilter === "all" && templateFilter === "all") && (
-                        <Link href="/payroll/runs/new">
-                          <Button>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Payroll Run
-                          </Button>
-                        </Link>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  runs.map((run) => (
-                    <TableRow key={run.id}>
-                      <TableCell className="font-medium">{run.runName}</TableCell>
-                      <TableCell>{run.templateName || "N/A"}</TableCell>
-                      <TableCell>
-                        {new Date(run.periodStart).toLocaleDateString()} -{" "}
-                        {new Date(run.periodEnd).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>{new Date(run.paymentDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(run.status)}>
-                          {run.status.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{run.employeeCount}</TableCell>
-                      <TableCell>
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: "LKR",
-                          minimumFractionDigits: 0,
-                        }).format(run.totalGross)}
-                      </TableCell>
-                      <TableCell>
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: "LKR",
-                          minimumFractionDigits: 0,
-                        }).format(run.totalNet)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Link href={`/payroll/runs/${run.id || run._id}`}>
-                            <Button variant="ghost" size="sm" title="View">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          {canEdit(run.status) && (
-                            <Link href={`/payroll/runs/${run.id || run._id}/edit`}>
-                              <Button variant="ghost" size="sm" title="Edit">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          )}
-                          {run.status !== "locked" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Lock"
-                              onClick={() => handleLock(run.id || run._id)}
-                            >
-                              <Lock className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canEdit(run.status) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Delete"
-                              onClick={() => {
-                                setRunToDelete(run.id || run._id);
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+        }
+        columns={[
+          {
+            key: "runName",
+            header: "Run Name",
+            render: (run: PayrollRun) => (
+              <TableLink href={`/payroll/runs/${run.id || run._id}`}>
+                {run.runName}
+              </TableLink>
+            ),
+          },
+          {
+            key: "templateName",
+            header: "Template",
+            render: (run: PayrollRun) => run.templateName || "N/A",
+          },
+          {
+            key: "period",
+            header: "Period",
+            render: (run: PayrollRun) =>
+              `${new Date(run.periodStart).toLocaleDateString()} - ${new Date(run.periodEnd).toLocaleDateString()}`,
+          },
+          {
+            key: "paymentDate",
+            header: "Payment Date",
+            render: (run: PayrollRun) => new Date(run.paymentDate).toLocaleDateString(),
+          },
+          {
+            key: "status",
+            header: "Status",
+            render: (run: PayrollRun) => (
+              <Badge className={getStatusColor(run.status)}>
+                {run.status.replace("_", " ")}
+              </Badge>
+            ),
+          },
+          {
+            key: "employeeCount",
+            header: "Employees",
+            align: "right",
+            render: (run: PayrollRun) => run.employeeCount || 0,
+          },
+          {
+            key: "totalGross",
+            header: "Total Gross",
+            align: "right",
+            render: (run: PayrollRun) => (
+              <span className="font-medium">
+                {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "LKR",
+                  minimumFractionDigits: 0,
+                }).format(run.totalGross)}
+              </span>
+            ),
+          },
+          {
+            key: "totalNet",
+            header: "Total Net",
+            align: "right",
+            render: (run: PayrollRun) => (
+              <span className="font-medium">
+                {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "LKR",
+                  minimumFractionDigits: 0,
+                }).format(run.totalNet)}
+              </span>
+            ),
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            align: "right",
+            widthClassName: "w-32",
+            render: (run: PayrollRun) => (
+              <div className="flex items-center gap-2 justify-end">
+                <Link href={`/payroll/runs/${run.id || run._id}`}>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="View">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
+                {canEdit(run.status) && (
+                  <Link href={`/payroll/runs/${run.id || run._id}/edit`}>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                {run.status !== "locked" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Lock"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLock(run.id || run._id);
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Lock className="h-4 w-4" />
+                  </Button>
+                )}
+                {canEdit(run.status) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRunToDelete(run.id || run._id);
+                      setDeleteDialogOpen(true);
+                    }}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        data={loading ? [] : runs}
+        getRowKey={(run: PayrollRun) => run.id || run._id}
+        emptyStateText={
+          search || statusFilter !== "all" || templateFilter !== "all"
+            ? "Try adjusting your filters"
+            : "Get started by creating your first payroll run"
+        }
+        emptyStateIcon={<AlertCircle className="h-12 w-12 text-gray-400" />}
+        onRowClick={(run: PayrollRun) => {
+          window.location.href = `/payroll/runs/${run.id || run._id}`;
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
