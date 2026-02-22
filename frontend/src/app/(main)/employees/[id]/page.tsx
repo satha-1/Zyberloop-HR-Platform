@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { EmployeeAvatar } from "../../../components/ui/EmployeeAvatar";
 import { useEmployee, useEmployees, usePerformanceGoals, usePerformanceCycles } from "../../../lib/hooks";
 import { DocumentGenerator } from "../../../components/DocumentGenerator";
 import { EditEmployeeDialog } from "../../../components/EditEmployeeDialog";
@@ -98,27 +99,17 @@ export default function EmployeeProfile() {
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
             <div className="relative">
-              {employee.profilePicture ? (
-                <img
-                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001'}${employee.profilePicture}`}
-                  alt={`${firstName} ${lastName}`}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-gray-200"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl sm:text-3xl font-bold text-white">
-                    {firstName[0] || ""}
-                    {lastName[0] || ""}
-                  </span>
-                </div>
-              )}
+              <EmployeeAvatar
+                profilePicture={employee.profilePicture}
+                firstName={firstName}
+                lastName={lastName}
+                size="lg"
+                className="w-20 h-20 sm:w-24 sm:h-24 border-2 border-gray-200"
+              />
               <Button
                 size="sm"
                 variant="outline"
-                className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0 border-2 border-white"
+                className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0 border-2 border-white shadow-sm"
                 onClick={() => setEditEmployeeOpen(true)}
                 title="Edit profile picture"
               >

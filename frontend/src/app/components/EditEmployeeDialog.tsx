@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { useDepartments, useEmployees } from "../lib/hooks";
+import { EmployeeAvatar } from "./ui/EmployeeAvatar";
 import { Upload, X } from "lucide-react";
 
 interface EditEmployeeDialogProps {
