@@ -229,7 +229,7 @@ export default function Employees() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Link href={`/employees/${employee._id || employee.id}`}>
+                                <Link href={`/employees/${employee._id || employee.id}/profile`}>
                                   <Button variant="ghost" size="sm">
                                     View
                                   </Button>

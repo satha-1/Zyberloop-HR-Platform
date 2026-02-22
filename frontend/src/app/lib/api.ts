@@ -217,6 +217,75 @@ class ApiClient {
     });
   }
 
+  // Employee Profile 360° APIs
+  async getEmployeeProfileSummary(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/summary`);
+  }
+
+  async getEmployeeProfileJob(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/job`);
+  }
+
+  async getEmployeeProfileCompensation(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/compensation`);
+  }
+
+  async getEmployeeProfilePerformance(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/performance`);
+  }
+
+  async getEmployeeProfileCareer(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/career`);
+  }
+
+  async getEmployeeProfileContact(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/contact`);
+  }
+
+  async getEmployeeProfilePersonal(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/personal`);
+  }
+
+  async getEmployeeProfilePay(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/pay`);
+  }
+
+  async getEmployeeProfileAbsence(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/absence`);
+  }
+
+  async getEmployeeProfileBenefits(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/benefits`);
+  }
+
+  async getEmployeeProfileServiceDates(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/service-dates`);
+  }
+
+  async getEmployeeProfileAssignedRoles(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/assigned-roles`);
+  }
+
+  async getEmployeeProfileSupportRoles(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/support-roles`);
+  }
+
+  async getEmployeeProfileExternalInteractions(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/external-interactions`);
+  }
+
+  async getEmployeeProfileAdditionalData(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/additional-data`);
+  }
+
+  async getEmployeeProfileOrganizations(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/organizations`);
+  }
+
+  async getEmployeeProfileManagementChain(employeeId: string) {
+    return this.request(`/employees/${employeeId}/profile/management-chain`);
+  }
+
   async getEmployeeDocuments(employeeId: string) {
     return this.request(`/employees/${employeeId}/documents`);
   }
