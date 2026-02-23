@@ -3,6 +3,8 @@ import { LeaveRequest } from './leaveRequest.model';
 import { Employee } from '../employees/employee.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
+import mongoose from 'mongoose';
+import { LeaveType } from './leaveType.model';
 
 export const getLeaveRequests = async (
   req: Request,
@@ -69,12 +71,71 @@ export const getLeaveRequestById = async (
   }
 };
 
+//current logic save leave request directly to the database, validation missing
 export const createLeaveRequest = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const {employeeId, leaveTypeId, startDate, days} = req.body;
+
+    const emplyee = await Employee.findById(employeeId);
+    const leaveType = await LeaveType.findById(leaveTypeId);
+
+    if(!emplyee) throw new AppError(404, 'Empleyee not found');
+    if(!leaveType) throw new AppError(404, 'Leave type not found');
+
+    // Accrual logic
+    const hireDate = new Date(emplyee.hireDate);
+    const now = new Date();
+    // calculate months worked
+    const monthsWorked = (now.getFullYear() - hireDate.getFullYear()) * 12 + (now.getMonth() - hireDate.getMonth());
+    // calculate total accrued in that leave type
+    const totalAccrued = monthsWorked * (leaveType.accrualRule?.perMonth || 0);
+    // calculate taken in that leave type
+    const takenAccrued = await LeaveRequest.aggregate([
+      { 
+        $match: { 
+          employeeId: new mongoose.Types.ObjectId(employeeId), 
+          leaveTypeId: new mongoose.Types.ObjectId(leaveTypeId), 
+          status: 'HR_APPROVED' 
+        } 
+      },
+      { 
+        $group: { _id: null, total: { $sum: '$days' } } 
+      }
+    ]);
+
+    // We need to implement the carryIn from previous year and encashedLeaves logic later
+    // For now, we will consider it as 0
+    const carryIn = 0;
+    const encashedLeaves = 0;
+
+    // Calculate current balance
+    const currentBalance = totalAccrued - (takenAccrued[0]?.total || 0) + carryIn - encashedLeaves;
+
+    // Check if the leave request is valid
+    if (days > currentBalance) {
+      throw new AppError(400, `Insufficient leave balance. Available: ${currentBalance}`);
+    }    
+
+    // The leaves that cant take in certain period and check if the leave request is valid logic go here
+    //  Blackout Period (example: Last week in December no leave allow)
+
+    // Add calculated balance and default approver chain to req.body 
+    req.body.balance = currentBalance;
+    req.body.approverChain = [
+      {
+        role: 'MANAGER',
+        status: 'PENDING',
+      },
+      {
+        role: 'HR_ADMIN',
+        status: 'PENDING',
+      },
+    ];
+
     const request = new LeaveRequest(req.body);
     await request.save();
 
