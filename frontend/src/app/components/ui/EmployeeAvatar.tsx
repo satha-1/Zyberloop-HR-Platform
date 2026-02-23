@@ -33,9 +33,13 @@ export function EmployeeAvatar({
   // Construct the full URL for the profile picture
   // profilePicture is stored as /uploads/profile-pictures/filename.jpg
   // Backend serves static files from /uploads route
-  const baseUrl = typeof window !== 'undefined' 
-    ? (process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001')
-    : 'http://localhost:3001';
+  // Extract base URL from API_BASE_URL (remove /api/v1 suffix)
+  const getBaseUrl = () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
+    return apiUrl.replace('/api/v1', '');
+  };
+  
+  const baseUrl = typeof window !== 'undefined' ? getBaseUrl() : getBaseUrl();
   
   let profilePictureUrl: string | null = null;
   

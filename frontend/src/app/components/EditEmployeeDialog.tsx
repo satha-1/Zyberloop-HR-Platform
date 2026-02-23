@@ -61,7 +61,9 @@ export function EditEmployeeDialog({
         salary: employee.salary?.toString() || "",
         status: employee.status || "active",
       });
-      setProfilePreview(employee.profilePicture ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001'}${employee.profilePicture}` : null);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
+      const baseUrl = apiBaseUrl.replace('/api/v1', '');
+      setProfilePreview(employee.profilePicture ? `${baseUrl}${employee.profilePicture}` : null);
       setProfilePicture(null);
     }
   }, [open, employee]);

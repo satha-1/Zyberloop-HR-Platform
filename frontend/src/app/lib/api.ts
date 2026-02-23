@@ -1,4 +1,11 @@
+// API Base URL - must be set in environment variables
+// For local development: http://localhost:3001/api/v1
+// For production: https://your-api-domain.com/api/v1
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
+
+if (!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  NEXT_PUBLIC_API_BASE_URL is not set. Using default localhost URL.');
+}
 
 class ApiClient {
   private baseUrl: string;

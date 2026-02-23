@@ -29,7 +29,10 @@ HR Management Platform/
 cd backend
 npm install
 
-# Create .env file (see backend/README.md for details)
+# Copy environment variables template
+cp .env.example .env.local
+
+# Edit .env.local with your configuration (see ENV_SETUP.md for details)
 # Then seed admin user:
 npm run seed
 
@@ -37,7 +40,7 @@ npm run seed
 npm run dev
 ```
 
-Backend runs on `http://localhost:3001`
+Backend runs on `http://localhost:3001` (or the port specified in `.env.local`)
 
 ### Frontend Setup
 
@@ -45,7 +48,10 @@ Backend runs on `http://localhost:3001`
 cd frontend
 npm install
 
-# Create .env.local file:
+# Copy environment variables template
+cp .env.example .env.local
+
+# Edit .env.local with your configuration:
 # NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1
 
 # Start frontend server
@@ -53,6 +59,15 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:3000`
+
+## Environment Variables
+
+For detailed environment variable configuration, especially for AWS deployment, see [ENV_SETUP.md](./ENV_SETUP.md).
+
+**Quick Setup:**
+1. Copy `.env.example` to `.env.local` in both `backend/` and `frontend/` directories
+2. Update the values in `.env.local` according to your environment
+3. For AWS deployment, see the AWS Deployment section in `ENV_SETUP.md`
 
 ## Default Admin Credentials
 

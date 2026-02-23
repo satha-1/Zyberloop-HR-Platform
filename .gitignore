@@ -16,14 +16,23 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# Environment variables
+# Environment variables - DO NOT COMMIT THESE FILES
 .env
+.env.*
+!.env.example
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
 *.env
-**/.env*
+**/.env
+**/.env.*
+# But allow .env.example files (these are templates and should be committed)
+!.env.example
+!**/.env.example
 
 # Logs
 *.log
