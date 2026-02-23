@@ -115,6 +115,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(main)/workforce-planning/page.js"
+    ],
+    "/(main)/departments/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(main)/departments/page.js"
     ]
   }
 }

@@ -16,6 +16,7 @@ import {
 import { LeaveRequest } from '../leave/leaveRequest.model';
 import { LeaveType } from '../leave/leaveType.model';
 import { PayrollEntry } from '../payroll/payrollEntry.model';
+import { Goal, PerformanceCycle } from '../performance/performance.model';
 
 // Helper function to calculate length of service
 function calculateLengthOfService(startDate: Date, endDate?: Date): string {
@@ -212,7 +213,7 @@ export const getProfileCompensation = async (
           allowances: totalAllowances,
           total: totalSalary + totalAllowances,
         },
-        planAssignments: compensationProfile.planAssignments,
+        planAssignments: compensationProfile.planAssignments || [],
       },
     });
   } catch (error) {
@@ -235,10 +236,20 @@ export const getProfilePerformance = async (
     
     // This would integrate with your existing performance module
     // For now, return a basic structure
+    const activeCycle = await PerformanceCycle.findOne({ status: 'ACTIVE' });
+    const goals = activeCycle
+      ? await Goal.find({ employeeId: new mongoose.Types.ObjectId(employeeId), cycleId: activeCycle._id }).lean()
+      : [];
+    
     res.json({
       success: true,
       data: {
-        currentGoals: [],
+        currentGoals: (goals || []).map((goal: any) => ({
+          description: goal.description,
+          status: goal.status,
+          progress: goal.progress,
+          targetDate: goal.targetDate,
+        })),
         lastReview: null,
         lastRating: null,
         ratingScale: null,
@@ -263,12 +274,13 @@ export const getProfileCareer = async (
     }
     
     const jobHistory = await EmployeeJobHistory.find({ employeeId })
-      .sort({ startDate: -1 });
+      .sort({ startDate: -1 })
+      .lean();
     
     res.json({
       success: true,
       data: {
-        jobHistory: jobHistory.map((job) => ({
+        jobHistory: (jobHistory || []).map((job: any) => ({
           jobTitle: job.jobTitle,
           company: job.company,
           startDate: job.startDate,
@@ -440,7 +452,7 @@ export const getProfileAbsence = async (
     res.json({
       success: true,
       data: {
-        balances,
+        balances: balances || [],
       },
     });
   } catch (error) {
@@ -462,15 +474,16 @@ export const getProfileBenefits = async (
     }
     
     const benefits = await EmployeeBenefit.find({ employeeId })
-      .sort({ effectiveDate: -1 });
+      .sort({ effectiveDate: -1 })
+      .lean();
     
     res.json({
       success: true,
       data: {
-        benefits: benefits.map((benefit) => ({
+        benefits: (benefits || []).map((benefit: any) => ({
           benefitType: benefit.benefitType,
           planName: benefit.planName,
-          provider: benefit.provider,
+          provider: benefit.provider || 'N/A',
           effectiveDate: benefit.effectiveDate,
           status: benefit.status,
         })),
@@ -546,12 +559,13 @@ export const getProfileAssignedRoles = async (
     }
     
     const roles = await EmployeeAssignedRole.find({ employeeId })
-      .sort({ dateAssigned: -1 });
+      .sort({ dateAssigned: -1 })
+      .lean();
     
     res.json({
       success: true,
       data: {
-        roles: roles.map((role) => ({
+        roles: (roles || []).map((role: any) => ({
           roleName: role.roleName,
           organizationName: role.organizationName,
           organizationType: role.organizationType,
@@ -578,16 +592,17 @@ export const getProfileSupportRoles = async (
     }
     
     const roles = await EmployeeSupportRole.find({ employeeId })
-      .sort({ effectiveStartDate: -1 });
+      .sort({ effectiveStartDate: -1 })
+      .lean();
     
     res.json({
       success: true,
       data: {
-        roles: roles.map((role) => ({
+        roles: (roles || []).map((role: any) => ({
           assignableRole: role.assignableRole,
           workerName: role.workerName,
           organization: role.organization,
-          roleEnabledDescription: role.roleEnabledDescription,
+          roleEnabledDescription: role.roleEnabledDescription || 'N/A',
           effectiveStartDate: role.effectiveStartDate,
           effectiveEndDate: role.effectiveEndDate,
         })),
@@ -677,15 +692,16 @@ export const getProfileOrganizations = async (
       throw new AppError(400, 'Invalid employee ID');
     }
     
-    const organizations = await EmployeeOrganization.find({ employeeId });
+    const organizations = await EmployeeOrganization.find({ employeeId })
+      .lean();
     
     res.json({
       success: true,
       data: {
-        organizations: organizations.map((org) => ({
+        organizations: (organizations || []).map((org: any) => ({
           organizationName: org.organizationName,
           organizationType: org.organizationType,
-          organizationSubtype: org.organizationSubtype,
+          organizationSubtype: org.organizationSubtype || 'N/A',
         })),
       },
     });
@@ -737,7 +753,7 @@ export const getProfileManagementChain = async (
     res.json({
       success: true,
       data: {
-        chain,
+        chain: chain || [],
       },
     });
   } catch (error) {

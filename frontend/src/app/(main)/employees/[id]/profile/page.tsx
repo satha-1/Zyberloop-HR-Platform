@@ -19,6 +19,7 @@ import {
 import { ProfileSectionCard } from "./components/ProfileSectionCard";
 import { ProfileSectionHeader } from "./components/ProfileSectionHeader";
 import { ProfileDataTable, ProfileTableRow, ProfileTableCell, ProfileEmptyState } from "./components/ProfileDataTable";
+import { ProfileTableSection, ProfileTableColumn } from "./components/ProfileTableSection";
 import { cn } from "../../../../components/ui/utils";
 
 // Profile section types
@@ -209,76 +210,92 @@ export default function EmployeeProfile360() {
   };
 
   const renderTabContent = () => {
-    if (activeTab === 'job-details') {
-      return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Profile Sections</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <nav className="space-y-1">
-                  {profileSections.map((section) => {
-                    const Icon = section.icon;
-                    return (
-                      <button
-                        key={section.id}
-                        onClick={() => setActiveSection(section.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          activeSection === section.id
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {section.label}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="lg:col-span-3">
-            <Card>
-              <CardContent className="p-6">
-                {renderSectionContent()}
-              </CardContent>
-            </Card>
-          </div>
+    // Left sidebar is always visible
+    const leftSidebar = (
+      <div className="w-64 flex-shrink-0">
+        <Card className="sticky top-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-700">Profile Sections</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <nav className="space-y-0.5 p-2">
+              {profileSections.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setActiveTab('job-details'); // Switch to job-details tab when selecting a section
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                      activeSection === section.id && activeTab === 'job-details'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{section.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </CardContent>
+        </Card>
+      </div>
+    );
+
+    // Main content area
+    const mainContent = activeTab === 'job-details' ? (
+      <div className="flex-1 min-w-0">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          {renderSectionContent()}
         </div>
-      );
-    }
+      </div>
+    ) : (
+      <div className="flex-1 min-w-0">
+        {(() => {
+          const tabData = profileData[activeTab];
+          if (!tabData) {
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div className="text-center py-8 text-gray-500">Loading...</div>
+              </div>
+            );
+          }
 
-    // Other tabs
-    const tabData = profileData[activeTab];
-    if (!tabData) {
-      return <div className="text-center py-8 text-gray-500">Loading...</div>;
-    }
+          switch (activeTab) {
+            case 'service-dates':
+              return <ServiceDatesTab data={tabData} />;
+            case 'assigned-roles':
+              return <AssignedRolesTab data={tabData} />;
+            case 'support-roles':
+              return <SupportRolesTab data={tabData} />;
+            case 'external-interactions':
+              return <ExternalInteractionsTab data={tabData} />;
+            case 'additional-data':
+              return <AdditionalDataTab data={tabData} />;
+            case 'organizations':
+              return <OrganizationsTab data={tabData} />;
+            case 'management-chain':
+              return <ManagementChainTab data={tabData} />;
+            default:
+              return <div>Tab content not implemented</div>;
+          }
+        })()}
+      </div>
+    );
 
-    switch (activeTab) {
-      case 'service-dates':
-        return <ServiceDatesTab data={tabData} />;
-      case 'assigned-roles':
-        return <AssignedRolesTab data={tabData} />;
-      case 'support-roles':
-        return <SupportRolesTab data={tabData} />;
-      case 'external-interactions':
-        return <ExternalInteractionsTab data={tabData} />;
-      case 'additional-data':
-        return <AdditionalDataTab data={tabData} />;
-      case 'organizations':
-        return <OrganizationsTab data={tabData} />;
-      case 'management-chain':
-        return <ManagementChainTab data={tabData} />;
-      default:
-        return <div>Tab content not implemented</div>;
-    }
+    return (
+      <div className="flex gap-6">
+        {leftSidebar}
+        {mainContent}
+      </div>
+    );
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -385,357 +402,421 @@ function SummarySection({ data, employee }: { data: any; employee: any }) {
 
 function JobSection({ data }: { data: any }) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Job Details</h3>
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium w-1/3">Employee ID</TableCell>
-            <TableCell>{data.employeeCode}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Position</TableCell>
-            <TableCell>{data.position}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Job Profile</TableCell>
-            <TableCell>{data.jobProfile || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Employee Type</TableCell>
-            <TableCell>{data.employeeType}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Time Type</TableCell>
-            <TableCell>{data.timeType}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">FTE</TableCell>
-            <TableCell>{data.fte}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Grade</TableCell>
-            <TableCell>{data.grade}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Location</TableCell>
-            <TableCell>{data.location}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Hire Date</TableCell>
-            <TableCell>{new Date(data.hireDate).toLocaleDateString()}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Length of Service</TableCell>
-            <TableCell>{data.lengthOfService}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Job Details</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Employee ID</span>
+            <span className="text-sm text-gray-900">{data.employeeCode || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Position</span>
+            <span className="text-sm text-gray-900">{data.position || data.jobTitle || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Job Profile</span>
+            <span className="text-sm text-gray-900">{data.jobProfile || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Employee Type</span>
+            <span className="text-sm text-gray-900">{data.employeeType || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Time Type</span>
+            <span className="text-sm text-gray-900">{data.timeType || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">FTE</span>
+            <span className="text-sm text-gray-900">{data.fte || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Grade</span>
+            <span className="text-sm text-gray-900">{data.grade || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Location</span>
+            <span className="text-sm text-gray-900">{data.location || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Hire Date</span>
+            <span className="text-sm text-gray-900">
+              {data.hireDate ? new Date(data.hireDate).toLocaleDateString() : 'N/A'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm font-medium text-gray-700">Length of Service</span>
+            <span className="text-sm font-semibold text-gray-900">{data.lengthOfService || 'N/A'}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function CompensationSection({ data }: { data: any }) {
+  const planAssignments = data.planAssignments || [];
+  
+  const totalsColumns: ProfileTableColumn[] = [
+    { key: "label", header: "Component", align: "left" },
+    { key: "amount", header: "Annual Amount (LKR)", align: "right" },
+  ];
+  
+  const totalsRows = [
+    {
+      label: "Total Salary",
+      amount: data.totals?.salary || 0,
+    },
+    {
+      label: "Total Allowances",
+      amount: data.totals?.allowances || 0,
+    },
+    {
+      label: "Total Annual",
+      amount: data.totals?.total || 0,
+      isTotal: true,
+    },
+  ];
+  
+  const planColumns: ProfileTableColumn[] = [
+    { key: "effectiveDate", header: "Effective Date", align: "left" },
+    { key: "planType", header: "Plan Type", align: "left" },
+    { key: "compensationPlan", header: "Plan", align: "left" },
+    { key: "assignmentDescription", header: "Description", align: "left" },
+    { key: "annualAmountLKR", header: "Annual Amount (LKR)", align: "right" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Compensation</h3>
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">Total Salary</span>
-          <span className="font-semibold">LKR {data.totals?.salary?.toLocaleString() || '0'}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-gray-600">Total Allowances</span>
-          <span className="font-semibold">LKR {data.totals?.allowances?.toLocaleString() || '0'}</span>
-        </div>
-        <div className="flex justify-between pt-2 border-t">
-          <span className="font-medium">Total Annual</span>
-          <span className="font-bold text-lg">LKR {data.totals?.total?.toLocaleString() || '0'}</span>
-        </div>
-      </div>
-      {data.planAssignments && data.planAssignments.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-medium mb-3">Plan Assignments</h4>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Effective Date</TableHead>
-                <TableHead>Plan Type</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead className="text-right">Annual Amount (LKR)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.planAssignments.map((plan: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell>{new Date(plan.effectiveDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{plan.planType}</TableCell>
-                  <TableCell>{plan.compensationPlan}</TableCell>
-                  <TableCell className="text-right">{plan.annualAmountLKR.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+    <div className="space-y-6">
+      <ProfileTableSection
+        title="Totals"
+        columns={totalsColumns}
+        rows={totalsRows}
+        emptyMessage="No compensation totals available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "amount") {
+            return (
+              <span className={row.isTotal ? "font-bold text-lg" : "font-semibold"}>
+                LKR {row.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            );
+          }
+          return <span className={row.isTotal ? "font-bold" : ""}>{row.label}</span>;
+        }}
+      />
+      
+      <ProfileTableSection
+        title="Plan Assignments"
+        columns={planColumns}
+        rows={planAssignments}
+        emptyMessage="No plan assignments available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "effectiveDate") {
+            return new Date(row.effectiveDate).toLocaleDateString();
+          }
+          if (columnKey === "annualAmountLKR") {
+            return `LKR ${row.annualAmountLKR.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function PerformanceSection({ data }: { data: any }) {
+  const goals = data.currentGoals || [];
+  
+  const columns: ProfileTableColumn[] = [
+    { key: "description", header: "Goal Description", align: "left" },
+    { key: "status", header: "Status", align: "left" },
+    { key: "progress", header: "Progress", align: "right" },
+    { key: "targetDate", header: "Target Date", align: "left" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Performance</h3>
-      <p className="text-sm text-gray-600">Performance data will be integrated with the Performance module.</p>
-      {data.currentGoals && data.currentGoals.length > 0 ? (
-        <div className="space-y-2">
-          {data.currentGoals.map((goal: any, idx: number) => (
-            <div key={idx} className="p-3 border rounded">
-              <p className="font-medium">{goal.description}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-gray-500">No performance data available.</p>
-      )}
+    <div className="space-y-6">
+      <ProfileTableSection
+        title="Current Goals"
+        columns={columns}
+        rows={goals}
+        emptyMessage="No performance goals available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "progress") {
+            return `${row.progress || 0}%`;
+          }
+          if (columnKey === "targetDate" && row.targetDate) {
+            return new Date(row.targetDate).toLocaleDateString();
+          }
+          if (columnKey === "status") {
+            return (
+              <Badge className={
+                row.status === "COMPLETED" ? "bg-green-100 text-green-800" :
+                row.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-800" :
+                "bg-gray-100 text-gray-800"
+              }>
+                {row.status || "N/A"}
+              </Badge>
+            );
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function CareerSection({ data }: { data: any }) {
+  const jobHistory = data.jobHistory || [];
+  
+  const columns: ProfileTableColumn[] = [
+    { key: "jobTitle", header: "Job Title", align: "left" },
+    { key: "company", header: "Company", align: "left" },
+    { key: "startDate", header: "Start Date", align: "left" },
+    { key: "endDate", header: "End Date", align: "left" },
+    { key: "achievements", header: "Achievements", align: "left" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Career History</h3>
-      {data.jobHistory && data.jobHistory.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Job Title</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.jobHistory.map((job: any, idx: number) => (
-              <TableRow key={idx}>
-                <TableCell className="font-medium">{job.jobTitle}</TableCell>
-                <TableCell>{job.company || 'N/A'}</TableCell>
-                <TableCell>{new Date(job.startDate).toLocaleDateString()}</TableCell>
-                <TableCell>{job.endDate ? new Date(job.endDate).toLocaleDateString() : 'Current'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <p className="text-sm text-gray-500">No job history available.</p>
-      )}
+    <div className="space-y-6">
+      <ProfileTableSection
+        title="Job History"
+        columns={columns}
+        rows={jobHistory}
+        emptyMessage="No job history available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "startDate") {
+            return new Date(row.startDate).toLocaleDateString();
+          }
+          if (columnKey === "endDate") {
+            return row.endDate ? new Date(row.endDate).toLocaleDateString() : "Current";
+          }
+          if (columnKey === "jobTitle") {
+            return <span className="font-medium text-gray-900">{row.jobTitle}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function ContactSection({ data }: { data: any }) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Contact Information</h3>
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium w-1/3">Work Email</TableCell>
-            <TableCell>{data.workEmail || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Work Phone</TableCell>
-            <TableCell>{data.workPhone || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Office Location</TableCell>
-            <TableCell>{data.officeLocation || 'N/A'}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Contact Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Work Email</span>
+            <span className="text-sm text-gray-900">{data.workEmail || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Work Phone</span>
+            <span className="text-sm text-gray-900">{data.workPhone || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm font-medium text-gray-700">Office Location</span>
+            <span className="text-sm text-gray-900">{data.officeLocation || 'N/A'}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function PersonalSection({ data }: { data: any }) {
+  const emergencyContacts = data.emergencyContacts || [];
+  
+  const emergencyColumns: ProfileTableColumn[] = [
+    { key: "name", header: "Name", align: "left" },
+    { key: "relationship", header: "Relationship", align: "left" },
+    { key: "phone", header: "Phone", align: "left" },
+    { key: "email", header: "Email", align: "left" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Personal Information</h3>
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium w-1/3">Date of Birth</TableCell>
-            <TableCell>{data.dateOfBirth ? new Date(data.dateOfBirth).toLocaleDateString() : 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Gender</TableCell>
-            <TableCell>{data.gender || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Marital Status</TableCell>
-            <TableCell>{data.maritalStatus || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">NIC/ID</TableCell>
-            <TableCell>{data.nic || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Nationality</TableCell>
-            <TableCell>{data.nationality || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Personal Email</TableCell>
-            <TableCell>{data.personalEmail || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Personal Phone</TableCell>
-            <TableCell>{data.personalPhone || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Address</TableCell>
-            <TableCell>{data.address || 'N/A'}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-      {data.emergencyContacts && data.emergencyContacts.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-medium mb-3">Emergency Contacts</h4>
-          <div className="space-y-2">
-            {data.emergencyContacts.map((contact: any, idx: number) => (
-              <div key={idx} className="p-3 border rounded">
-                <p className="font-medium">{contact.name}</p>
-                <p className="text-sm text-gray-600">{contact.relationship} • {contact.phone}</p>
-              </div>
-            ))}
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Personal Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Date of Birth</span>
+            <span className="text-sm text-gray-900">
+              {data.dateOfBirth ? new Date(data.dateOfBirth).toLocaleDateString() : 'N/A'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Gender</span>
+            <span className="text-sm text-gray-900">{data.gender || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Marital Status</span>
+            <span className="text-sm text-gray-900">{data.maritalStatus || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">NIC/ID</span>
+            <span className="text-sm text-gray-900">{data.nic || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Nationality</span>
+            <span className="text-sm text-gray-900">{data.nationality || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Personal Email</span>
+            <span className="text-sm text-gray-900">{data.personalEmail || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Personal Phone</span>
+            <span className="text-sm text-gray-900">{data.personalPhone || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm font-medium text-gray-700">Address</span>
+            <span className="text-sm text-gray-900 text-right max-w-md">{data.address || 'N/A'}</span>
           </div>
         </div>
-      )}
+      </div>
+      
+      <ProfileTableSection
+        title="Emergency Contacts"
+        columns={emergencyColumns}
+        rows={emergencyContacts}
+        emptyMessage="No emergency contacts configured."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "name") {
+            return <span className="font-medium text-gray-900">{row.name}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function PaySection({ data }: { data: any }) {
+  const bankAccounts = data.bankAccounts || [];
+  
+  const columns: ProfileTableColumn[] = [
+    { key: "bankName", header: "Bank Name", align: "left" },
+    { key: "branch", header: "Branch", align: "left" },
+    { key: "accountNumber", header: "Account Number", align: "left" },
+    { key: "isPrimary", header: "Primary", align: "center" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Pay Information</h3>
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell className="font-medium w-1/3">Pay Group</TableCell>
-            <TableCell>{data.payGroup || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Pay Frequency</TableCell>
-            <TableCell>{data.payFrequency || 'N/A'}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Payroll Currency</TableCell>
-            <TableCell>{data.payrollCurrency || 'LKR'}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-      {data.bankAccounts && data.bankAccounts.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-medium mb-3">Bank Accounts</h4>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bank Name</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Account Number</TableHead>
-                <TableHead>Primary</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.bankAccounts.map((account: any, idx: number) => (
-                <TableRow key={idx}>
-                  <TableCell>{account.bankName}</TableCell>
-                  <TableCell>{account.branch}</TableCell>
-                  <TableCell>{account.accountNumber}</TableCell>
-                  <TableCell>{account.isPrimary ? 'Yes' : 'No'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Pay Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Pay Group</span>
+            <span className="text-sm text-gray-900">{data.payGroup || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Pay Frequency</span>
+            <span className="text-sm text-gray-900">{data.payFrequency || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm font-medium text-gray-700">Payroll Currency</span>
+            <span className="text-sm text-gray-900">{data.payrollCurrency || 'LKR'}</span>
+          </div>
         </div>
-      )}
+      </div>
+      
+      <ProfileTableSection
+        title="Bank Accounts"
+        columns={columns}
+        rows={bankAccounts}
+        emptyMessage="No bank accounts configured."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "isPrimary") {
+            return row.isPrimary ? (
+              <Badge className="bg-green-100 text-green-800">Yes</Badge>
+            ) : (
+              <span className="text-gray-500">No</span>
+            );
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function AbsenceSection({ data }: { data: any }) {
+  const balances = data.balances || [];
+  
+  const columns: ProfileTableColumn[] = [
+    { key: "plan", header: "Plan", align: "left" },
+    { key: "unit", header: "Unit", align: "left" },
+    { key: "beginningBalance", header: "Beginning Balance", align: "right" },
+    { key: "accruedYTD", header: "Accrued YTD", align: "right" },
+    { key: "takenYTD", header: "Taken YTD", align: "right" },
+    { key: "carryOver", header: "Carry Over", align: "right" },
+    { key: "forfeited", header: "Forfeited", align: "right" },
+    { key: "balanceAsOfDate", header: "Balance As Of", align: "left" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Absence Balances</h3>
-      {data.balances && data.balances.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Plan</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead className="text-right">Beginning Balance</TableHead>
-              <TableHead className="text-right">Accrued YTD</TableHead>
-              <TableHead className="text-right">Taken YTD</TableHead>
-              <TableHead className="text-right">Carry Over</TableHead>
-              <TableHead className="text-right">Forfeited</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.balances.map((balance: any, idx: number) => (
-              <TableRow key={idx}>
-                <TableCell className="font-medium">{balance.plan}</TableCell>
-                <TableCell>{balance.unit}</TableCell>
-                <TableCell className="text-right">{balance.beginningBalance}</TableCell>
-                <TableCell className="text-right">{balance.accruedYTD}</TableCell>
-                <TableCell className="text-right">{balance.takenYTD}</TableCell>
-                <TableCell className="text-right">{balance.carryOver}</TableCell>
-                <TableCell className="text-right">{balance.forfeited}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <p className="text-sm text-gray-500">No absence balances available.</p>
-      )}
+    <div className="space-y-6">
+      <ProfileTableSection
+        title="Balances Tracked in Days"
+        columns={columns}
+        rows={balances}
+        emptyMessage="No absence balances available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "plan") {
+            return <span className="font-medium text-gray-900">{row.plan}</span>;
+          }
+          if (columnKey === "balanceAsOfDate" && row.balanceAsOfDate) {
+            return new Date(row.balanceAsOfDate).toLocaleDateString();
+          }
+          if (["beginningBalance", "accruedYTD", "takenYTD", "carryOver", "forfeited"].includes(columnKey)) {
+            return (row[columnKey] || 0).toLocaleString();
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
 
 function BenefitsSection({ data }: { data: any }) {
+  const benefits = data.benefits || [];
+  
+  const columns: ProfileTableColumn[] = [
+    { key: "benefitType", header: "Benefit Type", align: "left" },
+    { key: "planName", header: "Plan Name", align: "left" },
+    { key: "provider", header: "Provider", align: "left" },
+    { key: "effectiveDate", header: "Effective Date", align: "left" },
+    { key: "status", header: "Status", align: "left" },
+  ];
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Benefits</h3>
-      {data.benefits && data.benefits.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Benefit Type</TableHead>
-              <TableHead>Plan Name</TableHead>
-              <TableHead>Provider</TableHead>
-              <TableHead>Effective Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.benefits.map((benefit: any, idx: number) => (
-              <TableRow key={idx}>
-                <TableCell>{benefit.benefitType}</TableCell>
-                <TableCell>{benefit.planName}</TableCell>
-                <TableCell>{benefit.provider || 'N/A'}</TableCell>
-                <TableCell>{new Date(benefit.effectiveDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <Badge className={benefit.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                    {benefit.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <p className="text-sm text-gray-500">No benefits enrolled.</p>
-      )}
+    <div className="space-y-6">
+      <ProfileTableSection
+        title="Benefits"
+        columns={columns}
+        rows={benefits}
+        emptyMessage="No benefits enrolled."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "effectiveDate") {
+            return new Date(row.effectiveDate).toLocaleDateString();
+          }
+          if (columnKey === "status") {
+            return (
+              <Badge className={
+                row.status === "ACTIVE" ? "bg-green-100 text-green-800" :
+                row.status === "INACTIVE" ? "bg-gray-100 text-gray-800" :
+                "bg-yellow-100 text-yellow-800"
+              }>
+                {row.status}
+              </Badge>
+            );
+          }
+          return row[columnKey] || "N/A";
+        }}
+      />
     </div>
   );
 }
@@ -781,79 +862,69 @@ function ServiceDatesTab({ data }: { data: any }) {
 function AssignedRolesTab({ data }: { data: any }) {
   const roles = data.roles || [];
   
+  const columns: ProfileTableColumn[] = [
+    { key: "roleName", header: "Role Name", align: "left" },
+    { key: "organizationName", header: "Organization Name", align: "left" },
+    { key: "organizationType", header: "Organization Type", align: "left" },
+    { key: "dateAssigned", header: "Date Assigned", align: "left" },
+  ];
+  
   return (
-    <ProfileSectionCard>
-      <ProfileSectionHeader
+    <div className="space-y-6">
+      <ProfileTableSection
         title="My Assigned Roles"
         subtitle="Roles assigned for this worker's position"
-        itemCount={roles.length}
+        columns={columns}
+        rows={roles}
+        emptyMessage="No roles are currently assigned to this employee."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "dateAssigned") {
+            return new Date(row.dateAssigned).toLocaleDateString();
+          }
+          if (columnKey === "roleName") {
+            return <span className="font-medium text-gray-900">{row.roleName}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
       />
-      
-      {roles.length > 0 ? (
-        <ProfileDataTable
-          headers={["Role Name", "Organization Name", "Organization Type", "Date Assigned"]}
-        >
-          {roles.map((role: any, idx: number) => (
-            <ProfileTableRow key={idx}>
-              <ProfileTableCell>
-                <span className="font-medium text-gray-900">{role.roleName}</span>
-              </ProfileTableCell>
-              <ProfileTableCell>{role.organizationName}</ProfileTableCell>
-              <ProfileTableCell>{role.organizationType}</ProfileTableCell>
-              <ProfileTableCell>
-                {new Date(role.dateAssigned).toLocaleDateString()}
-              </ProfileTableCell>
-            </ProfileTableRow>
-          ))}
-        </ProfileDataTable>
-      ) : (
-        <ProfileEmptyState
-          message="No roles are currently assigned to this employee."
-          icon={<Inbox className="h-8 w-8" />}
-        />
-      )}
-    </ProfileSectionCard>
+    </div>
   );
 }
 
 function SupportRolesTab({ data }: { data: any }) {
   const roles = data.roles || [];
   
+  const columns: ProfileTableColumn[] = [
+    { key: "assignableRole", header: "Assignable Role", align: "left" },
+    { key: "workerName", header: "Worker Name", align: "left" },
+    { key: "organization", header: "Organization", align: "left" },
+    { key: "roleEnabledDescription", header: "Description", align: "left" },
+    { key: "effectiveStartDate", header: "Effective Start", align: "left" },
+    { key: "effectiveEndDate", header: "Effective End", align: "left" },
+  ];
+  
   return (
-    <ProfileSectionCard>
-      <ProfileSectionHeader
+    <div className="space-y-6">
+      <ProfileTableSection
         title="Support Roles"
         subtitle="Support roles assigned to this employee"
-        itemCount={roles.length}
+        columns={columns}
+        rows={roles}
+        emptyMessage="No support roles are currently assigned to this employee."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "effectiveStartDate") {
+            return row.effectiveStartDate ? new Date(row.effectiveStartDate).toLocaleDateString() : "N/A";
+          }
+          if (columnKey === "effectiveEndDate") {
+            return row.effectiveEndDate ? new Date(row.effectiveEndDate).toLocaleDateString() : "N/A";
+          }
+          if (columnKey === "assignableRole") {
+            return <span className="font-medium text-gray-900">{row.assignableRole}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
       />
-      
-      {roles.length > 0 ? (
-        <ProfileDataTable
-          headers={["Assignable Role", "Worker Name", "Organization", "Effective Start", "Effective End"]}
-        >
-          {roles.map((role: any, idx: number) => (
-            <ProfileTableRow key={idx}>
-              <ProfileTableCell>
-                <span className="font-medium text-gray-900">{role.assignableRole}</span>
-              </ProfileTableCell>
-              <ProfileTableCell>{role.workerName}</ProfileTableCell>
-              <ProfileTableCell>{role.organization}</ProfileTableCell>
-              <ProfileTableCell>
-                {role.effectiveStartDate ? new Date(role.effectiveStartDate).toLocaleDateString() : 'N/A'}
-              </ProfileTableCell>
-              <ProfileTableCell>
-                {role.effectiveEndDate ? new Date(role.effectiveEndDate).toLocaleDateString() : 'N/A'}
-              </ProfileTableCell>
-            </ProfileTableRow>
-          ))}
-        </ProfileDataTable>
-      ) : (
-        <ProfileEmptyState
-          message="No support roles are currently assigned to this employee."
-          icon={<Inbox className="h-8 w-8" />}
-        />
-      )}
-    </ProfileSectionCard>
+    </div>
   );
 }
 
@@ -924,73 +995,60 @@ function AdditionalDataTab({ data }: { data: any }) {
 function OrganizationsTab({ data }: { data: any }) {
   const organizations = data.organizations || [];
   
+  const columns: ProfileTableColumn[] = [
+    { key: "organizationName", header: "Organization Name", align: "left" },
+    { key: "organizationType", header: "Organization Type", align: "left" },
+    { key: "organizationSubtype", header: "Subtype", align: "left" },
+  ];
+  
   return (
-    <ProfileSectionCard>
-      <ProfileSectionHeader
+    <div className="space-y-6">
+      <ProfileTableSection
         title="Organizations"
         subtitle="Organization memberships for this employee"
-        itemCount={organizations.length}
+        columns={columns}
+        rows={organizations}
+        emptyMessage="No organization memberships available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "organizationName") {
+            return <span className="font-medium text-gray-900">{row.organizationName}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
       />
-      
-      {organizations.length > 0 ? (
-        <ProfileDataTable
-          headers={["Organization Name", "Organization Type", "Subtype"]}
-        >
-          {organizations.map((org: any, idx: number) => (
-            <ProfileTableRow key={idx}>
-              <ProfileTableCell>
-                <span className="font-medium text-gray-900">{org.organizationName}</span>
-              </ProfileTableCell>
-              <ProfileTableCell>{org.organizationType}</ProfileTableCell>
-              <ProfileTableCell>{org.organizationSubtype || 'N/A'}</ProfileTableCell>
-            </ProfileTableRow>
-          ))}
-        </ProfileDataTable>
-      ) : (
-        <ProfileEmptyState
-          message="No organization memberships found."
-          icon={<Inbox className="h-8 w-8" />}
-        />
-      )}
-    </ProfileSectionCard>
+    </div>
   );
 }
 
 function ManagementChainTab({ data }: { data: any }) {
   const chain = data.chain || [];
   
+  const columns: ProfileTableColumn[] = [
+    { key: "levelIndex", header: "Level", align: "left" },
+    { key: "organizationName", header: "Organization", align: "left" },
+    { key: "managerName", header: "Manager Name", align: "left" },
+    { key: "managerTitle", header: "Manager Title", align: "left" },
+    { key: "phoneNumber", header: "Phone Number", align: "left" },
+  ];
+  
   return (
-    <ProfileSectionCard>
-      <ProfileSectionHeader
+    <div className="space-y-6">
+      <ProfileTableSection
         title="Management Chain"
         subtitle="Reporting hierarchy for this employee"
-        itemCount={chain.length}
+        columns={columns}
+        rows={chain}
+        emptyMessage="No management chain data available."
+        renderCell={(columnKey, row, index) => {
+          if (columnKey === "levelIndex") {
+            return <span className="font-medium text-gray-900">{row.levelIndex + 1}</span>;
+          }
+          if (columnKey === "managerName") {
+            return <span className="font-medium text-gray-900">{row.managerName}</span>;
+          }
+          return row[columnKey] || "N/A";
+        }}
       />
-      
-      {chain.length > 0 ? (
-        <ProfileDataTable
-          headers={["Level", "Organization", "Manager Name", "Manager Title", "Phone Number"]}
-        >
-          {chain.map((item: any, idx: number) => (
-            <ProfileTableRow key={idx}>
-              <ProfileTableCell>
-                <span className="font-medium text-gray-900">{item.levelIndex + 1}</span>
-              </ProfileTableCell>
-              <ProfileTableCell>{item.organizationName}</ProfileTableCell>
-              <ProfileTableCell>
-                <span className="font-medium text-gray-900">{item.managerName}</span>
-              </ProfileTableCell>
-              <ProfileTableCell>{item.managerTitle}</ProfileTableCell>
-              <ProfileTableCell>{item.phoneNumber}</ProfileTableCell>
-            </ProfileTableRow>
-          ))}
-        </ProfileDataTable>
-      ) : (
-        <ProfileEmptyState
-          message="No management chain data available."
-          icon={<Inbox className="h-8 w-8" />}
-        />
-      )}
-    </ProfileSectionCard>
+    </div>
   );
 }

@@ -1,8 +1,7 @@
 {
-  "/(main)/performance/page": "app/(main)/performance/page.js",
-  "/(main)/page": "app/(main)/page.js",
   "/(main)/employees/[id]/profile/page": "app/(main)/employees/[id]/profile/page.js",
   "/(main)/recruitment/page": "app/(main)/recruitment/page.js",
   "/(main)/learning/page": "app/(main)/learning/page.js",
-  "/(main)/workforce-planning/page": "app/(main)/workforce-planning/page.js"
+  "/(main)/workforce-planning/page": "app/(main)/workforce-planning/page.js",
+  "/(main)/employees/page": "app/(main)/employees/page.js"
 }
