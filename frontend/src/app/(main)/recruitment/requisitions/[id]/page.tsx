@@ -63,7 +63,7 @@ export default function RequisitionDetailPage() {
   const loadCandidates = async () => {
     try {
       setCandidatesLoading(true);
-      const data = await api.getRequisitionCandidates(requisitionId, { page: 1, pageSize: 100 });
+      const data = await api.getRequisitionCandidates(requisitionId, { page: 1, pageSize: 100 }) as any;
       setCandidates(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading candidates:', error);
@@ -74,7 +74,7 @@ export default function RequisitionDetailPage() {
 
   const loadAllRequisitions = async () => {
     try {
-      const data = await api.getRequisitions({ status: 'open', page: 1, pageSize: 50 });
+      const data = await api.getRequisitions({ status: 'open', page: 1, pageSize: 50 }) as any;
       setAllRequisitions(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading requisitions:', error);

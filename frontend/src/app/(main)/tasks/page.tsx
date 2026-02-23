@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Button } from "../../../components/ui/button";
-import { Badge } from "../../../components/ui/badge";
-import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "../../../components/ui/WorkdayTable";
-import { api } from "../../../lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
+import { api } from "@/app/lib/api";
 import { Inbox, CheckCircle2, Circle, Clock, AlertCircle, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn } from "../../../components/ui/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { cn } from "@/app/components/ui/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -32,7 +32,7 @@ export default function TasksPage() {
         overdue: overdueFilter || undefined,
         limit: 100,
         offset: 0,
-      });
+      }) as any;
       setTasks(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading tasks:', error);

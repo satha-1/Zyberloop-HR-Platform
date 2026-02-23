@@ -44,7 +44,7 @@ export default function PayrollTemplateDetailPage() {
   const loadTemplate = async () => {
     try {
       setLoading(true);
-      const data = await api.getPayrollTemplateById(templateId);
+      const data = await api.getPayrollTemplateById(templateId) as any;
       setTemplate(data);
     } catch (error: any) {
       toast.error(error.message || "Failed to load template");
@@ -66,7 +66,7 @@ export default function PayrollTemplateDetailPage() {
 
   const handleDuplicate = async () => {
     try {
-      const newTemplate = await api.duplicatePayrollTemplate(templateId);
+      const newTemplate = await api.duplicatePayrollTemplate(templateId) as any;
       toast.success("Template duplicated successfully");
       if (newTemplate?.id) {
         router.push(`/payroll/templates/${newTemplate.id}/edit`);

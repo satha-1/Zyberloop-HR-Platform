@@ -51,7 +51,7 @@ export function NotificationDropdown() {
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const data = await api.getNotifications({ onlyUnread: false, limit: 10, offset: 0 });
+      const data = await api.getNotifications({ onlyUnread: false, limit: 10, offset: 0 }) as any;
       setNotifications(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -62,7 +62,7 @@ export function NotificationDropdown() {
 
   const loadUnreadCount = async () => {
     try {
-      const data = await api.getUnreadNotificationCount();
+      const data = await api.getUnreadNotificationCount() as any;
       setUnreadCount(data?.count || 0);
     } catch (error) {
       console.error('Error loading unread count:', error);

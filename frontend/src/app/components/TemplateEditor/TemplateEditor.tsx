@@ -45,7 +45,7 @@ export function TemplateEditor({
       
       if (blockIndex >= 0) {
         page.blocks = [...page.blocks];
-        page.blocks[blockIndex] = { ...page.blocks[blockIndex], ...updates };
+        page.blocks[blockIndex] = { ...page.blocks[blockIndex], ...updates } as Block;
       }
       
       return newTemplate;

@@ -28,7 +28,7 @@ export default function PayrollRun() {
 
   useEffect(() => {
     if (id) {
-      api.getPayrollEntries(id).then(setEntries).catch(() => setEntries([]));
+      api.getPayrollEntries(id).then((data: any) => setEntries(Array.isArray(data) ? data : (data?.data || []))).catch(() => setEntries([]));
     }
   }, [id]);
 
@@ -155,7 +155,7 @@ export default function PayrollRun() {
       {/* Action Buttons */}
       {payrollRun.status === "DRAFT" && (
         <div className="flex gap-3">
-          <Button onClick={handleApprove}>
+          <Button onClick={() => handleApprove('hr')}>
             <CheckCircle className="h-4 w-4 mr-2" />
             Approve Payroll
           </Button>

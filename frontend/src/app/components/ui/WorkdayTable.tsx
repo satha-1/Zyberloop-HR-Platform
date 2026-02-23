@@ -128,7 +128,7 @@ export function WorkdayTable<T = any>({
                   onClick={() => onRowClick?.(row, rowIndex)}
                 >
                   {columns.map((column) => {
-                    const cellValue = row[column.key];
+                    const cellValue = (row as any)[column.key];
                     const content = column.render
                       ? column.render(row, rowIndex)
                       : cellValue ?? "";

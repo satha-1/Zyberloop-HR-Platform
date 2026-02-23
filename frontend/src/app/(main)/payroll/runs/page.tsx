@@ -195,7 +195,7 @@ export default function PayrollRunsPage() {
             key: "runName",
             header: "Run Name",
             render: (run: PayrollRun) => (
-              <TableLink href={`/payroll/runs/${run.id || run._id}`}>
+              <TableLink href={`/payroll/runs/${run.id || (run as any)._id}`}>
                 {run.runName}
               </TableLink>
             ),
@@ -266,13 +266,13 @@ export default function PayrollRunsPage() {
             widthClassName: "w-32",
             render: (run: PayrollRun) => (
               <div className="flex items-center gap-2 justify-end">
-                <Link href={`/payroll/runs/${run.id || run._id}`}>
+                <Link href={`/payroll/runs/${run.id || (run as any)._id}`}>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="View">
                     <Eye className="h-4 w-4" />
                   </Button>
                 </Link>
                 {canEdit(run.status) && (
-                  <Link href={`/payroll/runs/${run.id || run._id}/edit`}>
+                  <Link href={`/payroll/runs/${run.id || (run as any)._id}/edit`}>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit">
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -285,7 +285,7 @@ export default function PayrollRunsPage() {
                     title="Lock"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleLock(run.id || run._id);
+                      handleLock(run.id || (run as any)._id);
                     }}
                     className="h-8 w-8 p-0"
                   >
@@ -299,7 +299,7 @@ export default function PayrollRunsPage() {
                     title="Delete"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setRunToDelete(run.id || run._id);
+                      setRunToDelete(run.id || (run as any)._id);
                       setDeleteDialogOpen(true);
                     }}
                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -312,7 +312,7 @@ export default function PayrollRunsPage() {
           },
         ]}
         data={loading ? [] : runs}
-        getRowKey={(run: PayrollRun) => run.id || run._id}
+        getRowKey={(run: PayrollRun) => run.id || (run as any)._id}
         emptyStateText={
           search || statusFilter !== "all" || templateFilter !== "all"
             ? "Try adjusting your filters"
@@ -320,7 +320,7 @@ export default function PayrollRunsPage() {
         }
         emptyStateIcon={<AlertCircle className="h-12 w-12 text-gray-400" />}
         onRowClick={(run: PayrollRun) => {
-          window.location.href = `/payroll/runs/${run.id || run._id}`;
+          window.location.href = `/payroll/runs/${run.id || (run as any)._id}`;
         }}
       />
 

@@ -34,7 +34,7 @@ export default function PayrollDashboard() {
   const loadStats = async () => {
     try {
       setRefreshing(true);
-      const data = await api.getPayrollStats();
+      const data = await api.getPayrollStats() as any;
       setStats(data);
     } catch (error: any) {
       toast.error(error.message || "Failed to load payroll statistics");

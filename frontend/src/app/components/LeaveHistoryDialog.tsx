@@ -40,8 +40,8 @@ export function LeaveHistoryDialog({
   const fetchLeaveHistory = async () => {
     setLoading(true);
     try {
-      const data = await api.getLeaveRequests({ employeeId });
-      setLeaveRequests(data || []);
+      const data = await api.getLeaveRequests({ employeeId }) as any;
+      setLeaveRequests(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error("Error fetching leave history:", error);
       setLeaveRequests([]);

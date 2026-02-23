@@ -108,7 +108,7 @@ export default function EmployeeProfile360() {
 
   const loadTabData = async (tab: ProfileTab) => {
     try {
-      let data;
+      let data: any;
       switch (tab) {
         case 'service-dates':
           data = await api.getEmployeeProfileServiceDates(employeeId);

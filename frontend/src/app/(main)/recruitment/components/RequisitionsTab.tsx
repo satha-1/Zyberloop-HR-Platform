@@ -62,8 +62,8 @@ export function RequisitionsTab({
 
   const loadHiringManagers = async () => {
     try {
-      const data = await api.getHiringManagers();
-      setHiringManagers(data || []);
+      const data = await api.getHiringManagers() as any;
+      setHiringManagers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading hiring managers:', error);
     }
@@ -71,8 +71,8 @@ export function RequisitionsTab({
 
   const loadLocations = async () => {
     try {
-      const data = await api.getLocations();
-      setLocations(data || []);
+      const data = await api.getLocations() as any;
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading locations:', error);
     }
@@ -92,7 +92,7 @@ export function RequisitionsTab({
       if (locationFilter !== "all") params.location = locationFilter;
       if (hiringManagerFilter !== "all") params.hiringManagerId = hiringManagerFilter;
 
-      const data = await api.getRequisitions(params);
+      const data = await api.getRequisitions(params) as any;
       setRequisitions(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading requisitions:', error);

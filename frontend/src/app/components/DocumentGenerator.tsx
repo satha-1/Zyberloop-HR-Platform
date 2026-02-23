@@ -48,7 +48,7 @@ export function DocumentGenerator({
 
     setPreviewLoading(true);
     try {
-      const result = await api.previewDocument(employeeId, documentType, customData);
+      const result = await api.previewEmployeeDocument(employeeId, documentType, customData);
       setPreviewContent(result.data.content);
       setShowPreview(true);
     } catch (error: any) {
@@ -66,7 +66,7 @@ export function DocumentGenerator({
 
     setLoading(true);
     try {
-      const result = await api.generateDocument(employeeId, documentType, customData);
+      const result = await api.generateEmployeeDocument(employeeId, documentType, customData) as any;
       toast.success("Document generated successfully!");
       
       if (result.downloadUrl) {

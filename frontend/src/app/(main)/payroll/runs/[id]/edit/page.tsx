@@ -32,7 +32,7 @@ export default function EditPayrollRunPage() {
   const loadPayrollRun = async () => {
     try {
       setLoading(true);
-      const data = await api.getPayrollRunById(id);
+      const data = await api.getPayrollRunById(id) as any;
       setPayrollRun(data);
       // Pre-fill form
       if (data) {

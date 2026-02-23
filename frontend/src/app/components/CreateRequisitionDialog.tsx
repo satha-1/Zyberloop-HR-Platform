@@ -78,8 +78,8 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisi
 
   const fetchDepartments = async () => {
     try {
-      const depts = await api.getDepartments();
-      setDepartments(depts || []);
+      const depts = await api.getDepartments() as any;
+      setDepartments(Array.isArray(depts) ? depts : []);
     } catch (error) {
       console.error("Failed to fetch departments:", error);
       toast.error("Failed to load departments");

@@ -26,7 +26,7 @@ export default function Recruitment() {
 
   // Load all candidates for accurate counts (always load all, not filtered)
   const loadAllCandidates = () => {
-    api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
+      api.getCandidates().then((data: any) => setCandidates(Array.isArray(data) ? data : (data?.data || []))).catch(() => setCandidates([]));
   };
 
   // Load all candidates on mount

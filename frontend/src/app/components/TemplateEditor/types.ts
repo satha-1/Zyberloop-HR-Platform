@@ -84,7 +84,7 @@ export interface FieldBlock {
 
 export interface DataSource {
   type: 'auto' | 'manual';
-  entity?: 'employee' | 'company' | 'payroll' | 'termination';
+  entity?: 'employee' | 'company' | 'payroll' | 'termination' | 'custom';
   field?: string;
   handlebarsExpression?: string;
   prompt?: string;

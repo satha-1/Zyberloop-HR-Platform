@@ -66,6 +66,7 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
     try {
       const dataToSubmit = {
         ...formData,
+        type: formData.docType,
         tags: formData.tags.split(",").map((t) => t.trim()).filter(Boolean),
       };
 
@@ -92,14 +93,15 @@ export function TemplateDialog({ open, onOpenChange, template, onSuccess }: Temp
       <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
         <DialogContent className="max-w-full w-full h-full max-h-[100vh] p-0 m-0">
           <TemplateEditor
-            template={template ? parseHandlebarsToVisual(template.content, formData.docType) : undefined}
-            docType={formData.docType}
+            template={template ? parseHandlebarsToVisual(template.content, formData.docType as any) : undefined}
+            docType={formData.docType as any}
             locale={formData.locale}
             onSave={async (serialized) => {
               try {
                 setLoading(true);
                 const dataToSubmit = {
                   ...formData,
+                  type: formData.docType,
                   content: serialized.handlebars,
                   tags: formData.tags.split(",").map((t) => t.trim()).filter(Boolean),
                 };

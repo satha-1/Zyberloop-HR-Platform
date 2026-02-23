@@ -29,7 +29,7 @@ export function useEmployees(params?: { search?: string; department?: string; st
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getEmployees(params).then(setData).catch(setError).finally(() => setLoading(false));
+    api.getEmployees(params).then((data: any) => setData(Array.isArray(data) ? data : (data?.data || []))).catch(setError).finally(() => setLoading(false));
   }};
 }
 
@@ -42,8 +42,8 @@ export function usePayrollRuns() {
     async function fetchData() {
       try {
         setLoading(true);
-        const result = await api.getPayrollRuns();
-        setData(result);
+        const result = await api.getPayrollRuns({}) as any;
+        setData(Array.isArray(result) ? result : (result?.data || []));
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -55,7 +55,7 @@ export function usePayrollRuns() {
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getPayrollRuns().then(setData).catch(setError).finally(() => setLoading(false));
+    api.getPayrollRuns({}).then((data: any) => setData(Array.isArray(data) ? data : (data?.data || []))).catch(setError).finally(() => setLoading(false));
   }};
 }
 

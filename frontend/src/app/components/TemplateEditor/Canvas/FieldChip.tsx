@@ -54,7 +54,7 @@ export function FieldChip({ block, isSelected, onSelect, onUpdate, onDelete }: F
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={(e) => {
+      onClick={(e: React.MouseEvent) => {
         e.stopPropagation();
         onSelect();
       }}
@@ -77,7 +77,7 @@ export function FieldChip({ block, isSelected, onSelect, onUpdate, onDelete }: F
             variant="destructive"
             size="icon"
             className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               onDelete();
             }}

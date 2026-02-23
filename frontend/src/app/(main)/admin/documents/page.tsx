@@ -40,7 +40,7 @@ export default function Documents() {
 
   const handleDownload = async (documentId: string) => {
     try {
-      const result = await api.downloadDocument(documentId);
+      const result = await api.downloadDocument(documentId) as { url?: string };
       if (result.url) {
         window.open(result.url, '_blank');
         toast.success("Download started");

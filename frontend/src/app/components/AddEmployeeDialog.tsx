@@ -53,8 +53,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
 
   const fetchDepartments = async () => {
     try {
-      const depts = await api.getDepartments();
-      setDepartments(depts || []);
+      const depts = await api.getDepartments() as any;
+      setDepartments(Array.isArray(depts) ? depts : []);
     } catch (error) {
       console.error("Failed to fetch departments:", error);
     }
@@ -62,8 +62,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
 
   const fetchManagers = async () => {
     try {
-      const emps = await api.getEmployees({ status: "active" });
-      setManagers(emps || []);
+      const emps = await api.getEmployees({ status: "active" }) as any;
+      setManagers(Array.isArray(emps) ? emps : []);
     } catch (error) {
       console.error("Failed to fetch managers:", error);
     }

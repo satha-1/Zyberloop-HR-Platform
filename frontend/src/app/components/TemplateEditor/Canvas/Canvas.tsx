@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Page, Block, FieldBlock, TextBlock } from '../types';
 import { EditableText } from './EditableText';
 import { FieldChip } from './FieldChip';
@@ -24,7 +24,7 @@ export function Canvas({
   onBlockDelete,
   onBlockAdd,
 }: CanvasProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const [{ isOver }, drop] = useDrop({
@@ -59,10 +59,10 @@ export function Canvas({
   return (
     <div className="flex justify-center items-start min-h-full py-8">
       <div
-        ref={(node) => {
-          canvasRef.current = node;
+        ref={useCallback((node: HTMLDivElement | null) => {
+          (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
           drop(node);
-        }}
+        }, [drop])}
         className="bg-white shadow-lg"
         style={{
           width: `${pageWidthPx}px`,

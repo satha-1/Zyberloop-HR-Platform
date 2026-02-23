@@ -122,7 +122,7 @@ export default function CreatePayrollRunPage() {
         payload.notes = formData.notes;
       }
 
-      const result = await api.createPayrollRun(payload);
+      const result = await api.createPayrollRun(payload) as any;
       toast.success("Payroll run created successfully");
       router.push(`/payroll/runs/${result.id || result._id}`);
     } catch (error: any) {

@@ -93,7 +93,7 @@ export default function PayrollTemplatesPage() {
 
   const handleDuplicate = async (id: string) => {
     try {
-      const newTemplate = await api.duplicatePayrollTemplate(id);
+      const newTemplate = await api.duplicatePayrollTemplate(id) as any;
       toast.success("Template duplicated successfully");
       loadTemplates();
       // Optionally navigate to edit the new template

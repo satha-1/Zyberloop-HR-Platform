@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { VARIABLE_GROUPS, Variable } from '../constants';
+import { VARIABLE_GROUPS } from '../constants';
+import { Variable } from '../types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';

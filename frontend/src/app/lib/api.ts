@@ -27,9 +27,9 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     // Refresh token from localStorage on each request
@@ -160,7 +160,7 @@ class ApiClient {
 
   async createEmployeeWithFiles(formData: FormData) {
     const url = `${this.baseUrl}/employees`;
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
     
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -190,7 +190,7 @@ class ApiClient {
 
   async updateEmployeeWithFiles(id: string, formData: FormData) {
     const url = `${this.baseUrl}/employees/${id}`;
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
     
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -296,7 +296,7 @@ class ApiClient {
     formData.append('documentType', documentType);
 
     const url = `${this.baseUrl}/employees/${employeeId}/documents`;
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
     
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
@@ -318,7 +318,7 @@ class ApiClient {
   }
 
   // Template Management
-  async getTemplates() {
+  async getEmployeeTemplates() {
     return this.request<{ success: boolean; data: any[] }>('/employees/templates');
   }
 
@@ -340,14 +340,14 @@ class ApiClient {
     });
   }
 
-  async previewDocument(employeeId: string, templateType: string, data?: any) {
+  async previewEmployeeDocument(employeeId: string, templateType: string, data?: any) {
     return this.request<{ success: boolean; data: { content: string; templateName: string; placeholders: string[] } }>('/employees/documents/preview', {
       method: 'POST',
       body: JSON.stringify({ employeeId, templateType, data }),
     });
   }
 
-  async generateDocument(employeeId: string, templateType: string, data?: any) {
+  async generateEmployeeDocument(employeeId: string, templateType: string, data?: any) {
     return this.request('/employees/documents/generate', {
       method: 'POST',
       body: JSON.stringify({ employeeId, templateType, data }),
@@ -358,16 +358,16 @@ class ApiClient {
     return this.request(`/employees/${employeeId}/documents/generated`);
   }
 
-  // Payroll
-  async getPayrollRuns() {
+  // Payroll (legacy - use getPayrollRunsWithParams instead)
+  async getPayrollRunsLegacy() {
     return this.request('/payroll/runs');
   }
 
-  async getPayrollRunById(id: string) {
+  async getPayrollRunByIdLegacy(id: string) {
     return this.request(`/payroll/runs/${id}`);
   }
 
-  async createPayrollRun(data: { periodStart: string; periodEnd: string }) {
+  async createPayrollRunLegacy(data: { periodStart: string; periodEnd: string }) {
     return this.request('/payroll/runs', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -652,23 +652,23 @@ class ApiClient {
   }
 
   // Documents & Templates
-  async getTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
+  async getDocumentTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
     const query = new URLSearchParams(params as any).toString();
     return this.request(`/documents/templates${query ? `?${query}` : ''}`);
   }
 
-  async getTemplateById(id: string) {
+  async getDocumentTemplateById(id: string) {
     return this.request(`/documents/templates/${id}`);
   }
 
-  async createTemplate(data: any) {
+  async createDocumentTemplate(data: any) {
     return this.request('/documents/templates', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateTemplate(id: string, data: any) {
+  async updateDocumentTemplate(id: string, data: any) {
     return this.request(`/documents/templates/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

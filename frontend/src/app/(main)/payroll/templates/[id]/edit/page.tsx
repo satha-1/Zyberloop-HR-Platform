@@ -88,7 +88,7 @@ export default function EditPayrollTemplatePage() {
   const loadTemplate = async () => {
     try {
       setInitialLoading(true);
-      const template = await api.getPayrollTemplateById(templateId);
+      const template = await api.getPayrollTemplateById(templateId) as any;
       setFormData({
         name: template.name,
         description: template.description || "",
@@ -97,7 +97,7 @@ export default function EditPayrollTemplatePage() {
         isActive: template.isActive,
         effectiveFrom: template.effectiveFrom.split("T")[0],
         effectiveTo: template.effectiveTo?.split("T")[0],
-        defaultPayItems: template.defaultPayItems.map((item) => ({
+        defaultPayItems: template.defaultPayItems.map((item: any) => ({
           ...item,
           id: undefined as any,
         })),

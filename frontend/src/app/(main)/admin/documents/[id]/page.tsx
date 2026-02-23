@@ -37,7 +37,7 @@ export default function DocumentDetail() {
 
   const handleDownload = async (artefactKind?: string) => {
     try {
-      const result = await api.downloadDocument(id, artefactKind);
+      const result = await api.downloadDocument(id, artefactKind) as { url?: string };
       if (result.url) {
         window.open(result.url, '_blank');
         toast.success("Download started");

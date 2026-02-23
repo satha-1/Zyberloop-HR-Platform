@@ -51,7 +51,7 @@ export function TaskDropdown() {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const data = await api.getTasks({ status: 'all', limit: 10, offset: 0 });
+      const data = await api.getTasks({ status: 'all', limit: 10, offset: 0 }) as any;
       setTasks(Array.isArray(data) ? data : (data?.data || []));
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -62,7 +62,7 @@ export function TaskDropdown() {
 
   const loadActiveCount = async () => {
     try {
-      const data = await api.getActiveTaskCount();
+      const data = await api.getActiveTaskCount() as any;
       setActiveCount(data?.count || 0);
     } catch (error) {
       console.error('Error loading active task count:', error);
