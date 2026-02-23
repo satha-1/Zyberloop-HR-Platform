@@ -7,8 +7,7 @@ import { calculatePayroll } from './payroll.service';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
 import mongoose from 'mongoose';
-import PDFDocument from 'pdfkit';
-import { PassThrough } from 'stream';
+import { generatePayrollRunHTML, generatePayrollRunPDF, generateEmployeePayslipHTML } from './payrollPdf.service';
 
 export const getPayrollRuns = async (
   req: Request,
@@ -694,7 +693,7 @@ export const exportPayrollRun = async (
       return;
     }
 
-    // PDF Export using PDFKit
+    // PDF Export using HTML template
     let entries = await PayrollEntry.find({ payrollRunId: id })
       .populate('employeeId', 'firstName lastName employeeCode departmentId')
       .sort({ 'employeeId.employeeCode': 1 });
@@ -724,123 +723,109 @@ export const exportPayrollRun = async (
       throw new AppError(404, 'No employee data found for this payroll run');
     }
 
-    // Create a stream for the PDF
-    const stream = new PassThrough();
-    
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="payroll-run-${run.runName || id}-${new Date().toISOString().split('T')[0]}.pdf"`);
-    
-    // Create PDF document
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    doc.pipe(stream);
-    stream.pipe(res);
-
-    // Header
-    doc.fontSize(20).text('Payroll Run Summary', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12);
-    doc.text(`Run Name: ${run.runName || 'N/A'}`, { align: 'left' });
-    doc.text(`Period: ${new Date(run.periodStart).toLocaleDateString()} - ${new Date(run.periodEnd).toLocaleDateString()}`, { align: 'left' });
-    doc.text(`Payment Date: ${new Date(run.paymentDate).toLocaleDateString()}`, { align: 'left' });
-    doc.text(`Status: ${run.status}`, { align: 'left' });
-    doc.moveDown();
-
-    // Summary
-    doc.fontSize(14).text('Summary', { underline: true });
-    doc.fontSize(12);
-    doc.text(`Total Employees: ${run.employeeCount || 0}`);
-    doc.text(`Total Gross: LKR ${(run.totalGross || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-    doc.text(`Total Deductions: LKR ${(run.totalDeductions || (run.totalGross - run.totalNet) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-    doc.text(`Total Net: LKR ${(run.totalNet || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-    doc.moveDown(2);
-
-    // Employee Details
-    doc.fontSize(14).text('Employee Payslips', { underline: true });
-    doc.moveDown();
-
-    for (let i = 0; i < entries.length; i++) {
-      const entry: any = entries[i];
+    // Transform entries data for template
+    const employees = entries.map((entry: any) => {
       const emp = entry.employeeId;
-      
-      // Add new page for each employee (except first)
-      if (i > 0) {
-        doc.addPage();
-      }
+      const employeeName = emp 
+        ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() 
+        : 'Unknown';
+      const department = emp?.departmentId 
+        ? (emp.departmentId as any).name 
+        : 'N/A';
 
-      // Employee Header
-      doc.fontSize(16).text('Payslip', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12);
-      
-      if (emp) {
-        doc.text(`Employee Code: ${emp.employeeCode || 'N/A'}`);
-        doc.text(`Employee Name: ${emp.firstName || ''} ${emp.lastName || ''}`);
-        if (emp.departmentId) {
-          doc.text(`Department: ${(emp.departmentId as any).name || 'N/A'}`);
-        }
-      } else {
-        doc.text('Employee: Unknown');
-      }
-      
-      doc.text(`Period: ${new Date(run.periodStart).toLocaleDateString()} - ${new Date(run.periodEnd).toLocaleDateString()}`);
-      doc.moveDown();
-
-      // Earnings
-      doc.fontSize(14).text('Earnings', { underline: true });
-      doc.fontSize(12);
-      
+      // Extract earnings
+      const earnings: Array<{ name: string; amount: number }> = [];
       if (entry.components && Array.isArray(entry.components)) {
         entry.components
           .filter((c: any) => c.type === 'EARNING')
           .forEach((component: any) => {
-            doc.text(`${component.name}: LKR ${(component.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+            earnings.push({
+              name: component.name,
+              amount: component.amount || 0,
+            });
           });
       }
-      
-      doc.text(`Gross Pay: LKR ${(entry.gross || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
-      doc.moveDown();
 
-      // Deductions
-      doc.fontSize(14).text('Deductions', { underline: true });
-      doc.fontSize(12);
+      // Extract deductions
+      const deductions: Array<{ name: string; amount: number }> = [];
       
+      // Add statutory deductions
       if (entry.statutoryDeductions) {
         if (entry.statutoryDeductions.epfEmployee) {
-          doc.text(`EPF (Employee): LKR ${entry.statutoryDeductions.epfEmployee.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+          deductions.push({
+            name: 'EPF (Employee)',
+            amount: entry.statutoryDeductions.epfEmployee,
+          });
         }
         if (entry.statutoryDeductions.tax) {
-          doc.text(`Income Tax: LKR ${entry.statutoryDeductions.tax.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+          deductions.push({
+            name: 'Income Tax',
+            amount: entry.statutoryDeductions.tax,
+          });
         }
       }
-      
+
+      // Add component-based deductions
       if (entry.components && Array.isArray(entry.components)) {
         entry.components
           .filter((c: any) => c.type === 'DEDUCTION')
           .forEach((component: any) => {
-            doc.text(`${component.name}: LKR ${(component.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+            deductions.push({
+              name: component.name,
+              amount: component.amount || 0,
+            });
           });
       }
-      
-      if (entry.otherDeductions) {
-        doc.text(`Other Deductions: LKR ${entry.otherDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+
+      // Add other deductions
+      if (entry.otherDeductions && entry.otherDeductions > 0) {
+        deductions.push({
+          name: 'Other Deductions',
+          amount: entry.otherDeductions,
+        });
       }
-      
-      const totalDeductions = (entry.statutoryDeductions?.epfEmployee || 0) + 
-                              (entry.statutoryDeductions?.tax || 0) + 
-                              (entry.otherDeductions || 0);
-      doc.text(`Total Deductions: LKR ${totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
-      doc.moveDown();
 
-      // Net Pay
-      doc.fontSize(14).text(`Net Pay: LKR ${(entry.net || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { 
-        align: 'right',
-        underline: true 
-      });
-    }
+      return {
+        employeeCode: emp?.employeeCode || 'N/A',
+        employeeName,
+        department,
+        periodStart: run.periodStart,
+        periodEnd: run.periodEnd,
+        earnings,
+        deductions,
+        grossPay: entry.gross || 0,
+        totalDeductions: entry.totalDeductions || 
+          (entry.statutoryDeductions?.epfEmployee || 0) + 
+          (entry.statutoryDeductions?.tax || 0) + 
+          (entry.otherDeductions || 0),
+        netPay: entry.net || 0,
+      };
+    });
 
-    // Finalize PDF
-    doc.end();
+    // Prepare template data
+    const templateData = {
+      runName: run.runName || 'N/A',
+      periodStart: run.periodStart,
+      periodEnd: run.periodEnd,
+      paymentDate: run.paymentDate,
+      status: run.status,
+      employeeCount: run.employeeCount || 0,
+      totalGross: run.totalGross || 0,
+      totalDeductions: run.totalDeductions || (run.totalGross - run.totalNet) || 0,
+      totalNet: run.totalNet || 0,
+      employees,
+    };
+
+    // Generate HTML and convert to PDF
+    const html = generatePayrollRunHTML(templateData);
+    const pdfBuffer = await generatePayrollRunPDF(html);
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payroll-run-${run.runName || id}-${new Date().toISOString().split('T')[0]}.pdf"`);
+    
+    // Send PDF buffer
+    res.send(pdfBuffer);
 
     await createAuditLog({
       actorId: req.user!.id,
@@ -850,6 +835,161 @@ export const exportPayrollRun = async (
       module: 'Payroll',
       resourceType: 'payroll_run',
       resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Generate and download individual employee payslip
+ * POST /api/v1/payroll/runs/:runId/employees/:employeeId/payslip
+ */
+export const generateEmployeePayslip = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { runId, employeeId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(runId) || !mongoose.Types.ObjectId.isValid(employeeId)) {
+      throw new AppError(400, 'Invalid payroll run ID or employee ID');
+    }
+
+    // Get payroll run
+    const run = await PayrollRun.findById(runId);
+    if (!run) {
+      throw new AppError(404, 'Payroll run not found');
+    }
+
+    // Get employee
+    const employee = await Employee.findById(employeeId).populate('departmentId', 'name');
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
+    // Get payroll entry for this employee in this run
+    let entry = await PayrollEntry.findOne({ payrollRunId: runId, employeeId })
+      .populate('employeeId', 'firstName lastName employeeCode departmentId');
+
+    // If no entry found, try to get from employeeLines
+    if (!entry && run.employeeLines && run.employeeLines.length > 0) {
+      const employeeLine = run.employeeLines.find(
+        (line: any) => line.employeeId?.toString() === employeeId
+      );
+
+      if (employeeLine) {
+        // Transform employeeLine to entry-like structure
+        entry = {
+          employeeId: employee,
+          gross: employeeLine.grossPay,
+          net: employeeLine.netPay,
+          totalDeductions: employeeLine.totalDeductions,
+          components: employeeLine.payItems?.map((item: any) => ({
+            name: item.label,
+            type: item.type === 'earning' ? 'EARNING' : 'DEDUCTION',
+            amount: item.amount,
+          })) || [],
+          statutoryDeductions: {},
+          otherDeductions: 0,
+        } as any;
+      }
+    }
+
+    if (!entry) {
+      throw new AppError(404, 'Payroll data not found for this employee in this run');
+    }
+
+    // Extract earnings
+    const earnings: Array<{ name: string; amount: number }> = [];
+    if (entry.components && Array.isArray(entry.components)) {
+      entry.components
+        .filter((c: any) => c.type === 'EARNING')
+        .forEach((component: any) => {
+          earnings.push({
+            name: component.name,
+            amount: component.amount || 0,
+          });
+        });
+    }
+
+    // Extract deductions
+    const deductions: Array<{ name: string; amount: number }> = [];
+    
+    if (entry.statutoryDeductions) {
+      if (entry.statutoryDeductions.epfEmployee) {
+        deductions.push({
+          name: 'EPF (Employee)',
+          amount: entry.statutoryDeductions.epfEmployee,
+        });
+      }
+      if (entry.statutoryDeductions.tax) {
+        deductions.push({
+          name: 'Income Tax',
+          amount: entry.statutoryDeductions.tax,
+        });
+      }
+    }
+
+    if (entry.components && Array.isArray(entry.components)) {
+      entry.components
+        .filter((c: any) => c.type === 'DEDUCTION')
+        .forEach((component: any) => {
+          deductions.push({
+            name: component.name,
+            amount: component.amount || 0,
+          });
+        });
+    }
+
+    if (entry.otherDeductions && entry.otherDeductions > 0) {
+      deductions.push({
+        name: 'Other Deductions',
+        amount: entry.otherDeductions,
+      });
+    }
+
+    // Prepare template data
+    const templateData = {
+      employeeCode: employee.employeeCode || 'N/A',
+      employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+      department: employee.departmentId ? (employee.departmentId as any).name : undefined,
+      periodStart: run.periodStart,
+      periodEnd: run.periodEnd,
+      paymentDate: run.paymentDate,
+      runName: run.runName || 'N/A',
+      earnings,
+      deductions,
+      grossPay: entry.gross || 0,
+      totalDeductions: entry.totalDeductions || 
+        (entry.statutoryDeductions?.epfEmployee || 0) + 
+        (entry.statutoryDeductions?.tax || 0) + 
+        (entry.otherDeductions || 0),
+      netPay: entry.net || 0,
+    };
+
+    // Generate HTML and convert to PDF
+    const html = generateEmployeePayslipHTML(templateData);
+    const pdfBuffer = await generatePayrollRunPDF(html);
+
+    // Set response headers
+    const fileName = `payslip-${employee.employeeCode || employeeId}-${run.runName || runId}-${new Date().toISOString().split('T')[0]}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    // Send PDF buffer
+    res.send(pdfBuffer);
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'GENERATE_PAYSLIP',
+      module: 'Payroll',
+      resourceType: 'payslip',
+      resourceId: `${runId}-${employeeId}`,
       ipAddress: req.ip || 'unknown',
     });
   } catch (error) {

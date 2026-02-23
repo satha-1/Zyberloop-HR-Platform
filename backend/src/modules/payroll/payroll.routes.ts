@@ -15,6 +15,7 @@ import {
   recalculatePayrollRun,
   previewPayrollRun,
   exportPayrollRun,
+  generateEmployeePayslip,
 } from './payroll.controller';
 import {
   getPayrollTemplates,
@@ -56,6 +57,7 @@ payrollRouter.post('/runs/:id/approve/hr', approvePayrollRun);
 payrollRouter.post('/runs/:id/approve/finance', approvePayrollRun);
 payrollRouter.post('/runs/:id/finalize', finalizePayrollRun);
 payrollRouter.get('/runs/:id/entries', getPayrollEntries);
+payrollRouter.post('/runs/:runId/employees/:employeeId/payslip', generateEmployeePayslip);
 
 // Dashboard Stats
 payrollRouter.get('/stats', getPayrollStats);

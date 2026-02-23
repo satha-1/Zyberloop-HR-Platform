@@ -15,7 +15,7 @@ import {
 } from "../../../../components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
 import { api } from "../../../../lib/api";
-import { ArrowLeft, Download, CheckCircle, AlertCircle, Edit, Lock, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle, AlertCircle, Edit, Lock, RefreshCw, Trash2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import {
@@ -39,6 +39,7 @@ export default function PayrollRunDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [downloadingPayslip, setDownloadingPayslip] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -109,6 +110,18 @@ export default function PayrollRunDetailPage() {
       toast.success(`Payroll run exported as ${format.toUpperCase()}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to export payroll run");
+    }
+  };
+
+  const handleDownloadPayslip = async (employeeId: string, employeeName: string) => {
+    try {
+      setDownloadingPayslip(employeeId);
+      await api.downloadEmployeePayslip(id, employeeId);
+      toast.success(`Payslip downloaded for ${employeeName}`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to download payslip");
+    } finally {
+      setDownloadingPayslip(null);
     }
   };
 
@@ -344,49 +357,71 @@ export default function PayrollRunDetailPage() {
                       <TableHead>Gross Pay</TableHead>
                       <TableHead>Deductions</TableHead>
                       <TableHead>Net Pay</TableHead>
+                      <TableHead className="w-[80px]">Payslip</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {employeePayroll.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                           No employee data available
                         </TableCell>
                       </TableRow>
                     ) : (
-                      employeePayroll.map((item: any, index: number) => (
-                        <TableRow key={item.employeeId || index}>
-                          <TableCell className="font-medium">{item.employeeName || "Unknown"}</TableCell>
-                          <TableCell>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "LKR",
-                              minimumFractionDigits: 0,
-                            }).format(item.baseSalary || 0)}
-                          </TableCell>
-                          <TableCell>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "LKR",
-                              minimumFractionDigits: 0,
-                            }).format(item.grossPay || 0)}
-                          </TableCell>
-                          <TableCell>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "LKR",
-                              minimumFractionDigits: 0,
-                            }).format(item.totalDeductions || 0)}
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "LKR",
-                              minimumFractionDigits: 0,
-                            }).format(item.netPay || 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      employeePayroll.map((item: any, index: number) => {
+                        const employeeId = item.employeeId?._id || item.employeeId;
+                        const isDownloading = downloadingPayslip === employeeId;
+                        return (
+                          <TableRow key={employeeId || index}>
+                            <TableCell className="font-medium">{item.employeeName || "Unknown"}</TableCell>
+                            <TableCell>
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "LKR",
+                                minimumFractionDigits: 0,
+                              }).format(item.baseSalary || 0)}
+                            </TableCell>
+                            <TableCell>
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "LKR",
+                                minimumFractionDigits: 0,
+                              }).format(item.grossPay || 0)}
+                            </TableCell>
+                            <TableCell>
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "LKR",
+                                minimumFractionDigits: 0,
+                              }).format(item.totalDeductions || 0)}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "LKR",
+                                minimumFractionDigits: 0,
+                              }).format(item.netPay || 0)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadPayslip(employeeId, item.employeeName || "Unknown")}
+                                disabled={isDownloading || !employeeId}
+                                className="h-8 w-8 p-0"
+                                aria-label={`Download payslip for ${item.employeeName || "Unknown"}`}
+                                title="Download payslip"
+                              >
+                                {isDownloading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                ) : (
+                                  <FileText className="h-4 w-4 text-gray-600 hover:text-blue-600" />
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

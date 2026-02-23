@@ -1,5 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { MetricCard } from "../components/ui/MetricCard";
+import { PageCard } from "../components/ui/PageCard";
 import { Users, Briefcase, DollarSign, Calendar, TrendingUp, AlertCircle } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import Link from "next/link";
@@ -62,162 +64,149 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Welcome header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Welcome back, Admin</h2>
-        <p className="text-gray-600 mt-1">Here's what's happening in your organization today.</p>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Welcome back, Admin</h1>
+        <p className="text-sm text-gray-600 mt-1.5">Here's what's happening in your organization today.</p>
       </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat) => (
-          <Link key={stat.title} href={stat.link}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">{stat.title}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                  </div>
-                  <div className={`${stat.bgColor} p-3 rounded-lg`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <Link key={stat.title} href={stat.link} className="block">
+            <MetricCard
+              title={stat.title}
+              value={stat.value}
+              icon={<stat.icon className={`h-5 w-5 ${stat.color}`} />}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+            />
           </Link>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, idx) => (
-                <div key={idx} className="flex items-start gap-3 pb-4 border-b last:border-0 last:pb-0">
-                  <div
-                    className={`mt-0.5 ${
-                      activity.status === "success"
-                        ? "text-green-600"
-                        : activity.status === "warning"
-                        ? "text-orange-600"
-                        : "text-blue-600"
-                    }`}
-                  >
-                    {activity.status === "warning" ? (
-                      <AlertCircle className="h-5 w-5" />
-                    ) : (
-                      <TrendingUp className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {activity.module} • {activity.time}
-                    </p>
-                  </div>
+        <PageCard
+          title="Recent Activity"
+          description="Latest system activities and updates"
+        >
+          <div className="space-y-4">
+            {recentActivity.map((activity, idx) => (
+              <div key={idx} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                <div
+                  className={`mt-0.5 flex-shrink-0 ${
+                    activity.status === "success"
+                      ? "text-emerald-600"
+                      : activity.status === "warning"
+                      ? "text-amber-600"
+                      : "text-blue-600"
+                  }`}
+                >
+                  {activity.status === "warning" ? (
+                    <AlertCircle className="h-5 w-5" />
+                  ) : (
+                    <TrendingUp className="h-5 w-5" />
+                  )}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {activity.module} • {activity.time}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PageCard>
 
         {/* Pending Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {currentPayroll && (
-                <Link href={`/payroll/${currentPayroll.id || currentPayroll._id}`}>
-                  <div className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Review Payroll</p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {currentPayroll.employee_count || 0} employees • ${((currentPayroll.total_net || 0) / 1000).toFixed(0)}k net
-                        </p>
-                      </div>
-                      <Badge variant="secondary">Draft</Badge>
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              <Link href="/leave">
-                <div className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer">
+        <PageCard
+          title="Pending Actions"
+          description="Items requiring your attention"
+        >
+          <div className="space-y-3">
+            {currentPayroll && (
+              <Link href={`/payroll/${currentPayroll.id || currentPayroll._id}`}>
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors cursor-pointer">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Approve Leave Requests</p>
-                      <p className="text-xs text-gray-600 mt-1">{pendingLeaves} pending requests</p>
-                    </div>
-                    <Badge variant="secondary">Pending</Badge>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/recruitment">
-                <div className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Review Candidates</p>
+                      <p className="text-sm font-medium text-gray-900">Review Payroll</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {requisitions?.reduce((sum: number, r: any) => sum + (r.candidates || 0), 0) || 0} total candidates
+                        {currentPayroll.employee_count || 0} employees • ${((currentPayroll.total_net || 0) / 1000).toFixed(0)}k net
                       </p>
                     </div>
-                    <Badge variant="secondary">Active</Badge>
+                    <Badge className="bg-purple-100 text-purple-800">Draft</Badge>
                   </div>
                 </div>
               </Link>
-            </div>
-          </CardContent>
-        </Card>
+            )}
+
+            <Link href="/leave">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Approve Leave Requests</p>
+                    <p className="text-xs text-gray-600 mt-1">{pendingLeaves} pending requests</p>
+                  </div>
+                  <Badge className="bg-amber-100 text-amber-800">Pending</Badge>
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/recruitment">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Review Candidates</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {requisitions?.reduce((sum: number, r: any) => sum + (r.candidates || 0), 0) || 0} total candidates
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </PageCard>
       </div>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Link
-              href="/employees"
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-            >
-              <Users className="h-6 w-6 mx-auto text-gray-600" />
-              <p className="text-sm font-medium text-gray-900 mt-2">Add Employee</p>
-            </Link>
-            <Link
-              href="/payroll"
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-            >
-              <DollarSign className="h-6 w-6 mx-auto text-gray-600" />
-              <p className="text-sm font-medium text-gray-900 mt-2">Process Payroll</p>
-            </Link>
-            <Link
-              href="/recruitment"
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-            >
-              <Briefcase className="h-6 w-6 mx-auto text-gray-600" />
-              <p className="text-sm font-medium text-gray-900 mt-2">Create Requisition</p>
-            </Link>
-            <Link
-              href="/admin/logs"
-              className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-            >
-              <TrendingUp className="h-6 w-6 mx-auto text-gray-600" />
-              <p className="text-sm font-medium text-gray-900 mt-2">View Reports</p>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      <PageCard
+        title="Quick Actions"
+        description="Common tasks and shortcuts"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link
+            href="/employees"
+            className="p-4 border border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all text-center"
+          >
+            <Users className="h-6 w-6 mx-auto text-gray-600" />
+            <p className="text-sm font-medium text-gray-900 mt-2">Add Employee</p>
+          </Link>
+          <Link
+            href="/payroll"
+            className="p-4 border border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all text-center"
+          >
+            <DollarSign className="h-6 w-6 mx-auto text-gray-600" />
+            <p className="text-sm font-medium text-gray-900 mt-2">Process Payroll</p>
+          </Link>
+          <Link
+            href="/recruitment"
+            className="p-4 border border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all text-center"
+          >
+            <Briefcase className="h-6 w-6 mx-auto text-gray-600" />
+            <p className="text-sm font-medium text-gray-900 mt-2">Create Requisition</p>
+          </Link>
+          <Link
+            href="/admin/logs"
+            className="p-4 border border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all text-center"
+          >
+            <TrendingUp className="h-6 w-6 mx-auto text-gray-600" />
+            <p className="text-sm font-medium text-gray-900 mt-2">View Reports</p>
+          </Link>
+        </div>
+      </PageCard>
     </div>
   );
 }

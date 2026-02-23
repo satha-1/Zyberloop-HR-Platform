@@ -1,17 +1,10 @@
 "use client";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { EnterpriseTable, EnterpriseTableColumn, TableLink } from "../../components/ui/EnterpriseTable";
+import { EmployeeAvatar } from "../../components/ui/EmployeeAvatar";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../components/ui/table";
 import { useEmployees, useDepartments } from "../../lib/hooks";
 import { AddEmployeeDialog } from "../../components/AddEmployeeDialog";
 import { Search, Plus, Download, Filter } from "lucide-react";
@@ -111,40 +104,43 @@ export default function Employees() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
-          <p className="text-gray-600 mt-1">Manage your organization's workforce</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Employees</h1>
+          <p className="text-sm text-gray-600 mt-1.5">Manage your organization's workforce</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={handleExportCSV}>
+          <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => setAddEmployeeOpen(true)}>
+          <Button size="sm" onClick={() => setAddEmployeeOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="relative flex-1 min-w-0">
+      <EnterpriseTable
+        title="Employees"
+        subtitle="View and manage all employees in your organization"
+        itemCountLabel={loading ? "Loading..." : `${filteredEmployees.length} of ${employees.length} employees`}
+        headerActions={
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full text-sm"
               />
             </div>
             <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by department" />
+                <SelectValue placeholder="All Departments" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
@@ -160,94 +156,100 @@ export default function Employees() {
               </SelectContent>
             </Select>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16"></TableHead>
-                  <TableHead>Employee Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                        {loading ? (
-                          <TableRow>
-                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                              Loading...
-                            </TableCell>
-                          </TableRow>
-                        ) : filteredEmployees.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                              No employees found
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredEmployees.map((employee: any) => (
-                            <TableRow key={employee._id || employee.id}>
-                              <TableCell>
-                                {employee.profilePicture ? (
-                                  <img
-                                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3001'}${employee.profilePicture}`}
-                                    alt={`${employee.firstName} ${employee.lastName}`}
-                                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                  />
-                                ) : null}
-                                {!employee.profilePicture && (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                                    {employee.firstName?.[0] || ""}
-                                    {employee.lastName?.[0] || ""}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="font-medium">{employee.employeeCode}</TableCell>
-                              <TableCell>
-                                {employee.firstName} {employee.lastName}
-                              </TableCell>
-                              <TableCell>{employee.email}</TableCell>
-                              <TableCell>{employee.departmentId?.name || employee.department || "N/A"}</TableCell>
-                              <TableCell>{employee.grade}</TableCell>
-                              <TableCell>
-                                {employee.managerId 
-                                  ? `${employee.managerId.firstName || ''} ${employee.managerId.lastName || ''}`.trim() || "N/A"
-                                  : "N/A"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getStatusColor(employee.status)}>
-                                  {employee.status?.replace("_", " ") || employee.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Link href={`/employees/${employee._id || employee.id}`}>
-                                  <Button variant="ghost" size="sm">
-                                    View
-                                  </Button>
-                                </Link>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-              </TableBody>
-            </Table>
-          </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Showing {filteredEmployees.length} of {employees.length} employees
-                    </p>
-                  </div>
-        </CardContent>
-      </Card>
+        }
+        columns={[
+          {
+            key: "avatar",
+            header: "",
+            widthClassName: "w-12",
+            align: "center",
+            render: (employee: any) => (
+              <div className="flex items-center justify-center">
+                <EmployeeAvatar
+                  profilePicture={employee.profilePicture}
+                  firstName={employee.firstName}
+                  lastName={employee.lastName}
+                  size="md"
+                />
+              </div>
+            ),
+          },
+          {
+            key: "employeeCode",
+            header: "Employee Code",
+            render: (employee: any) => (
+              <span className="font-medium text-gray-900">
+                {employee.employeeCode}
+              </span>
+            ),
+          },
+          {
+            key: "name",
+            header: "Name",
+            render: (employee: any) => (
+              <span>
+                {employee.firstName} {employee.lastName}
+              </span>
+            ),
+          },
+          {
+            key: "email",
+            header: "Email",
+            render: (employee: any) => (
+              <TableLink href={`mailto:${employee.email}`}>
+                {employee.email}
+              </TableLink>
+            ),
+          },
+          {
+            key: "department",
+            header: "Department",
+            render: (employee: any) =>
+              employee.departmentId?.name || employee.department || "N/A",
+          },
+          {
+            key: "grade",
+            header: "Grade",
+            render: (employee: any) => employee.grade || "N/A",
+          },
+          {
+            key: "manager",
+            header: "Manager",
+            render: (employee: any) =>
+              employee.managerId
+                ? `${employee.managerId.firstName || ""} ${employee.managerId.lastName || ""}`.trim() || "N/A"
+                : "N/A",
+          },
+          {
+            key: "status",
+            header: "Status",
+            render: (employee: any) => (
+              <Badge className={getStatusColor(employee.status)}>
+                {employee.status?.replace("_", " ") || employee.status}
+              </Badge>
+            ),
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            align: "right",
+            widthClassName: "w-20",
+            render: (employee: any) => (
+              <TableLink
+                href={`/employees/${employee._id || employee.id}/profile`}
+              >
+                View
+              </TableLink>
+            ),
+          },
+        ]}
+        data={loading ? [] : filteredEmployees}
+        getRowKey={(employee: any) => employee._id || employee.id}
+        emptyStateText={loading ? "Loading employees..." : "No employees found. Try adjusting your search or filters."}
+        onRowClick={(employee: any) => {
+          window.location.href = `/employees/${employee._id || employee.id}/profile`;
+        }}
+      />
 
       <AddEmployeeDialog
         open={addEmployeeOpen}
