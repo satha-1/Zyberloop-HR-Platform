@@ -1,34 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../components/ui/table";
-import { useRequisitions, useDepartments } from "../../lib/hooks";
-import { api } from "../../lib/api";
-import { CreateRequisitionDialog } from "../../components/CreateRequisitionDialog";
-import { ViewRequisitionDialog } from "../../components/ViewRequisitionDialog";
-import { Plus, ExternalLink, Users, Briefcase, ChevronRight, ChevronLeft, Filter, Eye, Pencil } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Badge } from "@/app/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
+import { useDepartments } from "@/app/lib/hooks";
+import { api } from "@/app/lib/api";
+import { CreateRequisitionDialog } from "@/app/components/CreateRequisitionDialog";
+import { ViewRequisitionDialog } from "@/app/components/ViewRequisitionDialog";
+import { RequisitionsTab } from "./components/RequisitionsTab";
+import { Plus, ExternalLink, Users } from "lucide-react";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Input } from "../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 
 export default function Recruitment() {
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const { data: departments = [] } = useDepartments();
-  const { data: requisitions = [], loading: requisitionsLoading, refetch } = useRequisitions({ 
-    status: "open",
-    department: departmentFilter !== "all" ? departmentFilter : undefined,
-  });
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
   const [createRequisitionOpen, setCreateRequisitionOpen] = useState(false);
@@ -36,21 +23,16 @@ export default function Recruitment() {
   const [viewRequisitionOpen, setViewRequisitionOpen] = useState(false);
   const [viewRequisitionId, setViewRequisitionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (requisitions.length > 0 && !selectedReq) {
-      setSelectedReq(requisitions[0]._id || requisitions[0].id);
-    }
-  }, [requisitions, selectedReq]);
 
   // Load all candidates for accurate counts (always load all, not filtered)
   const loadAllCandidates = () => {
     api.getCandidates().then(setCandidates).catch(() => setCandidates([]));
   };
 
-  // Load all candidates on mount and when requisitions change
+  // Load all candidates on mount
   useEffect(() => {
     loadAllCandidates();
-  }, [requisitions.length]); // Reload when requisitions change
+  }, []); // Load once on mount
 
   // Refresh candidates periodically and when page gains focus
   useEffect(() => {
@@ -69,13 +51,6 @@ export default function Recruitment() {
     };
   }, []);
 
-  const getCandidatesForReq = (reqId: string) => {
-    const reqIdStr = String(reqId);
-    return candidates.filter((c: any) => {
-      const candidateReqId = String(c.requisition_id || c.requisitionId || '');
-      return candidateReqId === reqIdStr;
-    });
-  };
 
   const handleCopyPortalLink = (reqId: string) => {
     const link = `${window.location.origin}/portal/jobs/${reqId}`;
@@ -93,12 +68,6 @@ export default function Recruitment() {
     setCreateRequisitionOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    const statusLower = status?.toLowerCase();
-    if (statusLower === "open" || statusLower === "published") return "bg-green-100 text-green-800";
-    if (statusLower === "closed") return "bg-gray-100 text-gray-800";
-    return "bg-orange-100 text-orange-800";
-  };
 
   const getCandidateStatusColor = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -153,117 +122,12 @@ export default function Recruitment() {
         </TabsList>
 
         <TabsContent value="requisitions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col md:flex-row gap-4">
-                <CardTitle className="flex-1">Open Requisitions</CardTitle>
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {departments.map((dept: any) => {
-                      const deptId = dept._id || dept.id;
-                      if (!deptId) return null;
-                      return (
-                        <SelectItem key={String(deptId)} value={String(deptId)}>
-                          {dept.name}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Position</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Candidates</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {requisitionsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                          Loading...
-                        </TableCell>
-                      </TableRow>
-                    ) : requisitions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                          No requisitions found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      requisitions.map((req: any) => (
-                        <TableRow key={req._id || req.id}>
-                          <TableCell className="font-medium">{req.title}</TableCell>
-                          <TableCell>{req.departmentId?.name || req.department || "N/A"}</TableCell>
-                          <TableCell>{req.location}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {req.type?.replace("_", " ") || req.type}
-                            </Badge>
-                          </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-gray-400" />
-                            {getCandidatesForReq(req._id || req.id).length}
-                          </div>
-                        </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(req.status)}>
-                              {req.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewRequisition(req._id || req.id)}
-                                title="View Details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {(req.status === 'DRAFT' || req.status === 'MANAGER_APPROVED') && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditRequisition(req)}
-                                  title="Edit Requisition"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCopyPortalLink(req._id || req.id)}
-                                title="Copy Portal Link"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <RequisitionsTab
+            onCreateRequisition={() => setCreateRequisitionOpen(true)}
+            onViewRequisition={handleViewRequisition}
+            onEditRequisition={handleEditRequisition}
+            onCopyPortalLink={handleCopyPortalLink}
+          />
         </TabsContent>
 
         <TabsContent value="candidates" className="space-y-4">
@@ -277,94 +141,62 @@ export default function Recruitment() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Position</TableHead>
-                      <TableHead>Skill Match</TableHead>
-                      <TableHead>Experience Match</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Applied</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {candidates.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                          No candidates found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      candidates.map((candidate: any) => {
-                        const reqId = String(candidate.requisition_id || candidate.requisitionId || '');
-                        const req = requisitions.find(
-                          (r: any) => String(r._id || r.id) === reqId
-                        );
-                        const applicationId = candidate.id || candidate._id;
-                        return (
-                          <TableRow key={candidate._id || candidate.id}>
-                            <TableCell className="font-medium">{candidate.name || 'N/A'}</TableCell>
-                            <TableCell>{candidate.email || 'N/A'}</TableCell>
-                            <TableCell>{req?.title || "N/A"}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-blue-500 h-2 rounded-full"
-                                    style={{ width: `${candidate.skill_match || candidate.skillMatch || 0}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm">{candidate.skill_match || candidate.skillMatch || 0}%</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-green-500 h-2 rounded-full"
-                                    style={{ width: `${candidate.experience_match || candidate.experienceMatch || 0}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm">{candidate.experience_match || candidate.experienceMatch || 0}%</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getCandidateStatusColor(candidate.status)}>
-                                {candidate.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {new Date(candidate.applied_date || candidate.appliedDate || candidate.createdAt).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={candidate.status}
-                                onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}
-                              >
-                                <SelectTrigger className="w-32 h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="APPLIED">Applied</SelectItem>
-                                  <SelectItem value="SCREENING">Screening</SelectItem>
-                                  <SelectItem value="INTERVIEW">Interview</SelectItem>
-                                  <SelectItem value="OFFERED">Offered</SelectItem>
-                                  <SelectItem value="HIRED">Hired</SelectItem>
-                                  <SelectItem value="REJECTED">Rejected</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <WorkdayTable
+                columns={[
+                  { key: "name", header: "Name", align: "left", render: (row) => <span className="font-medium">{row.name || 'N/A'}</span> },
+                  { key: "email", header: "Email", align: "left" },
+                  { key: "position", header: "Position", align: "left", render: (row) => {
+                    // Position will be shown from candidate data
+                    return row.position || "N/A";
+                  }},
+                  { key: "skillMatch", header: "Skill Match", align: "center", render: (row) => {
+                    const match = row.skill_match || row.skillMatch || 0;
+                    return (
+                      <div className="flex items-center gap-2 justify-center">
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${match}%` }} />
+                        </div>
+                        <span className="text-sm">{match}%</span>
+                      </div>
+                    );
+                  }},
+                  { key: "experienceMatch", header: "Experience Match", align: "center", render: (row) => {
+                    const match = row.experience_match || row.experienceMatch || 0;
+                    return (
+                      <div className="flex items-center gap-2 justify-center">
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div className="bg-green-500 h-2 rounded-full" style={{ width: `${match}%` }} />
+                        </div>
+                        <span className="text-sm">{match}%</span>
+                      </div>
+                    );
+                  }},
+                  { key: "status", header: "Status", align: "left", render: (row) => <Badge className={getCandidateStatusColor(row.status)}>{row.status}</Badge> },
+                  { key: "applied", header: "Applied", align: "left", render: (row) => new Date(row.applied_date || row.appliedDate || row.createdAt).toLocaleDateString() },
+                  { key: "actions", header: "Actions", align: "right", render: (row) => {
+                    const applicationId = row.id || row._id;
+                    return (
+                      <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="APPLIED">Applied</SelectItem>
+                          <SelectItem value="SCREENING">Screening</SelectItem>
+                          <SelectItem value="INTERVIEW">Interview</SelectItem>
+                          <SelectItem value="OFFERED">Offered</SelectItem>
+                          <SelectItem value="HIRED">Hired</SelectItem>
+                          <SelectItem value="REJECTED">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    );
+                  }},
+                ]}
+                data={candidates}
+                getRowKey={(row) => row._id || row.id}
+                emptyMessage="No candidates found"
+                headerActions={<TableToolbarActions />}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -409,8 +241,8 @@ export default function Recruitment() {
         }}
         requisition={editRequisition}
         onSuccess={() => {
-          refetch();
           setEditRequisition(null);
+          // Reload will be handled by RequisitionsTab component
         }}
       />
 

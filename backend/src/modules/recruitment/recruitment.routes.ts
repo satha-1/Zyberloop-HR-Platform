@@ -13,6 +13,9 @@ import {
   updateCandidateApplicationStatus,
   getPublicRequisition,
   checkApplicationStatus,
+  getHiringManagers,
+  getLocations,
+  getRequisitionCandidates,
 } from './recruitment.controller';
 
 export const recruitmentRouter = Router();
@@ -32,3 +35,6 @@ recruitmentRouter.patch('/requisitions/:id/status', updateRequisitionStatus);
 recruitmentRouter.get('/candidates', getCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);
 recruitmentRouter.patch('/applications/:id/status', updateCandidateApplicationStatus);
+recruitmentRouter.get('/hiring-managers', getHiringManagers);
+recruitmentRouter.get('/locations', getLocations);
+recruitmentRouter.get('/requisitions/:id/candidates', getRequisitionCandidates);

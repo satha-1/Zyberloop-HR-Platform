@@ -4,7 +4,7 @@ export interface ICandidateApplication extends Document {
   candidateId: mongoose.Types.ObjectId;
   requisitionId: mongoose.Types.ObjectId;
   source: string;
-  status: 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFERED' | 'HIRED' | 'REJECTED';
+  status: 'APPLIED' | 'SCREENING' | 'INTERVIEW' | 'OFFERED' | 'HIRED' | 'REJECTED' | 'REVIEW' | 'ASSESSMENT' | 'HIRING_MANAGER_INTERVIEW' | 'PRE_EMPLOYMENT_CHECK' | 'EMPLOYMENT_AGREEMENT' | 'OFFER' | 'BACKGROUND_CHECK' | 'READY_FOR_HIRE';
   matchScore: number;
   skillMatch: number;
   experienceMatch: number;
@@ -38,7 +38,22 @@ const candidateApplicationSchema = new Schema<ICandidateApplication>(
     },
     status: {
       type: String,
-      enum: ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFERED', 'HIRED', 'REJECTED'],
+      enum: [
+        'APPLIED', 
+        'SCREENING', 
+        'INTERVIEW', 
+        'OFFERED', 
+        'HIRED', 
+        'REJECTED',
+        'REVIEW',
+        'ASSESSMENT',
+        'HIRING_MANAGER_INTERVIEW',
+        'PRE_EMPLOYMENT_CHECK',
+        'EMPLOYMENT_AGREEMENT',
+        'OFFER',
+        'BACKGROUND_CHECK',
+        'READY_FOR_HIRE'
+      ],
       default: 'APPLIED',
       index: true,
     },

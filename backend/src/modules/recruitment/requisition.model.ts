@@ -16,6 +16,10 @@ export interface IRequisition extends Document {
   aboutTheRole?: string;
   keyResponsibilities?: string[];
   requirements?: string[];
+  // Hiring Manager fields
+  hiringManagerId?: mongoose.Types.ObjectId;
+  hiringManagerName?: string;
+  hiringManagerTitle?: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -76,6 +80,18 @@ const requisitionSchema = new Schema<IRequisition>(
       ref: 'User',
       required: true,
       index: true,
+    },
+    // Hiring Manager fields
+    hiringManagerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+      index: true,
+    },
+    hiringManagerName: {
+      type: String,
+    },
+    hiringManagerTitle: {
+      type: String,
     },
   },
   {

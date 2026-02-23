@@ -18,6 +18,8 @@ import { engagementRouter } from './modules/engagement/engagement.routes';
 import { complianceRouter } from './modules/compliance/compliance.routes';
 import { logsRouter } from './modules/logs/logs.routes';
 import { documentsRouter } from './modules/documents/documents.routes';
+import { notificationRouter } from './modules/notifications/notification.routes';
+import { taskRouter } from './modules/tasks/task.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -54,6 +56,8 @@ app.use('/api/v1/engagement', engagementRouter);
 app.use('/api/v1/compliance', complianceRouter);
 app.use('/api/v1/logs', logsRouter);
 app.use('/api/v1/documents', documentsRouter);
+app.use('/api/v1/notifications', notificationRouter);
+app.use('/api/v1/tasks', taskRouter);
 
 // Error handler
 app.use(errorHandler);

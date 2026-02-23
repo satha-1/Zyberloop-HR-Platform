@@ -23,7 +23,11 @@ import {
   FileText,
   FolderOpen,
   Home,
+  Search,
+  Printer,
 } from "lucide-react";
+import { NotificationDropdown } from "./NotificationDropdown";
+import { TaskDropdown } from "./TaskDropdown";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
@@ -106,20 +110,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // Track expanded/collapsed state for each section
-  // Load from localStorage or initialize with default collapsed state
+  // Initialize with default collapsed state (hydration-safe)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    // Only access localStorage in the browser
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sidebarExpandedSections');
-        if (saved) {
-          return JSON.parse(saved);
-        }
-      } catch {
-        // If parsing fails, use defaults
-      }
-    }
-    
     // Default: all sections collapsed
     const initialState: Record<string, boolean> = {};
     navigationSections.forEach((section) => {
@@ -127,6 +119,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     });
     return initialState;
   });
+
+  // Load from localStorage after mount (client-side only, prevents hydration mismatch)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sidebarExpandedSections');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setExpandedSections(parsed);
+        }
+      } catch {
+        // If parsing fails, keep defaults
+      }
+    }
+  }, []);
 
   // Auto-expand section if it contains the active item (on initial load and route change)
   useEffect(() => {
@@ -195,7 +202,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          sidebarCollapsed ? "w-16 lg:w-16" : "w-72 lg:w-72"
+          sidebarCollapsed ? "w-16 lg:w-16" : "w-[260px] lg:w-[260px]"
         )}
       >
         <div className="flex flex-col h-full">
@@ -405,31 +412,57 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Top bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6 shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden mr-2"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-gray-900 truncate">
-              {navigation.find(
-                (item) =>
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href))
-              )?.name || "Dashboard"}
-            </h1>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50">
+        {/* Workday-style Top Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center shrink-0">
+          <div className="w-full max-w-[1920px] mx-auto px-6 flex items-center gap-6">
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+
+            {/* Logo placeholder */}
+            <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+              <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+                <span className="text-white font-bold text-sm">NG</span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">NG-IHRP</span>
+            </div>
+
+            {/* Search bar - full width, pill-shaped */}
+            <div className="flex-1 max-w-2xl">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Right actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <NotificationDropdown />
+              <TaskDropdown />
+              <Button variant="ghost" size="sm" className="h-9 w-9 p-0" title="Print">
+                <Printer className="h-5 w-5 text-gray-600" />
+              </Button>
+              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center ml-2">
+                <span className="text-gray-700 text-xs font-medium">AD</span>
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* Page content */}
+        {/* Page content with max-width and generous padding */}
         <main className="flex-1 overflow-auto min-w-0">
-          <div className="w-full max-w-full">
+          <div className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 py-6 lg:py-8">
             {children}
           </div>
         </main>

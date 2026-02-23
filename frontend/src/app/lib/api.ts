@@ -438,9 +438,97 @@ class ApiClient {
   }
 
   // Recruitment
-  async getRequisitions(params?: { status?: string; department?: string }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request(`/recruitment/requisitions${query ? `?${query}` : ''}`);
+  async getRequisitions(params?: { 
+    status?: string; 
+    department?: string; 
+    view?: 'showAll' | 'byHiringManager' | 'byLocation';
+    location?: string;
+    hiringManagerId?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const query = new URLSearchParams();
+    if (params?.status) query.append('status', params.status);
+    if (params?.department) query.append('department', params.department);
+    if (params?.view) query.append('view', params.view);
+    if (params?.location) query.append('location', params.location);
+    if (params?.hiringManagerId) query.append('hiringManagerId', params.hiringManagerId);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+    return this.request(`/recruitment/requisitions${query.toString() ? `?${query}` : ''}`);
+  }
+
+  async getHiringManagers() {
+    return this.request('/recruitment/hiring-managers');
+  }
+
+  async getLocations() {
+    return this.request('/recruitment/locations');
+  }
+
+  async getRequisitionCandidates(requisitionId: string, params?: { page?: number; pageSize?: number }) {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+    return this.request(`/recruitment/requisitions/${requisitionId}/candidates${query.toString() ? `?${query}` : ''}`);
+  }
+
+  // Notifications
+  async getNotifications(params?: { onlyUnread?: boolean; limit?: number; offset?: number }) {
+    const query = new URLSearchParams();
+    if (params?.onlyUnread) query.append('onlyUnread', 'true');
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.offset) query.append('offset', params.offset.toString());
+    return this.request(`/notifications${query.toString() ? `?${query}` : ''}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request('/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'POST',
+    });
+  }
+
+  // Tasks
+  async getTasks(params?: { status?: string; priority?: string; overdue?: boolean; limit?: number; offset?: number }) {
+    const query = new URLSearchParams();
+    if (params?.status) query.append('status', params.status);
+    if (params?.priority) query.append('priority', params.priority);
+    if (params?.overdue) query.append('overdue', 'true');
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.offset) query.append('offset', params.offset.toString());
+    return this.request(`/tasks${query.toString() ? `?${query}` : ''}`);
+  }
+
+  async getTaskById(taskId: string) {
+    return this.request(`/tasks/${taskId}`);
+  }
+
+  async createTask(data: any) {
+    return this.request('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTask(taskId: string, data: any) {
+    return this.request(`/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getActiveTaskCount() {
+    return this.request('/tasks/active-count');
   }
 
   async getRequisitionById(id: string) {

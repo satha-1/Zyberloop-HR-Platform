@@ -3,8 +3,56 @@ import mongoose from 'mongoose';
 import { Requisition } from './requisition.model';
 import { Candidate } from './candidate.model';
 import { CandidateApplication } from './candidateApplication.model';
+import { Employee } from '../employees/employee.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
+import { createNotification } from '../notifications/notification.service';
+
+// Helper function to map application status to pipeline stage
+function mapStatusToPipelineStage(status: string): string {
+  const statusMap: Record<string, string> = {
+    'APPLIED': 'review',
+    'REVIEW': 'review',
+    'SCREENING': 'screen',
+    'ASSESSMENT': 'assessment',
+    'INTERVIEW': 'hiringManagerInterview',
+    'HIRING_MANAGER_INTERVIEW': 'hiringManagerInterview',
+    'PRE_EMPLOYMENT_CHECK': 'preEmploymentCheck',
+    'EMPLOYMENT_AGREEMENT': 'employmentAgreement',
+    'OFFERED': 'offer',
+    'OFFER': 'offer',
+    'BACKGROUND_CHECK': 'backgroundCheck',
+    'READY_FOR_HIRE': 'readyForHire',
+    'HIRED': 'readyForHire',
+  };
+  return statusMap[status] || 'review';
+}
+
+// Helper function to calculate pipeline counts for a requisition
+async function calculatePipelineCounts(requisitionId: mongoose.Types.ObjectId) {
+  const applications = await CandidateApplication.find({ requisitionId }).lean();
+  
+  const counts = {
+    review: 0,
+    screen: 0,
+    assessment: 0,
+    hiringManagerInterview: 0,
+    preEmploymentCheck: 0,
+    employmentAgreement: 0,
+    offer: 0,
+    backgroundCheck: 0,
+    readyForHire: 0,
+  };
+
+  applications.forEach((app: any) => {
+    const stage = mapStatusToPipelineStage(app.status);
+    if (counts.hasOwnProperty(stage)) {
+      (counts as any)[stage]++;
+    }
+  });
+
+  return counts;
+}
 
 export const getRequisitions = async (
   req: Request,
@@ -12,60 +60,120 @@ export const getRequisitions = async (
   next: NextFunction
 ) => {
   try {
-    const { status, department } = req.query;
+    const { 
+      status, 
+      department, 
+      view, 
+      location, 
+      hiringManagerId,
+      page = '1',
+      pageSize = '50'
+    } = req.query;
+    
     const query: any = {};
 
     // Map frontend status values to backend enum values
-    // For "open", show all non-closed/non-rejected requisitions
     if (status && status !== 'all' && status !== 'undefined') {
       if (status === 'open') {
-        // Show all active requisitions (not closed or rejected)
         query.status = { $nin: ['CLOSED', 'REJECTED'] };
       } else if (status === 'closed') {
         query.status = 'CLOSED';
       } else if (status === 'draft') {
         query.status = 'DRAFT';
       } else {
-        // Use the status as-is if it matches backend enum values
         query.status = status;
       }
     }
 
-    console.log('Requisitions query:', { status, department, query });
-
     if (department && department !== 'all' && department !== 'undefined') {
-      // Validate ObjectId format
       if (mongoose.Types.ObjectId.isValid(department as string)) {
         query.departmentId = new mongoose.Types.ObjectId(department as string);
       }
     }
 
-    const requisitions = await Requisition.find(query)
-      .populate({
-        path: 'departmentId',
-        select: 'name code',
-        strictPopulate: false, // Don't throw error if department doesn't exist
-      })
-      .populate({
-        path: 'createdBy',
-        select: 'name email',
-        strictPopulate: false, // Don't throw error if user doesn't exist
-      })
-      .sort({ createdAt: -1 })
-      .lean(); // Use lean() for better performance
+    if (location && location !== 'all') {
+      query.location = new RegExp(location as string, 'i');
+    }
 
-    console.log(`Found ${requisitions.length} requisitions`);
+    if (hiringManagerId && hiringManagerId !== 'all') {
+      if (mongoose.Types.ObjectId.isValid(hiringManagerId as string)) {
+        query.hiringManagerId = new mongoose.Types.ObjectId(hiringManagerId as string);
+      }
+    }
 
-    // Get candidate counts
+    // Pagination
+    const pageNum = parseInt(page as string, 10);
+    const limit = parseInt(pageSize as string, 10);
+    const skip = (pageNum - 1) * limit;
+
+    // Build sort based on view
+    let sort: any = { createdAt: -1 };
+    if (view === 'byHiringManager') {
+      sort = { hiringManagerName: 1, createdAt: -1 };
+    } else if (view === 'byLocation') {
+      sort = { location: 1, createdAt: -1 };
+    }
+
+    const [requisitions, totalCount] = await Promise.all([
+      Requisition.find(query)
+        .populate({
+          path: 'departmentId',
+          select: 'name code',
+          strictPopulate: false,
+        })
+        .populate({
+          path: 'createdBy',
+          select: 'name email',
+          strictPopulate: false,
+        })
+        .populate({
+          path: 'hiringManagerId',
+          select: 'firstName lastName grade',
+          strictPopulate: false,
+        })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Requisition.countDocuments(query),
+    ]);
+
+    // Get candidate counts and pipeline counts
     const requisitionsWithCounts = await Promise.all(
       requisitions.map(async (reqItem: any) => {
         const candidateCount = await CandidateApplication.countDocuments({
           requisitionId: reqItem._id,
         });
+        const pipelineCounts = await calculatePipelineCounts(reqItem._id);
+
+        // Populate hiring manager info if not already set
+        let hiringManagerName = reqItem.hiringManagerName;
+        let hiringManagerTitle = reqItem.hiringManagerTitle;
+        
+        if (!hiringManagerName && reqItem.hiringManagerId) {
+          const manager = reqItem.hiringManagerId;
+          if (manager && typeof manager === 'object') {
+            hiringManagerName = `${manager.firstName || ''} ${manager.lastName || ''}`.trim();
+            hiringManagerTitle = manager.grade || '';
+          }
+        }
+
+        // Fallback to createdBy if no hiring manager
+        if (!hiringManagerName && reqItem.createdBy) {
+          const creator = reqItem.createdBy;
+          if (creator && typeof creator === 'object') {
+            hiringManagerName = creator.name || creator.email || 'N/A';
+            hiringManagerTitle = '';
+          }
+        }
+
         return {
           ...reqItem,
           id: reqItem._id.toString(),
           candidates: candidateCount,
+          pipelineCounts,
+          hiringManagerName: hiringManagerName || 'N/A',
+          hiringManagerTitle: hiringManagerTitle || '',
         };
       })
     );
@@ -73,6 +181,12 @@ export const getRequisitions = async (
     res.json({
       success: true,
       data: requisitionsWithCounts,
+      pagination: {
+        page: pageNum,
+        pageSize: limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
   } catch (error) {
     console.error('Error fetching requisitions:', error);
@@ -89,7 +203,9 @@ export const getRequisitionById = async (
     const { id } = req.params;
     const requisition = await Requisition.findById(id)
       .populate('departmentId', 'name code')
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .populate('hiringManagerId', 'firstName lastName grade')
+      .lean();
 
     if (!requisition) {
       throw new AppError(404, 'Requisition not found');
@@ -99,11 +215,29 @@ export const getRequisitionById = async (
       requisitionId: id,
     });
 
+    const pipelineCounts = await calculatePipelineCounts(new mongoose.Types.ObjectId(id));
+
+    // Populate hiring manager info if not already set
+    let hiringManagerName = (requisition as any).hiringManagerName;
+    let hiringManagerTitle = (requisition as any).hiringManagerTitle;
+    
+    if (!hiringManagerName && (requisition as any).hiringManagerId) {
+      const manager = (requisition as any).hiringManagerId;
+      if (manager && typeof manager === 'object') {
+        hiringManagerName = `${manager.firstName || ''} ${manager.lastName || ''}`.trim();
+        hiringManagerTitle = manager.grade || '';
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        ...requisition.toObject(),
+        ...requisition,
+        id: (requisition as any)._id.toString(),
         candidates: candidateCount,
+        pipelineCounts,
+        hiringManagerName: hiringManagerName || 'N/A',
+        hiringManagerTitle: hiringManagerTitle || '',
       },
     });
   } catch (error) {
@@ -403,6 +537,33 @@ export const createCandidateApplication = async (
     });
     await application.save();
 
+    // Get requisition to find hiring manager
+    const requisition = await Requisition.findById(requisitionId)
+      .populate('hiringManagerId', 'userId')
+      .lean();
+
+    // Create notification for hiring manager if exists
+    if (requisition?.hiringManagerId) {
+      const manager = requisition.hiringManagerId as any;
+      const managerUserId = manager.userId;
+      
+      if (managerUserId) {
+        try {
+          await createNotification({
+            userId: managerUserId,
+            type: 'NEW_CANDIDATE',
+            title: 'New Candidate Application',
+            message: `${fullName} applied for ${requisition.title}`,
+            entityType: 'CANDIDATE',
+            entityId: application._id,
+          });
+        } catch (notifError) {
+          console.error('Failed to create notification:', notifError);
+          // Don't fail the application creation if notification fails
+        }
+      }
+    }
+
     res.status(201).json({
       success: true,
       data: application,
@@ -502,6 +663,115 @@ export const updateCandidateApplicationStatus = async (
     res.json({
       success: true,
       data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get list of hiring managers (employees who have requisitions)
+export const getHiringManagers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const requisitions = await Requisition.find({
+      hiringManagerId: { $exists: true, $ne: null },
+    })
+      .populate('hiringManagerId', 'firstName lastName grade')
+      .select('hiringManagerId hiringManagerName hiringManagerTitle')
+      .lean();
+
+    const managerMap = new Map();
+    
+    requisitions.forEach((req: any) => {
+      const managerId = req.hiringManagerId?._id?.toString() || req.hiringManagerId?.toString();
+      if (managerId && !managerMap.has(managerId)) {
+        const manager = req.hiringManagerId;
+        managerMap.set(managerId, {
+          id: managerId,
+          name: req.hiringManagerName || `${manager?.firstName || ''} ${manager?.lastName || ''}`.trim() || 'N/A',
+          title: req.hiringManagerTitle || manager?.grade || '',
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      data: Array.from(managerMap.values()),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get list of unique locations
+export const getLocations = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const locations = await Requisition.distinct('location');
+    res.json({
+      success: true,
+      data: locations.filter(loc => loc && loc.trim() !== ''),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get candidates for a specific requisition
+export const getRequisitionCandidates = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { page = '1', pageSize = '50' } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limit = parseInt(pageSize as string, 10);
+    const skip = (pageNum - 1) * limit;
+
+    const applications = await CandidateApplication.find({ requisitionId: id })
+      .populate('candidateId')
+      .populate('requisitionId', 'title departmentId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const totalCount = await CandidateApplication.countDocuments({ requisitionId: id });
+
+    res.json({
+      success: true,
+      data: applications.map((app) => ({
+        id: (app as any)._id.toString(),
+        _id: (app as any)._id.toString(),
+        name: ((app as any).candidateId as any)?.fullName || 'N/A',
+        email: ((app as any).candidateId as any)?.email || 'N/A',
+        phone: ((app as any).candidateId as any)?.phone || 'N/A',
+        requisition_id: ((app as any).requisitionId as any)?._id?.toString() || '',
+        requisitionId: ((app as any).requisitionId as any)?._id?.toString() || '',
+        status: (app as any).status,
+        skill_match: (app as any).skillMatch || 0,
+        skillMatch: (app as any).skillMatch || 0,
+        experience_match: (app as any).experienceMatch || 0,
+        experienceMatch: (app as any).experienceMatch || 0,
+        applied_date: (app as any).createdAt?.toISOString() || new Date().toISOString(),
+        appliedDate: (app as any).createdAt?.toISOString() || new Date().toISOString(),
+        createdAt: (app as any).createdAt?.toISOString() || new Date().toISOString(),
+      })),
+      pagination: {
+        page: pageNum,
+        pageSize: limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
   } catch (error) {
     next(error);
