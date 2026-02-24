@@ -1,9 +1,19 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -12,20 +22,26 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
+import { useState } from "react";
 import { useLeaveRequests } from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { Plus, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { ApplyLeaveDialog } from "../../components/ApplyLeaveDialog";
 
 export default function Leave() {
-  const { data: leaveRequests = [], loading } = useLeaveRequests();
+  const { data: leaveRequests = [], loading, refetch } = useLeaveRequests();
+  const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
+
   const handleApprove = async (id: string) => {
     try {
       await api.approveLeaveRequest(id);
       toast.success("Leave request approved");
-      window.location.reload();
+      refetch();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to approve leave request");
+      toast.error(
+        error.response?.data?.message || "Failed to approve leave request",
+      );
     }
   };
 
@@ -33,15 +49,23 @@ export default function Leave() {
     try {
       await api.rejectLeaveRequest(id);
       toast.error("Leave request rejected");
-      window.location.reload();
+      refetch();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to reject leave request");
+      toast.error(
+        error.response?.data?.message || "Failed to reject leave request",
+      );
     }
   };
 
   const getStatusColor = (status: string) => {
-    if (status === "approved") return "bg-green-100 text-green-800";
-    if (status === "rejected") return "bg-red-100 text-red-800";
+    if (
+      status === "approved" ||
+      status === "APPROVED" ||
+      status === "hr_approved"
+    )
+      return "bg-green-100 text-green-800";
+    if (status === "rejected" || status === "REJECTED")
+      return "bg-red-100 text-red-800";
     return "bg-orange-100 text-orange-800";
   };
 
@@ -49,14 +73,24 @@ export default function Leave() {
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Leave & Attendance</h2>
-          <p className="text-gray-600 mt-1">Manage leave requests and attendance</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Leave & Attendance
+          </h2>
+          <p className="text-gray-600 mt-1">
+            Manage leave requests and attendance
+          </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsApplyDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Apply for Leave
         </Button>
       </div>
+
+      <ApplyLeaveDialog
+        open={isApplyDialogOpen}
+        onOpenChange={setIsApplyDialogOpen}
+        onSuccess={refetch}
+      />
 
       <Tabs defaultValue="requests" className="space-y-4">
         <TabsList>
@@ -88,13 +122,19 @@ export default function Leave() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-8 text-gray-500"
+                        >
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : leaveRequests.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-8 text-gray-500"
+                        >
                           No leave requests found
                         </TableCell>
                       </TableRow>
@@ -102,32 +142,64 @@ export default function Leave() {
                       leaveRequests.map((request: any) => (
                         <TableRow key={request._id || request.id}>
                           <TableCell className="font-medium">
-                            {request.employeeId?.firstName || request.employee_name || "N/A"} {request.employeeId?.lastName || ""}
+                            {request.employeeId?.firstName ||
+                              request.employee_name ||
+                              "N/A"}{" "}
+                            {request.employeeId?.lastName || ""}
                           </TableCell>
-                          <TableCell>{request.leaveTypeId?.name || request.leave_type || "N/A"}</TableCell>
-                          <TableCell>{new Date(request.startDate || request.start_date).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(request.endDate || request.end_date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div>
+                              {request.leaveTypeId?.name ||
+                                request.leave_type ||
+                                "N/A"}
+                              {request.casual_type &&
+                                request.casual_type !== "PAID" && (
+                                  <span className="block text-xs text-muted-foreground mt-0.5">
+                                    {request.casual_type.replace("_", " ")}
+                                  </span>
+                                )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(
+                              request.startDate || request.start_date,
+                            ).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(
+                              request.endDate || request.end_date,
+                            ).toLocaleDateString()}
+                          </TableCell>
                           <TableCell>{request.days || 0}</TableCell>
                           <TableCell>{request.balance || 0} days</TableCell>
                           <TableCell>
-                            <Badge className={getStatusColor(request.status?.toLowerCase() || request.status)}>
+                            <Badge
+                              className={getStatusColor(
+                                request.status?.toLowerCase() || request.status,
+                              )}
+                            >
                               {request.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {(request.status?.toLowerCase() === "pending" || request.status === "PENDING") && (
+                            {(request.status?.toLowerCase() === "pending" ||
+                              request.status === "PENDING") && (
                               <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleApprove(request._id || request.id)}
+                                  onClick={() =>
+                                    handleApprove(request._id || request.id)
+                                  }
                                 >
                                   <CheckCircle className="h-4 w-4 text-green-600" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleReject(request._id || request.id)}
+                                  onClick={() =>
+                                    handleReject(request._id || request.id)
+                                  }
                                 >
                                   <XCircle className="h-4 w-4 text-red-600" />
                                 </Button>
@@ -156,7 +228,10 @@ export default function Leave() {
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: "75%" }} />
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
+                        style={{ width: "75%" }}
+                      />
                     </div>
                     <p className="text-xs text-gray-500 mt-2">15 of 20 days</p>
                   </div>
@@ -173,7 +248,10 @@ export default function Leave() {
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{ width: "80%" }} />
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{ width: "80%" }}
+                      />
                     </div>
                     <p className="text-xs text-gray-500 mt-2">8 of 10 days</p>
                   </div>
@@ -190,7 +268,10 @@ export default function Leave() {
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-purple-500 h-2 rounded-full" style={{ width: "60%" }} />
+                      <div
+                        className="bg-purple-500 h-2 rounded-full"
+                        style={{ width: "60%" }}
+                      />
                     </div>
                     <p className="text-xs text-gray-500 mt-2">3 of 5 days</p>
                   </div>
