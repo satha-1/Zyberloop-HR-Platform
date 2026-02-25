@@ -7,6 +7,7 @@ export interface ILeaveRequest extends Document {
   endDate: Date;
   days: number;
   status: 'PENDING' | 'MANAGER_APPROVED' | 'HR_APPROVED' | 'REJECTED' | 'CANCELLED';
+  casualType?: 'PAID' | 'UNPAID_AUTHORIZED' | 'UNPAID_UNAUTHORIZED';
   reason?: string;
   approverChain: Array<{
     role: string;
@@ -50,6 +51,11 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
       enum: ['PENDING', 'MANAGER_APPROVED', 'HR_APPROVED', 'REJECTED', 'CANCELLED'],
       default: 'PENDING',
       index: true,
+    },
+    casualType: {
+      type: String,
+      enum: ['PAID', 'UNPAID_AUTHORIZED', 'UNPAID_UNAUTHORIZED'],
+      default: 'PAID',
     },
     reason: String,
     approverChain: [

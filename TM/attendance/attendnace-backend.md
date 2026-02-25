@@ -10,7 +10,16 @@ Before allowing an employee to save a leave request to the database, the system 
 
 We modified the `createLeaveRequest` function to include:
 
-1. **Accrual Engine Calculation:** Added logic to fetch the employee's `hireDate` and multiply their `monthsWorked` by their specific `leaveType.accrualRule.perMonth` to get total earned leaves.
-2. **Usage Aggregation:** Added a MongoDB aggregate query (`LeaveRequest.aggregate`) to dynamically sum all previously `HR_APPROVED` leave days for the employee.
+1. **Dynamic Accrual Engine:** We fundamentally overhauled the leave calculation based on the specific `leaveType`:
+   - **Casual Leave (Paid):** Earns 0.5 days for every month worked starting from the join date. _(Note: Unpaid leaves currently map to their own flow or bypass the paid check, which leaves room for Authorized vs Non-Authorized categorization)._
+   - **Annual & Sick Leave:**
+     - **Year 1:** 0 leaves.
+     - **Year 2:** Prorated based on the quarter of the year they were originally hired in:
+       - Q1 (Jan - Mar): 14 days
+       - Q2 (Apr - Jun): 10 days
+       - Q3 (Jul - Sep): 7 days
+       - Q4 (Oct - Dec): 4 days
+     - **Year 3 onwards:** 14 days for every subsequent year, plus the prorated amount they earned in Year 2.
+2. **Usage Aggregation:** Added a MongoDB aggregate query (`LeaveRequest.aggregate`) to dynamically sum all previously `HR_APPROVED` leave days for the employee within that specific leave type.
 3. **Current Balance Validation:** Calculated the real-time balance (`totalAccrued - takenAccrued`) and implemented an HTTP 400 error throw if the requested days exceed this balance.
 4. **Default Approver Chain:** We now explicitly inject the required workflow (`MANAGER -> HR_ADMIN`) into the payload (`req.body.approverChain`) before saving to the database so that rule-based approvals can work later.
