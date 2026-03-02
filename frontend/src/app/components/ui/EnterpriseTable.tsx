@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { cn } from "./utils";
-import { Inbox } from "lucide-react";
+import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+
+export type SortDirection = "asc" | "desc" | null;
 
 export type EnterpriseTableColumn<T = any> = {
   key: string;
@@ -11,6 +13,7 @@ export type EnterpriseTableColumn<T = any> = {
   align?: "left" | "center" | "right";
   render?: (row: T, index: number) => React.ReactNode;
   sortable?: boolean;
+  sortValue?: (row: T) => string | number | Date | null | undefined; // Custom sort value extractor
   headerClassName?: string;
   cellClassName?: string;
 };
@@ -46,7 +49,70 @@ export function EnterpriseTable<T = any>({
   tableClassName,
   rowClassName,
 }: EnterpriseTableProps<T>) {
+  const [sortColumn, setSortColumn] = React.useState<string | null>(null);
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>(null);
   const hasHeader = !!(title || subtitle || itemCountLabel || headerActions);
+
+  const handleSort = (columnKey: string) => {
+    if (sortColumn === columnKey) {
+      // Cycle through: asc -> desc -> null
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else if (sortDirection === "desc") {
+        setSortColumn(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortColumn(columnKey);
+      setSortDirection("asc");
+    }
+  };
+
+  const sortedData = React.useMemo(() => {
+    if (!sortColumn || !sortDirection) return data;
+
+    const column = columns.find((col) => col.key === sortColumn);
+    if (!column || !column.sortable) return data;
+
+    return [...data].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      if (column.sortValue) {
+        aValue = column.sortValue(a);
+        bValue = column.sortValue(b);
+      } else {
+        aValue = (a as any)[sortColumn];
+        bValue = (b as any)[sortColumn];
+      }
+
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+
+      // Handle dates
+      if (aValue instanceof Date && bValue instanceof Date) {
+        return sortDirection === "asc"
+          ? aValue.getTime() - bValue.getTime()
+          : bValue.getTime() - aValue.getTime();
+      }
+
+      // Handle numbers
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+      }
+
+      // Handle strings
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (sortDirection === "asc") {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+  }, [data, sortColumn, sortDirection, columns]);
 
   return (
     <div
@@ -97,13 +163,25 @@ export function EnterpriseTable<T = any>({
                     column.widthClassName,
                     column.align === "right" && "text-right",
                     column.align === "center" && "text-center",
-                    column.headerClassName
+                    column.headerClassName,
+                    column.sortable && "cursor-pointer hover:bg-gray-100 select-none"
                   )}
+                  onClick={() => column.sortable && handleSort(column.key)}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>{column.header}</span>
                     {column.sortable && (
-                      <span className="text-gray-400 text-[10px]">▲▼</span>
+                      <span className="text-gray-400 flex items-center">
+                        {sortColumn === column.key ? (
+                          sortDirection === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        )}
+                      </span>
                     )}
                   </div>
                 </th>
@@ -111,7 +189,7 @@ export function EnterpriseTable<T = any>({
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {sortedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
@@ -124,7 +202,7 @@ export function EnterpriseTable<T = any>({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => (
+              sortedData.map((row, index) => (
                 <tr
                   key={getRowKey(row, index)}
                   className={cn(

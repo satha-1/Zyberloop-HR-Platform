@@ -22,6 +22,7 @@ import {
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [newlyAddedFilter, setNewlyAddedFilter] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const { data: departments = [] } = useDepartments();
   const { data: employees = [], loading, refetch } = useEmployees({
@@ -30,17 +31,29 @@ export default function Employees() {
   });
 
   const filteredEmployees = employees.filter((emp: any) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      emp.employeeNumber?.toLowerCase().includes(searchLower) ||
-      emp.firstName?.toLowerCase().includes(searchLower) ||
-      emp.lastName?.toLowerCase().includes(searchLower) ||
-      emp.fullName?.toLowerCase().includes(searchLower) ||
-      emp.employeeCode?.toLowerCase().includes(searchLower) ||
-      emp.jobTitle?.toLowerCase().includes(searchLower) ||
-      emp.email?.toLowerCase().includes(searchLower)
-    );
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        emp.employeeNumber?.toLowerCase().includes(searchLower) ||
+        emp.firstName?.toLowerCase().includes(searchLower) ||
+        emp.lastName?.toLowerCase().includes(searchLower) ||
+        emp.fullName?.toLowerCase().includes(searchLower) ||
+        emp.employeeCode?.toLowerCase().includes(searchLower) ||
+        emp.jobTitle?.toLowerCase().includes(searchLower) ||
+        emp.email?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Newly added filter (last 7 days)
+    if (newlyAddedFilter) {
+      const createdAt = emp.createdAt ? new Date(emp.createdAt) : null;
+      if (!createdAt) return false;
+      const daysSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceCreation > 7) return false;
+    }
+
+    return true;
   });
 
   const getStatusColor = (status: string) => {
@@ -157,6 +170,16 @@ export default function Employees() {
                 })}
               </SelectContent>
             </Select>
+            <Select value={newlyAddedFilter ? "new" : "all"} onValueChange={(value) => setNewlyAddedFilter(value === "new")}>
+              <SelectTrigger className="w-full sm:w-48">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                <SelectItem value="new">Newly Added (Last 7 Days)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         }
         columns={[
@@ -165,6 +188,7 @@ export default function Employees() {
             header: "",
             widthClassName: "w-12",
             align: "center",
+            sortable: false,
             render: (employee: any) => (
               <div className="flex items-center justify-center">
                 <EmployeeAvatar
@@ -179,11 +203,15 @@ export default function Employees() {
           {
             key: "employeeNumber",
             header: "Employee Number",
+            sortable: true,
+            sortValue: (employee: any) => employee.employeeNumber || "",
             render: (employee: any) => employee.employeeNumber || "N/A",
           },
           {
             key: "employeeCode",
             header: "Employee Code",
+            sortable: true,
+            sortValue: (employee: any) => employee.employeeCode || "",
             render: (employee: any) => (
               <span className="font-medium text-gray-900">
                 {employee.employeeCode}
@@ -193,6 +221,9 @@ export default function Employees() {
           {
             key: "name",
             header: "Name",
+            sortable: true,
+            sortValue: (employee: any) =>
+              employee.fullName || `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "",
             render: (employee: any) => (
               <span>
                 {employee.fullName || `${employee.firstName || ""} ${employee.lastName || ""}`.trim()}
@@ -202,6 +233,8 @@ export default function Employees() {
           {
             key: "email",
             header: "Email",
+            sortable: true,
+            sortValue: (employee: any) => employee.email || "",
             render: (employee: any) => (
               <TableLink href={`mailto:${employee.email}`}>
                 {employee.email}
@@ -211,17 +244,27 @@ export default function Employees() {
           {
             key: "department",
             header: "Department",
+            sortable: true,
+            sortValue: (employee: any) =>
+              employee.departmentId?.name || employee.department || "ZZZ",
             render: (employee: any) =>
               employee.departmentId?.name || employee.department || "N/A",
           },
           {
             key: "jobTitle",
             header: "Job Title",
+            sortable: true,
+            sortValue: (employee: any) => employee.jobTitle || "ZZZ",
             render: (employee: any) => employee.jobTitle || "N/A",
           },
           {
             key: "manager",
             header: "Manager",
+            sortable: true,
+            sortValue: (employee: any) =>
+              employee.managerId
+                ? `${employee.managerId.firstName || ""} ${employee.managerId.lastName || ""}`.trim() || "ZZZ"
+                : "ZZZ",
             render: (employee: any) =>
               employee.managerId
                 ? `${employee.managerId.firstName || ""} ${employee.managerId.lastName || ""}`.trim() || "N/A"
@@ -230,6 +273,8 @@ export default function Employees() {
           {
             key: "status",
             header: "Status",
+            sortable: true,
+            sortValue: (employee: any) => employee.status || "ZZZ",
             render: (employee: any) => (
               <Badge className={getStatusColor(employee.status)}>
                 {employee.status?.replace("_", " ") || employee.status}
@@ -237,10 +282,19 @@ export default function Employees() {
             ),
           },
           {
+            key: "hireDate",
+            header: "Hire Date",
+            sortable: true,
+            sortValue: (employee: any) => employee.hireDate ? new Date(employee.hireDate) : null,
+            render: (employee: any) =>
+              employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : "N/A",
+          },
+          {
             key: "actions",
             header: "Actions",
             align: "right",
             widthClassName: "w-20",
+            sortable: false,
             render: (employee: any) => (
               <TableLink
                 href={`/employees/${employee._id || employee.id}`}
