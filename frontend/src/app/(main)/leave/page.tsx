@@ -28,8 +28,22 @@ import { api } from "../../lib/api";
 import { Plus, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ApplyLeaveDialog } from "../../components/ApplyLeaveDialog";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function Leave() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "requests";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "requests") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+    router.push(`/leave?${params.toString()}`, { scroll: false });
+  };
   const { data: leaveRequests = [], loading, refetch } = useLeaveRequests();
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
 
@@ -92,7 +106,7 @@ export default function Leave() {
         onSuccess={refetch}
       />
 
-      <Tabs defaultValue="requests" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="requests">Leave Requests</TabsTrigger>
           <TabsTrigger value="balance">Leave Balances</TabsTrigger>

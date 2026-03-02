@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
@@ -22,9 +22,22 @@ import { useState, useEffect } from "react";
 
 export default function PayrollRun() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params.id as string;
   const { data: payrollRun, loading } = usePayrollRun(id);
   const [entries, setEntries] = useState<any[]>([]);
+  const activeTab = searchParams.get("tab") || "employees";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "employees") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+    router.push(`/payroll/${id}?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     if (id) {
@@ -170,7 +183,7 @@ export default function PayrollRun() {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="employees" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="employees">Employee Details</TabsTrigger>
           <TabsTrigger value="summary">Summary</TabsTrigger>

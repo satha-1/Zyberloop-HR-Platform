@@ -4,8 +4,22 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { TrendingUp, Users, DollarSign, AlertTriangle } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function WorkforcePlanning() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "scenarios";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "scenarios") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+    router.push(`/workforce-planning?${params.toString()}`, { scroll: false });
+  };
   const scenarios = [
     { name: "Growth Scenario", headcount: 120, cost: "$14.4M", status: "Active", type: "growth" },
     { name: "Freeze Scenario", headcount: 100, cost: "$12.0M", status: "Draft", type: "freeze" },
@@ -30,7 +44,7 @@ export default function WorkforcePlanning() {
         </Button>
       </div>
 
-      <Tabs defaultValue="scenarios" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
           <TabsTrigger value="attrition">Attrition Prediction</TabsTrigger>

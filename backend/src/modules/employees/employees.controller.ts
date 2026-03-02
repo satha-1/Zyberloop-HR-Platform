@@ -10,6 +10,31 @@ import path from 'path';
 import fs from 'fs';
 import PDFDocument from 'pdfkit';
 
+const splitFullName = (fullName: string) => {
+  const clean = fullName.trim();
+  const [firstName, ...rest] = clean.split(/\s+/);
+  return {
+    firstName: firstName || '',
+    lastName: rest.join(' ') || 'N/A',
+  };
+};
+
+const generateNextEmployeeCode = async (): Promise<string> => {
+  // Randomized code generation with uniqueness check.
+  for (let i = 0; i < 10; i += 1) {
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    const candidate = `EMP-${randomNumber}`;
+    const exists = await Employee.exists({ employeeCode: candidate });
+    if (!exists) {
+      return candidate;
+    }
+  }
+
+  // Fallback to timestamp-based suffix if random collisions occur repeatedly.
+  const fallback = `EMP-${Date.now().toString().slice(-6)}`;
+  return fallback;
+};
+
 export const getEmployees = async (
   req: Request,
   res: Response,
@@ -17,22 +42,32 @@ export const getEmployees = async (
 ) => {
   try {
     const { search, department, status } = req.query;
+    const searchText = typeof search === 'string' ? search : '';
+    const departmentText = typeof department === 'string' ? department : '';
 
     const query: any = {};
 
-    if (search) {
+    if (searchText) {
       query.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { employeeCode: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { employeeNumber: { $regex: searchText, $options: 'i' } },
+        { firstName: { $regex: searchText, $options: 'i' } },
+        { lastName: { $regex: searchText, $options: 'i' } },
+        { fullName: { $regex: searchText, $options: 'i' } },
+        { employeeCode: { $regex: searchText, $options: 'i' } },
+        { jobTitle: { $regex: searchText, $options: 'i' } },
+        { email: { $regex: searchText, $options: 'i' } },
       ];
     }
 
-    if (department && department !== 'undefined' && department !== 'null' && department.trim() !== '') {
+    if (
+      departmentText &&
+      departmentText !== 'undefined' &&
+      departmentText !== 'null' &&
+      departmentText.trim() !== ''
+    ) {
       // Validate ObjectId format
-      if (mongoose.Types.ObjectId.isValid(department)) {
-        query.departmentId = department;
+      if (mongoose.Types.ObjectId.isValid(departmentText)) {
+        query.departmentId = departmentText;
       }
     }
 
@@ -77,6 +112,22 @@ export const getEmployees = async (
   }
 };
 
+export const generateEmployeeCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const code = await generateNextEmployeeCode();
+    res.json({
+      success: true,
+      data: { code },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getEmployeeById = async (
   req: Request,
   res: Response,
@@ -116,52 +167,108 @@ export const createEmployee = async (
   next: NextFunction
 ) => {
   try {
-    // Validate required fields
-    const { firstName, lastName, email, phone, grade, hireDate, salary, employeeCode } = req.body;
-    
-    if (!firstName || !lastName || !email || !phone || !grade || !hireDate || !salary) {
-      throw new AppError(400, 'Missing required fields');
+    const {
+      employeeNumber,
+      employeeCode,
+      initials,
+      fullName,
+      preferredName,
+      firstName: rawFirstName,
+      lastName: rawLastName,
+      email,
+      phone,
+      dob,
+      currentAddress,
+      permanentAddress,
+      address,
+      grade,
+      jobTitle,
+      employmentType,
+      workLocation,
+      departmentId,
+      managerId,
+      hireDate,
+      emergencyContactName,
+      emergencyContactRelationship,
+      emergencyContactPhone,
+      emergencyContactEmail,
+    } = req.body;
+
+    if (!employeeNumber || !email || !phone || !hireDate || !departmentId) {
+      throw new AppError(
+        400,
+        'Employee number, email, phone, department, and hire date are required'
+      );
     }
 
-    // Generate employee code if not provided
+    let firstName = rawFirstName;
+    let lastName = rawLastName;
+    if ((!firstName || !lastName) && fullName) {
+      const splitName = splitFullName(fullName);
+      firstName = splitName.firstName;
+      lastName = splitName.lastName;
+    }
+    if (!firstName || !lastName) {
+      throw new AppError(400, 'Full name is required');
+    }
+
     let code = employeeCode;
     if (!code) {
-      const lastEmployee = await Employee.findOne().sort({ createdAt: -1 });
-      const lastNumber = lastEmployee?.employeeCode 
-        ? parseInt(lastEmployee.employeeCode.replace('EMP', '')) || 0 
-        : 0;
-      code = `EMP${String(lastNumber + 1).padStart(5, '0')}`;
+      code = await generateNextEmployeeCode();
     }
 
-    // Clean up employee data - remove empty strings and invalid ObjectIds
     const employeeData: any = {
       firstName,
       lastName,
+      fullName: fullName || `${firstName} ${lastName}`.trim(),
+      employeeNumber: String(employeeNumber).toUpperCase(),
+      employeeCode: code,
+      initials,
+      preferredName,
       email,
       phone,
+      currentAddress,
+      permanentAddress,
+      address: address || currentAddress,
       grade,
+      jobTitle,
+      employmentType,
+      workLocation,
+      dob,
       hireDate,
-      salary: parseFloat(salary),
-      employeeCode: code,
-      status: req.body.status || 'active', // Explicitly set status, default to 'active'
+      status: req.body.status || 'active',
+      salary: req.body.salary ? parseFloat(req.body.salary) : 0,
     };
 
-    // Add optional fields only if they have valid values
-    if (req.body.dob) employeeData.dob = req.body.dob;
-    if (req.body.address) employeeData.address = req.body.address;
-    
-    // Validate and add departmentId only if it's a valid ObjectId
-    if (req.body.departmentId && req.body.departmentId !== 'undefined' && req.body.departmentId !== 'null' && req.body.departmentId.trim() !== '') {
-      if (mongoose.Types.ObjectId.isValid(req.body.departmentId)) {
-        employeeData.departmentId = req.body.departmentId;
-      }
+    if (
+      emergencyContactName ||
+      emergencyContactRelationship ||
+      emergencyContactPhone ||
+      emergencyContactEmail
+    ) {
+      employeeData.emergencyContact = {
+        name: emergencyContactName,
+        relationship: emergencyContactRelationship,
+        phone: emergencyContactPhone,
+        email: emergencyContactEmail,
+      };
     }
-    
-    // Validate and add managerId only if it's a valid ObjectId
-    if (req.body.managerId && req.body.managerId !== 'undefined' && req.body.managerId !== 'null' && req.body.managerId !== 'none' && req.body.managerId.trim() !== '') {
-      if (mongoose.Types.ObjectId.isValid(req.body.managerId)) {
-        employeeData.managerId = req.body.managerId;
-      }
+
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+      employeeData.departmentId = departmentId;
+    } else {
+      throw new AppError(400, 'Valid department is required');
+    }
+
+    if (
+      managerId &&
+      managerId !== 'undefined' &&
+      managerId !== 'null' &&
+      managerId !== 'none' &&
+      String(managerId).trim() !== '' &&
+      mongoose.Types.ObjectId.isValid(managerId)
+    ) {
+      employeeData.managerId = managerId;
     }
 
     const employee = new Employee(employeeData);
@@ -206,7 +313,7 @@ export const createEmployee = async (
     });
   } catch (error: any) {
     if (error.code === 11000) {
-      throw new AppError(400, 'Employee code or email already exists');
+      throw new AppError(400, 'Employee number, employee code, or email already exists');
     }
     next(error);
   }
@@ -476,8 +583,8 @@ export const generateDocument = async (
     let content = template.content;
     const replacements: Record<string, any> = {
       employeeName: `${employee.firstName} ${employee.lastName}`,
-      designation: employee.grade,
-      salary: employee.salary.toLocaleString(),
+      designation: employee.jobTitle || 'Employee',
+      salary: (employee.salary || 0).toLocaleString(),
       joiningDate: new Date(employee.hireDate).toLocaleDateString(),
       department: (employee.departmentId as any)?.name || 'N/A',
       managerName: employee.managerId 
@@ -560,7 +667,7 @@ async function createDefaultTemplate(type: string, userId: string) {
 
 We are pleased to offer you the position of {{designation}} in our {{department}} department.
 
-Your starting salary will be ${{salary}} per month, effective from {{joiningDate}}.
+Your starting salary will be \${{salary}} per month, effective from {{joiningDate}}.
 
 We look forward to welcoming you to our team.
 
@@ -570,7 +677,7 @@ HR Department`,
 
 This letter confirms your appointment as {{designation}} in the {{department}} department, effective {{joiningDate}}.
 
-Your monthly salary is ${{salary}}.
+Your monthly salary is \${{salary}}.
 
 Your reporting manager will be {{managerName}}.
 
@@ -594,7 +701,7 @@ HR Department`,
 
 We are pleased to inform you of a salary increment.
 
-Your new salary will be ${{salary}} per month, effective from {{joiningDate}}.
+Your new salary will be \${{salary}} per month, effective from {{joiningDate}}.
 
 Best regards,
 HR Department`,
@@ -774,8 +881,8 @@ export const previewDocument = async (
     let content = template.content;
     const replacements: Record<string, any> = {
       employeeName: `${employee.firstName} ${employee.lastName}`,
-      designation: employee.grade,
-      salary: employee.salary.toLocaleString(),
+      designation: employee.jobTitle || 'Employee',
+      salary: (employee.salary || 0).toLocaleString(),
       joiningDate: new Date(employee.hireDate).toLocaleDateString(),
       department: (employee.departmentId as any)?.name || 'N/A',
       managerName: employee.managerId 

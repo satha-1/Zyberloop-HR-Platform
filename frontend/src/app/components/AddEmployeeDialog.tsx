@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "./ui/textarea";
 import { api } from "../lib/api";
 import { toast } from "sonner";
-import { Upload, X, FileText } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface AddEmployeeDialogProps {
   open: boolean;
@@ -17,37 +17,40 @@ interface AddEmployeeDialogProps {
   onSuccess?: () => void;
 }
 
-interface DocumentFile {
-  file: File;
-  type: string;
-  preview?: string;
-}
-
 export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployeeDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [sameAsCurrentAddress, setSameAsCurrentAddress] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    employeeNumber: "",
+    employeeCode: "",
+    initials: "",
+    fullName: "",
+    preferredName: "",
     email: "",
     phone: "",
     dob: "",
-    address: "",
-    grade: "",
+    currentAddress: "",
+    permanentAddress: "",
     departmentId: "",
     managerId: "",
+    jobTitle: "",
+    employmentType: "permanent",
+    workLocation: "",
     hireDate: "",
-    salary: "",
-    employeeCode: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactPhone: "",
+    emergencyContactEmail: "",
   });
 
   useEffect(() => {
     if (open) {
       fetchDepartments();
       fetchManagers();
+      generateEmployeeCode();
     }
   }, [open]);
 
@@ -69,137 +72,63 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const files = Array.from(e.target.files || []);
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    
-    files.forEach((file) => {
-      // Validate file size
-      if (file.size > maxSize) {
-        toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
-        return;
+  const generateEmployeeCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const result: any = await api.generateEmployeeCode();
+      if (result?.code) {
+        setFormData((prev) => ({ ...prev, employeeCode: result.code }));
       }
-
-      // Validate file type
-      const allowedTypes = [
-        'application/pdf',
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ];
-      
-      if (!allowedTypes.includes(file.type)) {
-        toast.error(`File ${file.name} has an invalid type. Allowed: PDF, JPG, PNG, DOC, DOCX`);
-        return;
-      }
-
-      setDocuments((prev) => [...prev, { file, type }]);
-    });
-  };
-
-  const removeDocument = (index: number) => {
-    setDocuments((prev) => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error("Failed to generate employee code", error);
+      toast.error("Failed to generate employee code");
+    } finally {
+      setGeneratingCode(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setUploadProgress({});
 
     try {
-      const formDataToSend = new FormData();
-      
-      // Add employee data (filter out empty strings, undefined, null, and "none" values)
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value && value !== '' && value !== 'undefined' && value !== 'null' && value !== 'none') {
-          formDataToSend.append(key, value);
-        }
-      });
+      const payload = {
+        ...formData,
+        permanentAddress: sameAsCurrentAddress ? formData.currentAddress : formData.permanentAddress,
+      };
 
-      // Add documents with progress tracking
-      documents.forEach((doc, index) => {
-        formDataToSend.append("documents", doc.file);
-        formDataToSend.append(`docType_documents`, doc.type);
-      });
+      await api.createEmployee(payload);
 
-      // Use XMLHttpRequest for real upload progress tracking
-      const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
-      if (!API_BASE_URL) {
-        throw new Error('NEXT_PUBLIC_API_BASE_URL is not configured');
-      }
-      
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const overallProgress = (e.loaded / e.total) * 100;
-            // Distribute progress across all documents
-            documents.forEach((_, index) => {
-              setUploadProgress((prev) => ({
-                ...prev,
-                [index]: overallProgress,
-              }));
-            });
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              if (response.success) {
-                resolve();
-              } else {
-                reject(new Error(response.error?.message || 'Upload failed'));
-              }
-            } catch (error) {
-              resolve(); // Assume success if can't parse
-            }
-          } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
-        });
-
-        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
-
-        xhr.open('POST', `${API_BASE_URL}/employees`);
-        if (token) {
-          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        }
-        xhr.send(formDataToSend);
-      });
-      
-      setUploadProgress({});
-      
       toast.success("Employee created successfully!");
       onOpenChange(false);
       setFormData({
-        firstName: "",
-        lastName: "",
+        employeeNumber: "",
+        employeeCode: "",
+        initials: "",
+        fullName: "",
+        preferredName: "",
         email: "",
         phone: "",
         dob: "",
-        address: "",
-        grade: "",
+        currentAddress: "",
+        permanentAddress: "",
         departmentId: "",
         managerId: "",
+        jobTitle: "",
+        employmentType: "permanent",
+        workLocation: "",
         hireDate: "",
-        salary: "",
-        employeeCode: "",
+        emergencyContactName: "",
+        emergencyContactRelationship: "",
+        emergencyContactPhone: "",
+        emergencyContactEmail: "",
       });
-      setDocuments([]);
+      setSameAsCurrentAddress(false);
       onSuccess?.();
     } catch (error: any) {
       toast.error(error.message || "Failed to create employee");
     } finally {
       setLoading(false);
-      setUploadProgress({});
     }
   };
 
@@ -209,59 +138,82 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
           <DialogDescription>
-            Fill in the employee details and upload required documents.
+            Create core employee details now. Add salary, bank details, and documents later from employee profile.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Personal Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Personal Information</h3>
+            <h3 className="text-lg font-semibold">Identification</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+                <Label htmlFor="employeeNumber">Employee Number *</Label>
                 <Input
-                  id="firstName"
+                  id="employeeNumber"
                   required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  value={formData.employeeNumber}
+                  onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
+                  placeholder="Manual HR/Payroll number"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="employeeCode">Employee Code *</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={generateEmployeeCode}
+                    disabled={generatingCode || loading}
+                    className="h-7 px-2"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${generatingCode ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
                 <Input
-                  id="lastName"
+                  id="employeeCode"
                   required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  readOnly
+                  value={formData.employeeCode}
+                  className="bg-gray-50"
+                  placeholder="Auto-generated"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Personal / Basic Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="initials">Initials</Label>
+                <Input
+                  id="initials"
+                  value={formData.initials}
+                  onChange={(e) => setFormData({ ...formData, initials: e.target.value })}
+                  placeholder="e.g., S.K."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="preferredName">Preferred Name</Label>
+                <Input
+                  id="preferredName"
+                  value={formData.preferredName}
+                  onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="fullName">Full Name *</Label>
                 <Input
-                  id="email"
-                  type="email"
+                  id="fullName"
                   required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="dob">Date of Birth</Label>
                 <Input
@@ -271,28 +223,32 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                   onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="employeeCode">Employee Code</Label>
+                <Label htmlFor="email">Primary Email *</Label>
                 <Input
-                  id="employeeCode"
-                  placeholder="Auto-generated if empty"
-                  value={formData.employeeCode}
-                  onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
+                  id="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
           </div>
 
-          {/* Employment Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Employment Information</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -301,7 +257,6 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                 <Select
                   value={formData.departmentId || undefined}
                   onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
-                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
@@ -320,19 +275,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grade">Grade *</Label>
-                <Input
-                  id="grade"
-                  required
-                  value={formData.grade}
-                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="managerId">Manager</Label>
+                <Label htmlFor="managerId">Manager / Supervisor</Label>
                 <Select
                   value={formData.managerId || undefined}
                   onValueChange={(value) => setFormData({ ...formData, managerId: value === "none" ? "" : value })}
@@ -354,6 +297,18 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="jobTitle">Job Title</Label>
+                <Input
+                  id="jobTitle"
+                  value={formData.jobTitle}
+                  onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                  placeholder="e.g., HR Executive"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="hireDate">Hire Date *</Label>
                 <Input
@@ -366,131 +321,111 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="salary">Salary *</Label>
-              <Input
-                id="salary"
-                type="number"
-                required
-                min="0"
-                step="0.01"
-                value={formData.salary}
-                onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="employmentType">Employment Type</Label>
+                <Select
+                  value={formData.employmentType}
+                  onValueChange={(value) => setFormData({ ...formData, employmentType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="permanent">Permanent</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="intern">Intern</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="workLocation">Work Location / Site</Label>
+                <Input
+                  id="workLocation"
+                  value={formData.workLocation}
+                  onChange={(e) => setFormData({ ...formData, workLocation: e.target.value })}
+                  placeholder="e.g., Head Office - Colombo"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Documents */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Documents</h3>
+            <h3 className="text-lg font-semibold">Address Details</h3>
+            <div className="space-y-2">
+              <Label htmlFor="currentAddress">Current Address *</Label>
+              <Textarea
+                id="currentAddress"
+                required
+                value={formData.currentAddress}
+                onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="sameAsCurrentAddress"
+                type="checkbox"
+                checked={sameAsCurrentAddress}
+                onChange={(e) => setSameAsCurrentAddress(e.target.checked)}
+              />
+              <Label htmlFor="sameAsCurrentAddress">Permanent address same as current</Label>
+            </div>
+            {!sameAsCurrentAddress && (
+              <div className="space-y-2">
+                <Label htmlFor="permanentAddress">Permanent Address</Label>
+                <Textarea
+                  id="permanentAddress"
+                  value={formData.permanentAddress}
+                  onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Emergency Contact</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>NIC Copy</Label>
+                <Label htmlFor="emergencyContactName">Contact Name</Label>
                 <Input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleFileChange(e, "NIC")}
+                  id="emergencyContactName"
+                  value={formData.emergencyContactName}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Passport Copy</Label>
+                <Label htmlFor="emergencyContactRelationship">Relationship</Label>
                 <Input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleFileChange(e, "PASSPORT")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>CV</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => handleFileChange(e, "CV")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Appointment Letter</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => handleFileChange(e, "APPOINTMENT_LETTER")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Contract</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => handleFileChange(e, "CONTRACT")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Certificates</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleFileChange(e, "CERTIFICATE")}
+                  id="emergencyContactRelationship"
+                  value={formData.emergencyContactRelationship}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactRelationship: e.target.value })}
                 />
               </div>
             </div>
-
-            {documents.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Uploaded Documents ({documents.length})</Label>
-                <div className="space-y-2">
-                  {documents.map((doc, index) => {
-                    const fileSizeMB = (doc.file.size / (1024 * 1024)).toFixed(2);
-                    const isImage = doc.file.type.startsWith('image/');
-                    const progress = uploadProgress[index];
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded border"
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <FileText className="h-5 w-5 text-gray-500" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{doc.file.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {doc.type} • {fileSizeMB} MB
-                            </p>
-                            {progress !== undefined && (
-                              <div className="w-full mt-2">
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-blue-500 h-2 rounded-full transition-all"
-                                    style={{ width: `${progress}%` }}
-                                  />
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">{progress}% uploaded</p>
-                              </div>
-                            )}
-                          </div>
-                          {isImage && (
-                            <div className="w-12 h-12 border rounded overflow-hidden">
-                              <img
-                                src={URL.createObjectURL(doc.file)}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDocument(index)}
-                          disabled={loading}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <Label htmlFor="emergencyContactPhone">Phone</Label>
+                <Input
+                  id="emergencyContactPhone"
+                  value={formData.emergencyContactPhone}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
+                />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="emergencyContactEmail">Email</Label>
+                <Input
+                  id="emergencyContactEmail"
+                  type="email"
+                  value={formData.emergencyContactEmail}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactEmail: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-blue-50 p-3 text-sm text-blue-800">
+            Salary details, bank details, and documents can be added separately after employee creation.
           </div>
 
           <div className="flex justify-end gap-3">
@@ -502,7 +437,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || generatingCode}>
               {loading ? "Creating..." : "Create Employee"}
             </Button>
           </div>

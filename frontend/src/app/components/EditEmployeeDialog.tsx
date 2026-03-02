@@ -6,11 +6,10 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Textarea } from "./ui/textarea";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { useDepartments, useEmployees } from "../lib/hooks";
-import { EmployeeAvatar } from "./ui/EmployeeAvatar";
-import { Upload, X } from "lucide-react";
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -31,38 +30,50 @@ export function EditEmployeeDialog({
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    employeeNumber: "",
+    employeeCode: "",
+    initials: "",
+    fullName: "",
+    preferredName: "",
     email: "",
     phone: "",
     dob: "",
-    address: "",
-    grade: "",
+    currentAddress: "",
+    permanentAddress: "",
     departmentId: "none",
     managerId: "none",
     hireDate: "",
     salary: "",
+    employmentType: "permanent",
+    jobTitle: "",
+    workLocation: "",
     status: "active",
   });
 
   useEffect(() => {
     if (open && employee) {
       setFormData({
-        firstName: employee.firstName || "",
-        lastName: employee.lastName || "",
+        employeeNumber: employee.employeeNumber || "",
+        employeeCode: employee.employeeCode || "",
+        initials: employee.initials || "",
+        fullName: employee.fullName || `${employee.firstName || ""} ${employee.lastName || ""}`.trim(),
+        preferredName: employee.preferredName || "",
         email: employee.email || "",
         phone: employee.phone || "",
         dob: employee.dob ? new Date(employee.dob).toISOString().split("T")[0] : "",
-        address: employee.address || "",
-        grade: employee.grade || "",
+        currentAddress: employee.currentAddress || employee.address || "",
+        permanentAddress: employee.permanentAddress || "",
         departmentId: employee.departmentId?._id || employee.departmentId || "none",
         managerId: employee.managerId?._id || employee.managerId || "none",
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split("T")[0] : "",
         salary: employee.salary?.toString() || "",
+        employmentType: employee.employmentType || "permanent",
+        jobTitle: employee.jobTitle || employee.grade || "",
+        workLocation: employee.workLocation || "",
         status: employee.status || "active",
       });
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
-      const baseUrl = apiBaseUrl.replace('/api/v1', '');
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+      const baseUrl = apiBaseUrl.replace("/api/v1", "");
       setProfilePreview(employee.profilePicture ? `${baseUrl}${employee.profilePicture}` : null);
       setProfilePicture(null);
     }
@@ -77,9 +88,7 @@ export function EditEmployeeDialog({
       }
       setProfilePicture(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePreview(reader.result as string);
-      };
+      reader.onloadend = () => setProfilePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -90,15 +99,17 @@ export function EditEmployeeDialog({
 
     try {
       const formDataToSend = new FormData();
-      
-      // Add text fields
+
       Object.entries(formData).forEach(([key, value]) => {
         if (value && value !== "none") {
           formDataToSend.append(key, value);
         }
       });
 
-      // Add profile picture if selected
+      // Keep backward compatibility where older services still read grade/address.
+      formDataToSend.append("grade", formData.jobTitle || "");
+      formDataToSend.append("address", formData.currentAddress || "");
+
       if (profilePicture) {
         formDataToSend.append("profilePicture", profilePicture);
       }
@@ -116,23 +127,18 @@ export function EditEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Employee</DialogTitle>
-          <DialogDescription>Update employee information</DialogDescription>
+          <DialogDescription>Update employee details, profile photo, and post-onboarding information.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Profile Picture */}
           <div className="space-y-2">
             <Label>Profile Picture</Label>
             <div className="flex items-center gap-4">
               <div className="relative">
                 {profilePreview ? (
-                  <img
-                    src={profilePreview}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-                  />
+                  <img src={profilePreview} alt="Profile" className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
                 ) : (
                   <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
                     <span className="text-gray-400 text-sm">No Image</span>
@@ -140,80 +146,48 @@ export function EditEmployeeDialog({
                 )}
               </div>
               <div className="flex-1">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePictureChange}
-                  className="cursor-pointer"
-                />
-                <p className="text-xs text-gray-500 mt-1">Max 2MB. JPG, PNG, or WEBP</p>
+                <Input type="file" accept="image/*" onChange={handleProfilePictureChange} className="cursor-pointer" />
+                <p className="text-xs text-gray-500 mt-1">Max 2MB. JPG, PNG, WEBP</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
-              <Input
-                id="firstName"
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              />
+              <Label htmlFor="employeeNumber">Employee Number *</Label>
+              <Input id="employeeNumber" required value={formData.employeeNumber} onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
-              <Input
-                id="lastName"
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              />
+              <Label htmlFor="employeeCode">Employee Code</Label>
+              <Input id="employeeCode" value={formData.employeeCode} readOnly className="bg-gray-50" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name *</Label>
+              <Input id="fullName" required value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="initials">Initials</Label>
+              <Input id="initials" value={formData.initials} onChange={(e) => setFormData({ ...formData, initials: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferredName">Preferred Name</Label>
+              <Input id="preferredName" value={formData.preferredName} onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
+              <Input id="email" type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone *</Label>
-              <Input
-                id="phone"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
+              <Input id="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dob">Date of Birth</Label>
-              <Input
-                id="dob"
-                type="date"
-                value={formData.dob}
-                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="grade">Grade *</Label>
-              <Input
-                id="grade"
-                required
-                value={formData.grade}
-                onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-              />
+              <Input id="dob" type="date" value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="departmentId">Department *</Label>
-              <Select
-                value={formData.departmentId || "none"}
-                onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
-                required
-              >
+              <Select value={formData.departmentId || "none"} onValueChange={(value) => setFormData({ ...formData, departmentId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
@@ -232,10 +206,7 @@ export function EditEmployeeDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="managerId">Manager</Label>
-              <Select
-                value={formData.managerId || "none"}
-                onValueChange={(value) => setFormData({ ...formData, managerId: value })}
-              >
+              <Select value={formData.managerId || "none"} onValueChange={(value) => setFormData({ ...formData, managerId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select manager" />
                 </SelectTrigger>
@@ -253,31 +224,37 @@ export function EditEmployeeDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="hireDate">Hire Date *</Label>
-              <Input
-                id="hireDate"
-                type="date"
-                required
-                value={formData.hireDate}
-                onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
-              />
+              <Input id="hireDate" type="date" required value={formData.hireDate} onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="salary">Salary *</Label>
-              <Input
-                id="salary"
-                type="number"
-                required
-                value={formData.salary}
-                onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-              />
+              <Label htmlFor="employmentType">Employment Type</Label>
+              <Select value={formData.employmentType} onValueChange={(value) => setFormData({ ...formData, employmentType: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="intern">Intern</SelectItem>
+                  <SelectItem value="casual">Casual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jobTitle">Job Title</Label>
+              <Input id="jobTitle" value={formData.jobTitle} onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="workLocation">Work Location</Label>
+              <Input id="workLocation" value={formData.workLocation} onChange={(e) => setFormData({ ...formData, workLocation: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="salary">Salary</Label>
+              <Input id="salary" type="number" value={formData.salary} onChange={(e) => setFormData({ ...formData, salary: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
-                required
-              >
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -290,21 +267,18 @@ export function EditEmployeeDialog({
               </Select>
             </div>
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
+            <Label htmlFor="currentAddress">Current Address</Label>
+            <Textarea id="currentAddress" value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="permanentAddress">Permanent Address</Label>
+            <Textarea id="permanentAddress" value={formData.permanentAddress} onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })} />
+          </div>
+
           <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

@@ -1,22 +1,46 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IEmployee extends Document {
+  employeeNumber: string;
   employeeCode: string;
   userId?: mongoose.Types.ObjectId;
+  initials?: string;
+  preferredName?: string;
   firstName: string;
   lastName: string;
+  fullName?: string;
   email: string;
   phone: string;
   dob?: Date;
   address?: string;
+  currentAddress?: string;
+  permanentAddress?: string;
   profilePicture?: string;
-  grade: string;
+  grade?: string;
+  jobTitle?: string;
+  employmentType?: 'permanent' | 'contract' | 'intern' | 'casual';
+  workLocation?: string;
   departmentId?: mongoose.Types.ObjectId;
   managerId?: mongoose.Types.ObjectId;
   hireDate: Date;
   terminationDate?: Date;
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
   salary: number;
+  emergencyContact?: {
+    name?: string;
+    relationship?: string;
+    phone?: string;
+    email?: string;
+  };
+  bankDetails?: {
+    bankName?: string;
+    branchName?: string;
+    branchCode?: string;
+    accountHolderName?: string;
+    accountNumber?: string;
+    accountType?: string;
+    paymentMethod?: string;
+  };
   compensationHistory: Array<{
     effectiveDate: Date;
     salary: number;
@@ -29,6 +53,14 @@ export interface IEmployee extends Document {
 
 const employeeSchema = new Schema<IEmployee>(
   {
+    employeeNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
     employeeCode: {
       type: String,
       required: true,
@@ -40,6 +72,14 @@ const employeeSchema = new Schema<IEmployee>(
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+    initials: {
+      type: String,
+      trim: true,
+    },
+    preferredName: {
+      type: String,
+      trim: true,
+    },
     firstName: {
       type: String,
       required: true,
@@ -48,6 +88,11 @@ const employeeSchema = new Schema<IEmployee>(
     lastName: {
       type: String,
       required: true,
+      index: true,
+    },
+    fullName: {
+      type: String,
+      trim: true,
       index: true,
     },
     email: {
@@ -63,12 +108,24 @@ const employeeSchema = new Schema<IEmployee>(
     },
     dob: Date,
     address: String,
+    currentAddress: String,
+    permanentAddress: String,
     profilePicture: String,
     grade: {
       type: String,
-      required: true,
       index: true,
     },
+    jobTitle: {
+      type: String,
+      trim: true,
+    },
+    employmentType: {
+      type: String,
+      enum: ['permanent', 'contract', 'intern', 'casual'],
+      default: 'permanent',
+      index: true,
+    },
+    workLocation: String,
     departmentId: {
       type: Schema.Types.ObjectId,
       ref: 'Department',
@@ -93,7 +150,22 @@ const employeeSchema = new Schema<IEmployee>(
     },
     salary: {
       type: Number,
-      required: true,
+      default: 0,
+    },
+    emergencyContact: {
+      name: String,
+      relationship: String,
+      phone: String,
+      email: String,
+    },
+    bankDetails: {
+      bankName: String,
+      branchName: String,
+      branchCode: String,
+      accountHolderName: String,
+      accountNumber: String,
+      accountType: String,
+      paymentMethod: String,
     },
     compensationHistory: [
       {

@@ -14,8 +14,22 @@ import { RequisitionsTab } from "./components/RequisitionsTab";
 import { Plus, ExternalLink, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function Recruitment() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "requisitions";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "requisitions") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+    router.push(`/recruitment?${params.toString()}`, { scroll: false });
+  };
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
   const [createRequisitionOpen, setCreateRequisitionOpen] = useState(false);
@@ -114,7 +128,7 @@ export default function Recruitment() {
         </Button>
       </div>
 
-      <Tabs defaultValue="requisitions" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>

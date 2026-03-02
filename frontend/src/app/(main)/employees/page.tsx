@@ -33,9 +33,12 @@ export default function Employees() {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
+      emp.employeeNumber?.toLowerCase().includes(searchLower) ||
       emp.firstName?.toLowerCase().includes(searchLower) ||
       emp.lastName?.toLowerCase().includes(searchLower) ||
+      emp.fullName?.toLowerCase().includes(searchLower) ||
       emp.employeeCode?.toLowerCase().includes(searchLower) ||
+      emp.jobTitle?.toLowerCase().includes(searchLower) ||
       emp.email?.toLowerCase().includes(searchLower)
     );
   });
@@ -56,19 +59,18 @@ export default function Employees() {
   const handleExportCSV = async () => {
     try {
       const csvData = filteredEmployees.map((emp: any) => ({
+        "Employee Number": emp.employeeNumber || "",
         "Employee Code": emp.employeeCode || "",
-        "First Name": emp.firstName || "",
-        "Last Name": emp.lastName || "",
+        "Full Name": emp.fullName || `${emp.firstName || ""} ${emp.lastName || ""}`.trim(),
         "Email": emp.email || "",
         "Phone": emp.phone || "",
         "Department": emp.departmentId?.name || emp.department || "N/A",
-        "Grade": emp.grade || "",
+        "Job Title": emp.jobTitle || "",
         "Manager": emp.managerId 
           ? `${emp.managerId.firstName || ''} ${emp.managerId.lastName || ''}`.trim()
           : "N/A",
         "Status": emp.status || "",
         "Hire Date": emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : "",
-        "Salary": emp.salary || 0,
       }));
 
       // Convert to CSV
@@ -175,6 +177,11 @@ export default function Employees() {
             ),
           },
           {
+            key: "employeeNumber",
+            header: "Employee Number",
+            render: (employee: any) => employee.employeeNumber || "N/A",
+          },
+          {
             key: "employeeCode",
             header: "Employee Code",
             render: (employee: any) => (
@@ -188,7 +195,7 @@ export default function Employees() {
             header: "Name",
             render: (employee: any) => (
               <span>
-                {employee.firstName} {employee.lastName}
+                {employee.fullName || `${employee.firstName || ""} ${employee.lastName || ""}`.trim()}
               </span>
             ),
           },
@@ -208,9 +215,9 @@ export default function Employees() {
               employee.departmentId?.name || employee.department || "N/A",
           },
           {
-            key: "grade",
-            header: "Grade",
-            render: (employee: any) => employee.grade || "N/A",
+            key: "jobTitle",
+            header: "Job Title",
+            render: (employee: any) => employee.jobTitle || "N/A",
           },
           {
             key: "manager",
@@ -236,9 +243,9 @@ export default function Employees() {
             widthClassName: "w-20",
             render: (employee: any) => (
               <TableLink
-                href={`/employees/${employee._id || employee.id}/profile`}
+                href={`/employees/${employee._id || employee.id}`}
               >
-                View
+                Manage
               </TableLink>
             ),
           },
@@ -247,7 +254,7 @@ export default function Employees() {
         getRowKey={(employee: any) => employee._id || employee.id}
         emptyStateText={loading ? "Loading employees..." : "No employees found. Try adjusting your search or filters."}
         onRowClick={(employee: any) => {
-          window.location.href = `/employees/${employee._id || employee.id}/profile`;
+          window.location.href = `/employees/${employee._id || employee.id}`;
         }}
       />
 

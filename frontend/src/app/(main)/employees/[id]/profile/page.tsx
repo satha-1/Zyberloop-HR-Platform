@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
-import { ArrowLeft, Mail, Phone, User, Briefcase, Building2, Users, DollarSign, Calendar, Target, GraduationCap, FileText, Shield, MoreHorizontal, Inbox } from "lucide-react";
+import { ArrowLeft, Mail, Phone, User, Briefcase, Building2, Users, DollarSign, Calendar, Target, GraduationCap, FileText, Shield, MoreHorizontal, Inbox, Edit3 } from "lucide-react";
 import { api } from "../../../../lib/api";
 import {
   Table,
@@ -311,6 +311,12 @@ export default function EmployeeProfile360() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/employees/${employeeId}`}>
+            <Button variant="outline" size="sm">
+              <Edit3 className="h-4 w-4 mr-2" />
+              Manage & Edit
+            </Button>
+          </Link>
           <Button variant="outline" size="sm">
             <Mail className="h-4 w-4 mr-2" />
             Email

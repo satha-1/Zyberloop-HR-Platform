@@ -179,6 +179,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/employees"
+            className="p-4 border border-blue-200 rounded-lg bg-blue-50 hover:border-blue-600 transition-all text-center"
+          >
+            <Users className="h-6 w-6 mx-auto text-blue-700" />
+            <p className="text-sm font-medium text-gray-900 mt-2">Employee Master</p>
+          </Link>
+          <Link
+            href="/employees"
             className="p-4 border border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all text-center"
           >
             <Users className="h-6 w-6 mx-auto text-gray-600" />

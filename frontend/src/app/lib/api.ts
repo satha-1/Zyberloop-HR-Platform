@@ -158,6 +158,10 @@ class ApiClient {
     return this.request(`/employees/${id}`);
   }
 
+  async generateEmployeeCode() {
+    return this.request('/employees/generate-code');
+  }
+
   async createEmployee(data: any) {
     return this.request('/employees', {
       method: 'POST',

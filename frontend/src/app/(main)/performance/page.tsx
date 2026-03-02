@@ -5,8 +5,22 @@ import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Progress } from "../../components/ui/progress";
 import { Plus, Target, Users, TrendingUp } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function Performance() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "goals";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "goals") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+    router.push(`/performance?${params.toString()}`, { scroll: false });
+  };
   const goals = [
     { name: "Q1 Revenue Target", weight: 40, progress: 85, owner: "Sales Team", status: "On Track" },
     { name: "Product Launch", weight: 30, progress: 65, owner: "Engineering", status: "On Track" },
@@ -34,7 +48,7 @@ export default function Performance() {
         </Button>
       </div>
 
-      <Tabs defaultValue="goals" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="goals">Goal Setting</TabsTrigger>
           <TabsTrigger value="appraisals">Appraisals</TabsTrigger>

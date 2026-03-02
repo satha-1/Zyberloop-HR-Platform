@@ -3,6 +3,7 @@ import { authenticate } from '../../middlewares/auth';
 import { uploadEmployeeDocuments, uploadProfilePicture } from '../../middlewares/upload';
 import {
   getEmployees,
+  generateEmployeeCode,
   getEmployeeById,
   createEmployee,
   updateEmployee,
@@ -45,6 +46,7 @@ export const employeesRouter = Router();
 employeesRouter.use(authenticate);
 
 // Employee CRUD
+employeesRouter.get('/generate-code', generateEmployeeCode);
 employeesRouter.get('/', getEmployees);
 employeesRouter.get('/:id', getEmployeeById);
 employeesRouter.post('/', uploadEmployeeDocuments.array('documents', 10), createEmployee);
