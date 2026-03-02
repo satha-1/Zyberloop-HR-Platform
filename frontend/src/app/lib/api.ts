@@ -410,6 +410,10 @@ class ApiClient {
     return this.request(`/leave/requests${query ? `?${query}` : ''}`);
   }
 
+  async getLeaveTypes() {
+    return this.request<any[]>("/leave/types");
+  }
+
   async createLeaveRequest(data: any) {
     return this.request('/leave/requests', {
       method: 'POST',
@@ -429,6 +433,16 @@ class ApiClient {
     });
   }
 
+  async getAttendanceRecords(params?: {
+    employeeId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/attendance${query ? `?${query}` : ""}`);
+  }
+  
   // Performance
   async getGoals(params?: { employeeId?: string; cycleId?: string }) {
     const query = new URLSearchParams(params as any).toString();

@@ -20,6 +20,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { useAttendanceRecords } from "../../lib/hooks";
 
 interface Holiday {
   date: string;
@@ -28,7 +29,7 @@ interface Holiday {
 
 interface AttendanceRecord {
   date: string;
-  status: "Present" | "Absent" | "Late" | "Half Day";
+  status: string;
   checkIn?: string;
   checkOut?: string;
 }
@@ -40,45 +41,32 @@ export default function AttendancePage() {
     AttendanceRecord[]
   >([]);
 
-  // Generate random attendance data for the current month
+  const { data: rawAttendance, refetch: refetchAttendance } =
+    useAttendanceRecords({
+      startDate: format(startOfMonth(currentDate), "yyyy-MM-dd"),
+      endDate: format(endOfMonth(currentDate), "yyyy-MM-dd"),
+    });
+
   useEffect(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const records: AttendanceRecord[] = [];
-
-    // Fill up to today (if current month) or whole month (if past)
-    const today = new Date();
-    const daysToMock =
-      year === today.getFullYear() && month === today.getMonth()
-        ? today.getDate()
-        : new Date(year, month + 1, 0).getDate();
-
-    for (let i = 1; i <= daysToMock; i++) {
-      // skip weekends mostly
-      const d = new Date(year, month, i);
-      if (d.getDay() === 0 || d.getDay() === 6) continue;
-
-      // Random status
-      const rand = Math.random();
-      let status: AttendanceRecord["status"] = "Present";
-      if (rand > 0.9) status = "Absent";
-      else if (rand > 0.8) status = "Late";
-      else if (rand > 0.75) status = "Half Day";
-
-      records.push({
-        date: format(d, "yyyy-MM-dd"),
-        status,
-        checkIn: status !== "Absent" ? "08:50 AM" : undefined,
-        checkOut:
-          status !== "Absent"
-            ? status === "Half Day"
-              ? "01:00 PM"
-              : "05:10 PM"
+    if (rawAttendance) {
+      setAttendanceRecords(
+        rawAttendance.map((record: any) => ({
+          date: record.date.split("T")[0],
+          status:
+            record.status === "LEAVE"
+              ? "Leave"
+              : record.status.charAt(0).toUpperCase() +
+                record.status.slice(1).toLowerCase(),
+          checkIn: record.checkIn
+            ? format(new Date(record.checkIn), "hh:mm a")
             : undefined,
-      });
+          checkOut: record.checkOut
+            ? format(new Date(record.checkOut), "hh:mm a")
+            : undefined,
+        })),
+      );
     }
-    setAttendanceRecords(records);
-  }, [currentDate]);
+  }, [rawAttendance]);
 
   useEffect(() => {
     // Try fetching real SL holidays for the current year
@@ -132,13 +120,22 @@ export default function AttendancePage() {
   const getDayStatusColor = (status: string) => {
     switch (status) {
       case "Present":
+      case "PRESENT":
         return "bg-green-50 text-green-700 border-green-200";
       case "Absent":
+      case "ABSENT":
         return "bg-red-50 text-red-700 border-red-200";
       case "Late":
+      case "LATE":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
       case "Half Day":
         return "bg-orange-50 text-orange-700 border-orange-200";
+      case "Leave":
+      case "LEAVE":
+        return "bg-purple-50 text-purple-700 border-purple-200";
+      case "Holiday":
+      case "HOLIDAY":
+        return "bg-blue-50 text-blue-700 border-blue-200";
       default:
         return "bg-gray-50 text-gray-700 border-gray-200";
     }

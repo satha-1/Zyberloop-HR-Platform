@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +34,9 @@ export function ApplyLeaveDialog({
   onSuccess,
 }: ApplyLeaveDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    employeeId: "",
+    employeeCode: "",
     leaveTypeId: "",
     casualType: "PAID",
     startDate: "",
@@ -44,16 +45,22 @@ export function ApplyLeaveDialog({
     reason: "",
   });
 
-  // For testing purposes, hardcoding leave types. In a real app, you would fetch these from the API.
-  const leaveTypes = [
-    { _id: "65b8df...1", name: "Annual Leave", code: "ANNUAL" },
-    { _id: "65b8df...2", name: "Sick Leave", code: "SICK" },
-    { _id: "65b8df...3", name: "Casual Leave", code: "CASUAL" }, // Used to toggle casualType field
-  ];
+  // Fetch real leave types from the API
+  useEffect(() => {
+    const fetchLeaveTypes = async () => {
+      try {
+        const types = await api.getLeaveTypes();
+        setLeaveTypes(types);
+      } catch (error) {
+        console.error("Failed to fetch leave types:", error);
+      }
+    };
+    fetchLeaveTypes();
+  }, [open]); // Re-fetch when dialog opens to ensure fresh data
 
   // Helper to determine if selected leave type is CASUAL
   const selectedLeaveType = leaveTypes.find(
-    (t) => t._id === formData.leaveTypeId,
+    (t) => (t._id || t.id || t) === formData.leaveTypeId,
   );
   const isCasualLeave =
     selectedLeaveType && selectedLeaveType.code === "CASUAL";
@@ -61,7 +68,7 @@ export function ApplyLeaveDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
-      !formData.employeeId ||
+      !formData.employeeCode ||
       !formData.leaveTypeId ||
       !formData.startDate ||
       !formData.endDate ||
@@ -85,7 +92,7 @@ export function ApplyLeaveDialog({
       onSuccess();
       onOpenChange(false);
       setFormData({
-        employeeId: "",
+        employeeCode: "",
         leaveTypeId: "",
         casualType: "PAID",
         startDate: "",
@@ -120,12 +127,12 @@ export function ApplyLeaveDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="employeeId">Employee ID</Label>
+            <Label htmlFor="employeeCode">Employee Code</Label>
             <Input
-              id="employeeId"
-              name="employeeId"
-              placeholder="Paste Employee ID here"
-              value={formData.employeeId}
+              id="employeeCode"
+              name="employeeCode"
+              placeholder="e.g. EMP001"
+              value={formData.employeeCode}
               onChange={handleChange}
             />
           </div>
@@ -149,10 +156,6 @@ export function ApplyLeaveDialog({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-red-500">
-              * Note: For testing, We must replace the hardcoded IDs in
-              ApplyLeaveDialog.tsx with real IDs from our database.
-            </p>
           </div>
 
           {isCasualLeave && (
