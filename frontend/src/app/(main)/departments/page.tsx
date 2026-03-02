@@ -7,7 +7,7 @@ import { EnterpriseTable, TableLink } from "../../components/ui/EnterpriseTable"
 import { useDepartments } from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Building2, CheckCircle2, XCircle } from "lucide-react";
 import { DepartmentDialog } from "../../components/DepartmentDialog";
 import {
   AlertDialog,
@@ -28,10 +28,19 @@ export default function Departments() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filteredDepartments = departments.filter((dept: any) =>
-    dept.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dept.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDepartments = departments.filter((dept: any) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      dept.name?.toLowerCase().includes(search) ||
+      dept.code?.toLowerCase().includes(search) ||
+      dept.description?.toLowerCase().includes(search) ||
+      dept.location?.toLowerCase().includes(search) ||
+      dept.costCenter?.toLowerCase().includes(search) ||
+      dept.email?.toLowerCase().includes(search) ||
+      dept.status?.toLowerCase().includes(search)
+    );
+  });
 
   const handleCreate = () => {
     setEditingDepartment(null);
@@ -69,7 +78,7 @@ export default function Departments() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Departments</h1>
@@ -100,7 +109,7 @@ export default function Departments() {
           {
             key: "code",
             header: "Code",
-            widthClassName: "w-24",
+            widthClassName: "w-28",
             render: (dept: any) => (
               <span className="font-mono font-medium text-gray-900">
                 {dept.code}
@@ -110,23 +119,108 @@ export default function Departments() {
           {
             key: "name",
             header: "Name",
+            widthClassName: "min-w-[180px]",
             render: (dept: any) => (
               <span className="font-medium text-gray-900">{dept.name}</span>
             ),
           },
           {
+            key: "description",
+            header: "Description",
+            widthClassName: "min-w-[200px]",
+            render: (dept: any) => (
+              <span className="text-sm text-gray-600 line-clamp-2">
+                {dept.description || "-"}
+              </span>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            widthClassName: "w-24",
+            render: (dept: any) => {
+              const isActive = dept.status === "ACTIVE";
+              return (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                    isActive
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {isActive ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : (
+                    <XCircle className="h-3 w-3" />
+                  )}
+                  {dept.status || "ACTIVE"}
+                </span>
+              );
+            },
+          },
+          {
             key: "parent",
             header: "Parent Department",
+            widthClassName: "min-w-[150px]",
             render: (dept: any) =>
               dept.parentDepartmentId?.name || dept.parentDepartment?.name || "-",
           },
           {
             key: "head",
             header: "Head",
+            widthClassName: "min-w-[150px]",
             render: (dept: any) =>
               dept.headId
                 ? `${dept.headId.firstName || ""} ${dept.headId.lastName || ""}`.trim() || dept.headId.employeeCode || "-"
                 : "-",
+          },
+          {
+            key: "location",
+            header: "Location",
+            widthClassName: "min-w-[120px]",
+            render: (dept: any) => (
+              <span className="text-sm text-gray-600">{dept.location || "-"}</span>
+            ),
+          },
+          {
+            key: "costCenter",
+            header: "Cost Center",
+            widthClassName: "w-32",
+            render: (dept: any) => (
+              <span className="text-sm font-mono text-gray-600">
+                {dept.costCenter || "-"}
+              </span>
+            ),
+          },
+          {
+            key: "email",
+            header: "Email",
+            widthClassName: "min-w-[180px]",
+            render: (dept: any) => (
+              <span className="text-sm text-gray-600">{dept.email || "-"}</span>
+            ),
+          },
+          {
+            key: "phoneExt",
+            header: "Phone Ext",
+            widthClassName: "w-24",
+            render: (dept: any) => (
+              <span className="text-sm text-gray-600">{dept.phoneExt || "-"}</span>
+            ),
+          },
+          {
+            key: "effectiveFrom",
+            header: "Effective From",
+            widthClassName: "w-32",
+            render: (dept: any) => {
+              if (!dept.effectiveFrom) return "-";
+              const date = new Date(dept.effectiveFrom);
+              return (
+                <span className="text-sm text-gray-600">
+                  {date.toLocaleDateString()}
+                </span>
+              );
+            },
           },
           {
             key: "actions",

@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Switch } from "./ui/switch";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { useDepartments, useEmployees } from "../lib/hooks";
+import { useDebounce } from "../lib/hooks";
 
 interface DepartmentDialogProps {
   open: boolean;
@@ -26,12 +29,47 @@ export function DepartmentDialog({
   const { data: departments = [] } = useDepartments();
   const { data: employees = [] } = useEmployees({ status: "active" });
   const [loading, setLoading] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     code: "",
+    description: "",
     parentDepartmentId: "",
     headId: "",
+    location: "",
+    costCenter: "",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+    effectiveFrom: "",
+    email: "",
+    phoneExt: "",
   });
+
+  // Debounce name for code generation
+  const debouncedName = useDebounce(formData.name, 500);
+
+  // Generate code when name changes (only for new departments)
+  useEffect(() => {
+    if (!department && debouncedName && debouncedName.trim().length > 0) {
+      generateCode(debouncedName);
+    }
+  }, [debouncedName, department]);
+
+  const generateCode = useCallback(async (name: string) => {
+    if (!name || name.trim().length === 0) return;
+    
+    setGeneratingCode(true);
+    try {
+      const result = await api.generateDepartmentCode(name);
+      if (result?.data?.code) {
+        setFormData((prev) => ({ ...prev, code: result.data.code }));
+      }
+    } catch (error: any) {
+      console.error("Failed to generate code:", error);
+      // Don't show error toast - code generation is optional
+    } finally {
+      setGeneratingCode(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -39,15 +77,31 @@ export function DepartmentDialog({
         setFormData({
           name: department.name || "",
           code: department.code || "",
+          description: department.description || "",
           parentDepartmentId: department.parentDepartmentId?._id || department.parentDepartmentId || "",
           headId: department.headId?._id || department.headId || "",
+          location: department.location || "",
+          costCenter: department.costCenter || "",
+          status: department.status || "ACTIVE",
+          effectiveFrom: department.effectiveFrom
+            ? new Date(department.effectiveFrom).toISOString().split("T")[0]
+            : "",
+          email: department.email || "",
+          phoneExt: department.phoneExt || "",
         });
       } else {
         setFormData({
           name: "",
           code: "",
+          description: "",
           parentDepartmentId: "",
           headId: "",
+          location: "",
+          costCenter: "",
+          status: "ACTIVE",
+          effectiveFrom: "",
+          email: "",
+          phoneExt: "",
         });
       }
     }
@@ -55,8 +109,8 @@ export function DepartmentDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.code) {
-      toast.error("Name and code are required");
+    if (!formData.name) {
+      toast.error("Department name is required");
       return;
     }
 
@@ -64,8 +118,18 @@ export function DepartmentDialog({
     try {
       const data: any = {
         name: formData.name,
-        code: formData.code.toUpperCase(),
+        description: formData.description || undefined,
+        location: formData.location || undefined,
+        costCenter: formData.costCenter || undefined,
+        status: formData.status,
+        email: formData.email || undefined,
+        phoneExt: formData.phoneExt || undefined,
       };
+
+      // Only include code if creating new department (it's auto-generated)
+      if (!department && formData.code) {
+        data.code = formData.code;
+      }
 
       if (formData.parentDepartmentId && formData.parentDepartmentId !== "none") {
         data.parentDepartmentId = formData.parentDepartmentId;
@@ -73,6 +137,10 @@ export function DepartmentDialog({
 
       if (formData.headId && formData.headId !== "none") {
         data.headId = formData.headId;
+      }
+
+      if (formData.effectiveFrom) {
+        data.effectiveFrom = formData.effectiveFrom;
       }
 
       if (department) {
@@ -99,7 +167,7 @@ export function DepartmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{department ? "Edit Department" : "Create Department"}</DialogTitle>
           <DialogDescription>
@@ -110,9 +178,10 @@ export function DepartmentDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Core Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">Department Name *</Label>
               <Input
                 id="name"
                 required
@@ -122,18 +191,36 @@ export function DepartmentDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="code">Code *</Label>
+              <Label htmlFor="code">Department Code *</Label>
               <Input
                 id="code"
                 required
+                readOnly
                 value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                placeholder="e.g., HR"
-                maxLength={10}
+                className="bg-gray-50 cursor-not-allowed"
+                placeholder={generatingCode ? "Generating..." : "Will be generated automatically"}
               />
+              {!department && (
+                <p className="text-xs text-gray-500">
+                  Code is auto-generated from department name
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Brief description of the department's purpose and responsibilities..."
+              rows={3}
+            />
+          </div>
+
+          {/* Structural Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="parentDepartmentId">Parent Department</Label>
@@ -187,7 +274,79 @@ export function DepartmentDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-3">
+          {/* Additional Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="location">Location / Site</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g., Head Office, Colombo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costCenter">Cost Center / GL Code</Label>
+              <Input
+                id="costCenter"
+                value={formData.costCenter}
+                onChange={(e) => setFormData({ ...formData, costCenter: e.target.value })}
+                placeholder="e.g., CC-1001"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Department Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="e.g., hr@company.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneExt">Phone Extension</Label>
+              <Input
+                id="phoneExt"
+                value={formData.phoneExt}
+                onChange={(e) => setFormData({ ...formData, phoneExt: e.target.value })}
+                placeholder="e.g., 1234"
+              />
+            </div>
+          </div>
+
+          {/* Status and Effective Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="status"
+                  checked={formData.status === "ACTIVE"}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, status: checked ? "ACTIVE" : "INACTIVE" })
+                  }
+                />
+                <Label htmlFor="status" className="cursor-pointer">
+                  {formData.status === "ACTIVE" ? "Active" : "Inactive"}
+                </Label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="effectiveFrom">Effective From Date</Label>
+              <Input
+                id="effectiveFrom"
+                type="date"
+                value={formData.effectiveFrom}
+                onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
@@ -196,8 +355,12 @@ export function DepartmentDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : department ? "Update Department" : "Create Department"}
+            <Button type="submit" disabled={loading || generatingCode}>
+              {loading
+                ? "Saving..."
+                : department
+                ? "Update Department"
+                : "Create Department"}
             </Button>
           </div>
         </form>

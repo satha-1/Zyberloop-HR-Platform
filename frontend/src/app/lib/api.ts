@@ -652,14 +652,42 @@ class ApiClient {
     return this.request(`/departments/${id}`);
   }
 
-  async createDepartment(data: { name: string; code: string; parentDepartmentId?: string; headId?: string }) {
+  async generateDepartmentCode(name: string) {
+    const query = new URLSearchParams({ name }).toString();
+    return this.request(`/departments/generate-code?${query}`);
+  }
+
+  async createDepartment(data: {
+    name: string;
+    code?: string;
+    description?: string;
+    parentDepartmentId?: string;
+    headId?: string;
+    location?: string;
+    costCenter?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+    effectiveFrom?: string;
+    email?: string;
+    phoneExt?: string;
+  }) {
     return this.request('/departments', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateDepartment(id: string, data: { name?: string; code?: string; parentDepartmentId?: string; headId?: string }) {
+  async updateDepartment(id: string, data: {
+    name?: string;
+    description?: string;
+    parentDepartmentId?: string;
+    headId?: string;
+    location?: string;
+    costCenter?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+    effectiveFrom?: string;
+    email?: string;
+    phoneExt?: string;
+  }) {
     return this.request(`/departments/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

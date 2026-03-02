@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Department } from './department.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
+import { generateDepartmentCode } from './departmentCode.service';
 
 export const getDepartments = async (
   req: Request,
@@ -46,23 +47,73 @@ export const getDepartmentById = async (
   }
 };
 
+export const generateCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { name } = req.query;
+
+    if (!name || typeof name !== 'string') {
+      throw new AppError(400, 'Department name is required');
+    }
+
+    const code = await generateDepartmentCode(name);
+
+    res.json({
+      success: true,
+      data: { code },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createDepartment = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { name, code, parentDepartmentId, headId } = req.body;
+    const {
+      name,
+      code,
+      description,
+      parentDepartmentId,
+      headId,
+      location,
+      costCenter,
+      status,
+      effectiveFrom,
+      email,
+      phoneExt,
+    } = req.body;
 
-    if (!name || !code) {
-      throw new AppError(400, 'Name and code are required');
+    if (!name) {
+      throw new AppError(400, 'Department name is required');
+    }
+
+    // Auto-generate code if not provided
+    let departmentCode = code;
+    if (!departmentCode) {
+      departmentCode = await generateDepartmentCode(name);
+    } else {
+      departmentCode = departmentCode.toUpperCase();
     }
 
     const department = new Department({
       name,
-      code: code.toUpperCase(),
+      code: departmentCode,
+      description,
       parentDepartmentId,
       headId,
+      location,
+      costCenter,
+      status: status || 'ACTIVE',
+      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : undefined,
+      email,
+      phoneExt,
     });
 
     await department.save();
@@ -97,10 +148,14 @@ export const updateDepartment = async (
 ) => {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body };
+    const updateData: any = { ...req.body };
     
-    if (updateData.code) {
-      updateData.code = updateData.code.toUpperCase();
+    // Don't allow code changes on update (code is immutable)
+    delete updateData.code;
+    
+    // Convert effectiveFrom to Date if provided
+    if (updateData.effectiveFrom) {
+      updateData.effectiveFrom = new Date(updateData.effectiveFrom);
     }
 
     const department = await Department.findByIdAndUpdate(id, updateData, {
