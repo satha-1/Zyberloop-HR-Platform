@@ -21,18 +21,6 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 
-// Mock holidays fallback (Sri Lanka 2026 for instance)
-const FALLBACK_HOLIDAYS = [
-  { date: "2026-01-14", name: "Tamil Thai Pongal Day" },
-  { date: "2026-02-04", name: "Independence Day" },
-  { date: "2026-04-13", name: "Sinhala and Tamil New Year's Eve" },
-  { date: "2026-04-14", name: "Sinhala and Tamil New Year's Day" },
-  { date: "2026-05-01", name: "May Day" },
-  { date: "2026-05-01", name: "Vesak Full Moon Poya Day" },
-  { date: "2026-05-02", name: "Day following Vesak Full Moon Poya Day" },
-  { date: "2026-12-25", name: "Christmas Day" },
-];
-
 interface Holiday {
   date: string;
   name: string;
@@ -96,29 +84,30 @@ export default function AttendancePage() {
     // Try fetching real SL holidays for the current year
     const fetchHolidays = async () => {
       const year = currentDate.getFullYear();
+      let mappedHolidays: Holiday[] = [];
+
       try {
-        const res = await fetch(
-          `https://date.nager.at/api/v3/PublicHolidays/${year}/LK`,
-        );
+        // Fetching the Sri Lankan holidays from our own robust Next.js server API
+        const res = await fetch(`/api/holidays?year=${year}`);
+
         if (res.ok) {
           const data = await res.json();
-          setHolidays(data);
+          if (data.holidays && Array.isArray(data.holidays)) {
+            setHolidays(data.holidays);
+          } else {
+            console.warn(
+              "Invalid API format received from our internal API",
+              data,
+            );
+            setHolidays([]);
+          }
         } else {
-          setHolidays(
-            FALLBACK_HOLIDAYS.map((h) => ({
-              ...h,
-              date: h.date.replace("2026", String(year)),
-            })),
-          );
+          console.error("Internal API failed with status:", res.status);
+          setHolidays([]);
         }
       } catch (e) {
-        // Fallback
-        setHolidays(
-          FALLBACK_HOLIDAYS.map((h) => ({
-            ...h,
-            date: h.date.replace("2026", String(year)),
-          })),
-        );
+        console.error("Holiday API Error:", e);
+        setHolidays([]); // Ensure calendar renders cleanly rather than crashing if fetching fails
       }
     };
     fetchHolidays();
