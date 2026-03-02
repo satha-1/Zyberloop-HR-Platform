@@ -224,16 +224,16 @@ export default function Leave() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-blue-600">15</p>
+                  <p className="text-4xl font-bold text-blue-600">0</p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: "75%" }}
+                        style={{ width: "0%" }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">15 of 20 days</p>
+                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
                   </div>
                 </div>
               </CardContent>
@@ -244,16 +244,16 @@ export default function Leave() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-green-600">8</p>
+                  <p className="text-4xl font-bold text-green-600">0</p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: "80%" }}
+                        style={{ width: "0%" }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">8 of 10 days</p>
+                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
                   </div>
                 </div>
               </CardContent>
@@ -264,16 +264,16 @@ export default function Leave() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-purple-600">3</p>
+                  <p className="text-4xl font-bold text-purple-600">0</p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-purple-500 h-2 rounded-full"
-                        style={{ width: "60%" }}
+                        style={{ width: "0%" }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">3 of 5 days</p>
+                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
                   </div>
                 </div>
               </CardContent>
@@ -295,19 +295,19 @@ export default function Leave() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Monthly Accrual</p>
-                    <p className="text-lg font-semibold">1.67 days</p>
+                    <p className="text-lg font-semibold">0 days</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Annual Entitlement</p>
-                    <p className="text-lg font-semibold">20 days</p>
+                    <p className="text-lg font-semibold">0 days</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Carry Forward</p>
-                    <p className="text-lg font-semibold">5 days</p>
+                    <p className="text-lg font-semibold">0 days</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Encashment Eligible</p>
-                    <p className="text-lg font-semibold">Yes</p>
+                    <p className="text-lg font-semibold">N/A</p>
                   </div>
                 </div>
               </div>
@@ -323,15 +323,15 @@ export default function Leave() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-3xl font-bold text-green-700">18</p>
+                  <p className="text-3xl font-bold text-green-700">0</p>
                   <p className="text-sm text-gray-600 mt-1">Present</p>
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-3xl font-bold text-red-700">2</p>
+                  <p className="text-3xl font-bold text-red-700">0</p>
                   <p className="text-sm text-gray-600 mt-1">Absent</p>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <p className="text-3xl font-bold text-orange-700">1</p>
+                  <p className="text-3xl font-bold text-orange-700">0</p>
                   <p className="text-sm text-gray-600 mt-1">On Leave</p>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">

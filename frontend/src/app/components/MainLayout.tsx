@@ -52,9 +52,7 @@ const navigationSections: NavSection[] = [
     title: "Home",
     icon: Home,
     href: "/", // Home section navigates directly to Dashboard
-    items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    ],
+    items: [{ name: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
     title: "Workforce Management",
@@ -70,8 +68,16 @@ const navigationSections: NavSection[] = [
     items: [
       { name: "Recruitment", href: "/recruitment", icon: Briefcase },
       { name: "Performance Management", href: "/performance", icon: Target },
-      { name: "Learning & Development", href: "/learning", icon: GraduationCap },
-      { name: "Workforce Planning", href: "/workforce-planning", icon: TrendingUp },
+      {
+        name: "Learning & Development",
+        href: "/learning",
+        icon: GraduationCap,
+      },
+      {
+        name: "Workforce Planning",
+        href: "/workforce-planning",
+        icon: TrendingUp,
+      },
     ],
   },
   {
@@ -79,14 +85,19 @@ const navigationSections: NavSection[] = [
     icon: DollarSign,
     items: [
       { name: "Compensation & Payroll", href: "/payroll", icon: DollarSign },
-      { name: "Leave & Attendance", href: "/leave", icon: Calendar },
+      { name: "Leave", href: "/leave", icon: Calendar },
+      { name: "Attendance", href: "/attendance", icon: Calendar },
     ],
   },
   {
     title: "Engagement & Experience",
     icon: MessageSquare,
     items: [
-      { name: "Engagement & Surveys", href: "/engagement", icon: MessageSquare },
+      {
+        name: "Engagement & Surveys",
+        href: "/engagement",
+        icon: MessageSquare,
+      },
     ],
   },
   {
@@ -95,23 +106,31 @@ const navigationSections: NavSection[] = [
     items: [
       { name: "Regulatory Compliance", href: "/compliance", icon: Shield },
       { name: "Document Templates", href: "/admin/templates", icon: FileText },
-      { name: "Documents & Letters", href: "/admin/documents", icon: FolderOpen },
+      {
+        name: "Documents & Letters",
+        href: "/admin/documents",
+        icon: FolderOpen,
+      },
       { name: "System Audit Logs", href: "/admin/logs", icon: Settings },
     ],
   },
 ];
 
 // Flattened navigation for header title lookup (backward compatibility)
-const navigation: NavItem[] = navigationSections.flatMap(section => section.items);
+const navigation: NavItem[] = navigationSections.flatMap(
+  (section) => section.items,
+);
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
+
   // Track expanded/collapsed state for each section
   // Initialize with default collapsed state (hydration-safe)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >(() => {
     // Default: all sections collapsed
     const initialState: Record<string, boolean> = {};
     navigationSections.forEach((section) => {
@@ -122,9 +141,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Load from localStorage after mount (client-side only, prevents hydration mismatch)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem('sidebarExpandedSections');
+        const saved = localStorage.getItem("sidebarExpandedSections");
         if (saved) {
           const parsed = JSON.parse(saved);
           setExpandedSections(parsed);
@@ -141,7 +160,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       const hasActiveItem = section.items.some(
         (item) =>
           pathname === item.href ||
-          (item.href !== "/" && pathname.startsWith(item.href))
+          (item.href !== "/" && pathname.startsWith(item.href)),
       );
       if (hasActiveItem) {
         setExpandedSections((prev) => ({
@@ -154,8 +173,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Persist expanded sections state to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebarExpandedSections', JSON.stringify(expandedSections));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "sidebarExpandedSections",
+        JSON.stringify(expandedSections),
+      );
     }
   }, [expandedSections]);
 
@@ -173,8 +195,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Persist sidebar state in localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebarCollapsed');
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebarCollapsed");
       if (saved !== null) {
         setSidebarCollapsed(JSON.parse(saved));
       }
@@ -182,8 +204,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "sidebarCollapsed",
+        JSON.stringify(sidebarCollapsed),
+      );
     }
   }, [sidebarCollapsed]);
 
@@ -202,20 +227,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          sidebarCollapsed ? "w-16 lg:w-16" : "w-[260px] lg:w-[260px]"
+          sidebarCollapsed ? "w-16 lg:w-16" : "w-[260px] lg:w-[260px]",
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-            <div className={cn(
-              "flex items-center gap-2 transition-opacity duration-300",
-              sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-            )}>
+            <div
+              className={cn(
+                "flex items-center gap-2 transition-opacity duration-300",
+                sidebarCollapsed
+                  ? "opacity-0 w-0 overflow-hidden"
+                  : "opacity-100",
+              )}
+            >
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-sm">NG</span>
               </div>
-              <span className="font-semibold text-gray-900 whitespace-nowrap">NG-IHRP</span>
+              <span className="font-semibold text-gray-900 whitespace-nowrap">
+                NG-IHRP
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -250,7 +281,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 const hasActiveChild = section.items.some(
                   (item) =>
                     pathname === item.href ||
-                    (item.href !== "/" && pathname.startsWith(item.href))
+                    (item.href !== "/" && pathname.startsWith(item.href)),
                 );
 
                 const isExpanded = expandedSections[section.title] ?? false;
@@ -270,17 +301,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                           hasActiveChild
                             ? "bg-blue-50 text-blue-700"
                             : "text-gray-700 hover:bg-gray-100",
-                          sidebarCollapsed && "justify-center"
+                          sidebarCollapsed && "justify-center",
                         )}
                         onClick={() => setSidebarOpen(false)}
                         title={section.title}
                         aria-current={hasActiveChild ? "page" : undefined}
                       >
                         <section.icon className="h-5 w-5 flex-shrink-0" />
-                        <span 
+                        <span
                           className={cn(
                             "transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
-                            sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                            sidebarCollapsed
+                              ? "opacity-0 w-0 overflow-hidden"
+                              : "opacity-100",
                           )}
                           title={section.title}
                         >
@@ -303,17 +336,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                           "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
                           // Neutral hover, never active highlight for parent headers
                           "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                          sidebarCollapsed && "justify-center"
+                          sidebarCollapsed && "justify-center",
                         )}
                         title={section.title}
                         type="button"
                         aria-expanded={isExpanded}
                       >
                         <section.icon className="h-5 w-5 flex-shrink-0 text-gray-500" />
-                        <span 
+                        <span
                           className={cn(
                             "flex-1 text-left transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
-                            sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                            sidebarCollapsed
+                              ? "opacity-0 w-0 overflow-hidden"
+                              : "opacity-100",
                           )}
                           title={section.title}
                         >
@@ -323,7 +358,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                           <ChevronRight
                             className={cn(
                               "h-4 w-4 transition-transform duration-200 flex-shrink-0 text-gray-400 ml-auto",
-                              isExpanded && "transform rotate-90"
+                              isExpanded && "transform rotate-90",
                             )}
                           />
                         )}
@@ -334,17 +369,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         )}
                       </button>
                     )}
-                    
+
                     {/* Section Items - Only shown when expanded (or when sidebar is collapsed) */}
                     {!isHome && (!sidebarCollapsed ? isExpanded : true) && (
-                      <ul className={cn(
-                        "space-y-1 transition-all duration-200",
-                        !sidebarCollapsed && "ml-6 pl-2" // Indent child items with padding
-                      )}>
+                      <ul
+                        className={cn(
+                          "space-y-1 transition-all duration-200",
+                          !sidebarCollapsed && "ml-6 pl-2", // Indent child items with padding
+                        )}
+                      >
                         {section.items.map((item) => {
                           const isActive =
                             pathname === item.href ||
-                            (item.href !== "/" && pathname.startsWith(item.href));
+                            (item.href !== "/" &&
+                              pathname.startsWith(item.href));
                           return (
                             <li key={item.name}>
                               <Link
@@ -354,17 +392,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                                   isActive
                                     ? "bg-blue-50 text-blue-700"
                                     : "text-gray-700 hover:bg-gray-100",
-                                  sidebarCollapsed && "justify-center"
+                                  sidebarCollapsed && "justify-center",
                                 )}
                                 onClick={() => setSidebarOpen(false)}
                                 title={item.name}
                                 aria-current={isActive ? "page" : undefined}
                               >
                                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                                <span 
+                                <span
                                   className={cn(
                                     "transition-opacity duration-300 whitespace-nowrap truncate min-w-0",
-                                    sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                                    sidebarCollapsed
+                                      ? "opacity-0 w-0 overflow-hidden"
+                                      : "opacity-100",
                                   )}
                                   title={item.name}
                                 >
@@ -388,23 +428,35 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* User info */}
-          <div className={cn(
-            "p-4 border-t border-gray-200",
-            sidebarCollapsed && "px-2"
-          )}>
-            <div className={cn(
-              "flex items-center gap-3",
-              sidebarCollapsed && "justify-center"
-            )}>
+          <div
+            className={cn(
+              "p-4 border-t border-gray-200",
+              sidebarCollapsed && "px-2",
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center gap-3",
+                sidebarCollapsed && "justify-center",
+              )}
+            >
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-gray-700 text-sm font-medium">AD</span>
               </div>
-              <div className={cn(
-                "flex-1 min-w-0 transition-opacity duration-300",
-                sidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-              )}>
-                <p className="text-sm font-medium text-gray-900 truncate">Admin User</p>
-                <p className="text-xs text-gray-500 truncate">admin@company.com</p>
+              <div
+                className={cn(
+                  "flex-1 min-w-0 transition-opacity duration-300",
+                  sidebarCollapsed
+                    ? "opacity-0 w-0 overflow-hidden"
+                    : "opacity-100",
+                )}
+              >
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  Admin User
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  admin@company.com
+                </p>
               </div>
             </div>
           </div>
@@ -431,7 +483,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
                 <span className="text-white font-bold text-sm">NG</span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">NG-IHRP</span>
+              <span className="text-sm font-semibold text-gray-900">
+                NG-IHRP
+              </span>
             </div>
 
             {/* Search bar - full width, pill-shaped */}
@@ -450,7 +504,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 flex-shrink-0">
               <NotificationDropdown />
               <TaskDropdown />
-              <Button variant="ghost" size="sm" className="h-9 w-9 p-0" title="Print">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0"
+                title="Print"
+              >
                 <Printer className="h-5 w-5 text-gray-600" />
               </Button>
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center ml-2">

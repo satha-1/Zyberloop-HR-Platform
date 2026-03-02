@@ -5,7 +5,7 @@ import { AppError } from "../../middlewares/errorHandler";
 import { createAuditLog } from "../logs/log.service";
 import mongoose from "mongoose";
 import { LeaveType } from "./leaveType.model";
-
+import { AttendanceRecord } from "../attendance/attendance.model";
 export const getLeaveRequests = async (
   req: Request,
   res: Response,
@@ -78,12 +78,13 @@ export const createLeaveRequest = async (
   next: NextFunction,
 ) => {
   try {
-    const { employeeId, leaveTypeId, startDate, days } = req.body;
+    const { employeeCode, leaveTypeId, startDate, days } = req.body;
 
-    const employee = await Employee.findById(employeeId);
+    const employee = await Employee.findOne({ employeeCode: employeeCode });
     const leaveType = await LeaveType.findById(leaveTypeId);
 
-    if (!employee) throw new AppError(404, "Employee not found");
+    if (!employee)
+      throw new AppError(404, `Employee with code ${employeeCode} not found`);
     if (!leaveType) throw new AppError(404, "Leave type not found");
 
     // Accrual logic
@@ -101,7 +102,10 @@ export const createLeaveRequest = async (
     const casualType = req.body.casualType || "PAID"; // Default to PAID if not provided
 
     // Determine if this specific request even needs a balance check
-    const isUnpaidCasual = typeCode === "CASUAL" && (casualType === "UNPAID_AUTHORIZED" || casualType === "UNPAID_UNAUTHORIZED");
+    const isUnpaidCasual =
+      typeCode === "CASUAL" &&
+      (casualType === "UNPAID_AUTHORIZED" ||
+        casualType === "UNPAID_UNAUTHORIZED");
 
     let currentBalance = 0;
 
@@ -149,7 +153,7 @@ export const createLeaveRequest = async (
       const takenAccrued = await LeaveRequest.aggregate([
         {
           $match: {
-            employeeId: new mongoose.Types.ObjectId(employeeId),
+            employeeId: employee._id,
             leaveTypeId: new mongoose.Types.ObjectId(leaveTypeId),
             status: "HR_APPROVED",
           },
@@ -165,7 +169,8 @@ export const createLeaveRequest = async (
       const encashedLeaves = 0;
 
       // Calculate current balance
-      currentBalance = totalAccrued - (takenAccrued[0]?.total || 0) + carryIn - encashedLeaves;
+      currentBalance =
+        totalAccrued - (takenAccrued[0]?.total || 0) + carryIn - encashedLeaves;
 
       // Check if the leave request is valid
       if (days > currentBalance) {
@@ -182,7 +187,8 @@ export const createLeaveRequest = async (
     // The leaves that cant take in certain period and check if the leave request is valid logic go here
     //  Blackout Period (example: Last week in December no leave allow)
 
-    // Add calculated balance and default approver chain to req.body
+    // Map employee _id back into req.body so it saves correctly
+    req.body.employeeId = employee._id;
     req.body.balance = currentBalance;
     // TODO: Implement the approver chain based on the leave type and employee's role
     req.body.approverChain = [
@@ -244,6 +250,37 @@ export const approveLeaveRequest = async (
 
     await request.save();
 
+    //if leave approved we update attendance status in calender
+    if (request.status === "HR_APPROVED") {
+      let curr = new Date(request.startDate);
+      curr.setHours(0, 0, 0, 0);
+      const end = new Date(request.endDate);
+      end.setHours(0, 0, 0, 0);
+
+      while (curr <= end) {
+        const day = curr.getDay();
+        // Skip weekends
+        if (day !== 0 && day !== 6) {
+          //if there is already attendance record for this date, we update it
+          //if there is no attendance record for this date, we create it
+          await AttendanceRecord.findOneAndUpdate(
+            {
+              employeeId: request.employeeId,
+              date: new Date(curr),
+            },
+            {
+              $set: {
+                status: "LEAVE",
+                notes: `Leave Request ID: ${request._id}`,
+              },
+            },
+            { upsert: true, new: true },
+          );
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+
     await createAuditLog({
       actorId: req.user!.id,
       actorName: req.user!.name,
@@ -277,8 +314,24 @@ export const rejectLeaveRequest = async (
       throw new AppError(404, "Leave request not found");
     }
 
+    const oldStatus = request.status;
     request.status = "REJECTED";
     await request.save();
+
+    //we only need to clean the leave if the leave was approved by HR
+    if (oldStatus === "HR_APPROVED") {
+      const start = new Date(request.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(request.endDate);
+      end.setHours(23, 59, 59, 999);
+
+      await AttendanceRecord.deleteMany({
+        employeeId: request.employeeId,
+        date: { $gte: start, $lte: end },
+        status: "LEAVE",
+        notes: `Leave Request ID: ${request._id}`,
+      });
+    }
 
     await createAuditLog({
       actorId: req.user!.id,
@@ -294,6 +347,23 @@ export const rejectLeaveRequest = async (
     res.json({
       success: true,
       data: request,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//send all the available leave types
+export const getLeaveTypes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const leaveTypes = await LeaveType.find().sort({ name: 1 });
+    res.json({
+      success: true,
+      data: leaveTypes,
     });
   } catch (error) {
     next(error);

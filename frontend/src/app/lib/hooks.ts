@@ -362,3 +362,43 @@ export function useDocuments(params?: { docType?: string; status?: string; subje
     }).finally(() => setLoading(false));
   }};
 }
+
+export function useAttendanceRecords(params?: {
+  startDate?: string;
+  endDate?: string;
+  employeeId?: string;
+  status?: string;
+}) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getAttendanceRecords(params);
+        setData(result);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.startDate, params?.endDate, params?.employeeId, params?.status]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getAttendanceRecords(params)
+        .then(setData)
+        .catch(setError)
+        .finally(() => setLoading(false));
+    },
+  };
+}
