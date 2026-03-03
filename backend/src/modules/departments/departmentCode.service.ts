@@ -1,4 +1,5 @@
 import { Department } from './department.model';
+import { SequenceGenerator } from '../employees/sequenceGenerator.model';
 
 /**
  * Generate prefix from department name
@@ -30,7 +31,8 @@ export function generatePrefix(name: string): string {
 
 /**
  * Generate the next department code for a given department name
- * Format: PREFIX-NNN (e.g., HR-001, IT-002)
+ * Format: PREFIX-NNN (e.g., A-001, SD-002)
+ * The number part (NNN) is globally unique across all departments, not per prefix
  */
 export async function generateDepartmentCode(departmentName: string): Promise<string> {
   const prefix = generatePrefix(departmentName);
@@ -39,28 +41,18 @@ export async function generateDepartmentCode(departmentName: string): Promise<st
     throw new Error('Cannot generate prefix from empty department name');
   }
 
-  // Find the latest code for this prefix
-  // Query for codes matching the pattern PREFIX-NNN
-  const existingDepartments = await Department.find({
-    code: { $regex: `^${prefix}-\\d+$` }
-  })
-    .sort({ code: -1 })
-    .limit(1)
-    .select('code');
-
-  let nextNumber = 1;
-
-  if (existingDepartments.length > 0) {
-    const lastCode = existingDepartments[0].code; // e.g., "HR-007"
-    const parts = lastCode.split('-');
-    if (parts.length === 2) {
-      const lastNumberStr = parts[1];
-      const lastNumber = parseInt(lastNumberStr, 10);
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
-      }
+  // Get next global sequence number for all departments
+  const updated = await SequenceGenerator.findOneAndUpdate(
+    { key: 'department_code' },
+    { $inc: { value: 1 } },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
     }
-  }
+  ).lean();
+
+  const nextNumber = updated.value;
 
   // Pad to 3 digits
   const numberStr = String(nextNumber).padStart(3, '0');

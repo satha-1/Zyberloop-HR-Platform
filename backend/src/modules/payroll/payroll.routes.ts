@@ -29,6 +29,12 @@ import {
   calculatePayslipEndpoint,
   calculatePayslipFromJSONEndpoint,
 } from './payslipCalculator.controller';
+import {
+  getSalaryComponents,
+  createSalaryComponent,
+  getApitTable,
+  calculateEnterprisePayslip,
+} from './enterprisePayroll.controller';
 
 export const payrollRouter = Router();
 
@@ -65,3 +71,9 @@ payrollRouter.get('/stats', getPayrollStats);
 // Payslip Calculator
 payrollRouter.post('/calculate-payslip', calculatePayslipEndpoint);
 payrollRouter.post('/calculate-payslip-from-json', calculatePayslipFromJSONEndpoint);
+
+// Enterprise payroll components/statutory
+payrollRouter.get('/components', getSalaryComponents);
+payrollRouter.post('/components', createSalaryComponent);
+payrollRouter.get('/apit/:tableCode', getApitTable);
+payrollRouter.post('/enterprise/calculate-payslip', calculateEnterprisePayslip);

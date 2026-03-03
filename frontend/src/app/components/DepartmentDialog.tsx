@@ -44,32 +44,69 @@ export function DepartmentDialog({
     phoneExt: "",
   });
 
-  // Debounce name for code generation
-  const debouncedName = useDebounce(formData.name, 500);
-
-  // Generate code when name changes (only for new departments)
-  useEffect(() => {
-    if (!department && debouncedName && debouncedName.trim().length > 0) {
-      generateCode(debouncedName);
-    }
-  }, [debouncedName, department]);
+  // Debounce name for code generation (reduced delay for faster feedback)
+  const debouncedName = useDebounce(formData.name, 200);
 
   const generateCode = useCallback(async (name: string) => {
-    if (!name || name.trim().length === 0) return;
+    if (!name || name.trim().length < 2) {
+      setFormData((prev) => ({ ...prev, code: "" }));
+      return;
+    }
     
+    const trimmedName = name.trim();
+    console.log("Generating code for:", trimmedName);
     setGeneratingCode(true);
+    
     try {
-      const result = await api.generateDepartmentCode(name);
-      if (result?.data?.code) {
-        setFormData((prev) => ({ ...prev, code: result.data.code }));
+      const result: any = await api.generateDepartmentCode(trimmedName);
+      console.log("API response:", result);
+      
+      // API client unwraps the data, so result could be { code: "..." } or just the code string
+      let code: string | undefined;
+      
+      if (typeof result === 'string') {
+        code = result;
+      } else if (result?.code) {
+        code = result.code;
+      } else if (result?.data?.code) {
+        code = result.data.code;
+      }
+      
+      if (code) {
+        console.log("Generated code:", code);
+        setFormData((prev) => ({ ...prev, code }));
+      } else {
+        console.warn("No code found in response:", result);
+        setFormData((prev) => ({ ...prev, code: "" }));
       }
     } catch (error: any) {
       console.error("Failed to generate code:", error);
-      // Don't show error toast - code generation is optional
+      console.error("Error details:", error.message, error.stack);
+      // Don't clear code on error - keep previous value if any
     } finally {
       setGeneratingCode(false);
     }
   }, []);
+
+  // Generate code when name changes (only for new departments)
+  useEffect(() => {
+    console.log("useEffect triggered - department:", department, "debouncedName:", debouncedName);
+    if (!department && debouncedName && debouncedName.trim().length >= 2) {
+      console.log("Calling generateCode with:", debouncedName.trim());
+      generateCode(debouncedName.trim());
+    } else if (!department && (!debouncedName || debouncedName.trim().length === 0)) {
+      // Clear code if name is empty
+      setFormData((prev) => ({ ...prev, code: "" }));
+    }
+  }, [debouncedName, department, generateCode]);
+
+  // Also generate on blur for immediate feedback
+  const handleNameBlur = useCallback(() => {
+    if (!department && formData.name && formData.name.trim().length >= 2) {
+      console.log("Blur triggered, generating code for:", formData.name.trim());
+      generateCode(formData.name.trim());
+    }
+  }, [department, formData.name, generateCode]);
 
   useEffect(() => {
     if (open) {
@@ -187,22 +224,58 @@ export function DepartmentDialog({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onBlur={handleNameBlur}
                 placeholder="e.g., Human Resources"
               />
+              {!department && formData.name && formData.name.trim().length < 2 && (
+                <p className="text-xs text-amber-600">
+                  Enter at least 2 characters to generate code
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="code">Department Code *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="code">Department Code *</Label>
+                {!department && formData.name && formData.name.trim().length >= 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => generateCode(formData.name.trim())}
+                    disabled={generatingCode}
+                    className="h-7 px-2 text-xs"
+                  >
+                    {generatingCode ? "Generating..." : "Refresh"}
+                  </Button>
+                )}
+              </div>
               <Input
                 id="code"
                 required
                 readOnly
                 value={formData.code}
                 className="bg-gray-50 cursor-not-allowed"
-                placeholder={generatingCode ? "Generating..." : "Will be generated automatically"}
+                placeholder={
+                  generatingCode 
+                    ? "Generating code..." 
+                    : formData.name && formData.name.trim().length >= 2
+                    ? "Code will appear here"
+                    : "Enter department name to generate code"
+                }
               />
-              {!department && (
-                <p className="text-xs text-gray-500">
-                  Code is auto-generated from department name
+              {generatingCode && (
+                <p className="text-xs text-blue-600 animate-pulse">
+                  Generating code...
+                </p>
+              )}
+              {!department && !generatingCode && formData.code && (
+                <p className="text-xs text-green-600">
+                  ✓ Code generated from department name
+                </p>
+              )}
+              {!department && !generatingCode && !formData.code && formData.name && formData.name.trim().length >= 2 && (
+                <p className="text-xs text-amber-600">
+                  Code not generated. Click "Refresh" or wait a moment.
                 </p>
               )}
             </div>

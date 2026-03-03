@@ -162,6 +162,10 @@ class ApiClient {
     return this.request('/employees/generate-code');
   }
 
+  async generateEmployeeNumber(departmentId: string) {
+    return this.request(`/employees/generate-number?departmentId=${encodeURIComponent(departmentId)}`);
+  }
+
   async createEmployee(data: any) {
     return this.request('/employees', {
       method: 'POST',
@@ -220,6 +224,44 @@ class ApiClient {
 
     const data = await response.json();
     return data.data || data;
+  }
+
+  async getEmployeeCompensationComponents(employeeId: string, asOf?: string) {
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
+    return this.request(`/employees/${employeeId}/compensation/components${query}`);
+  }
+
+  async assignEmployeeCompensationComponent(employeeId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/compensation/components`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateEmployeeCompensationComponent(assignmentId: string, payload: any) {
+    return this.request(`/employees/compensation/components/${assignmentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getEmployeeBankAccounts(employeeId: string, asOf?: string) {
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
+    return this.request(`/employees/${employeeId}/bank-accounts${query}`);
+  }
+
+  async createEmployeeBankAccount(employeeId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/bank-accounts`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateEmployeeBankAccount(bankAccountId: string, payload: any) {
+    return this.request(`/employees/bank-accounts/${bankAccountId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   }
 
   async deleteEmployee(id: string) {
@@ -861,6 +903,30 @@ class ApiClient {
   async duplicatePayrollTemplate(id: string) {
     return this.request(`/payroll/templates/${id}/duplicate`, {
       method: 'POST',
+    });
+  }
+
+  async getPayrollComponents(params?: { kind?: string; isActive?: boolean }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/payroll/components${query ? `?${query}` : ''}`);
+  }
+
+  async createPayrollComponent(data: any) {
+    return this.request('/payroll/components', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getApitTable(tableCode = 'TABLE_01', asOf?: string) {
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
+    return this.request(`/payroll/apit/${encodeURIComponent(tableCode)}${query}`);
+  }
+
+  async calculateEnterprisePayslip(data: any) {
+    return this.request('/payroll/enterprise/calculate-payslip', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

@@ -38,6 +38,71 @@ Complete Node.js + TypeScript + MongoDB backend for the HR Management Platform.
 
 The backend will be available at `http://localhost:3001`
 
+## Enterprise Payroll & Employee Identifiers
+
+### Employee identifiers
+
+- `emp_no` (`empNo` in API/model): manual HR-entered ID, unique.
+- `emp_code` (`employeeCode`): auto-generated, read-only in UI, unique, never reused.
+- Current generator format: `EMP-000001-AB` (sequential number + random suffix, transactionally generated via `sequence_generators` collection).
+  - Format: `{PREFIX}-{SEQUENTIAL}-{RANDOM}`
+  - Sequential part: 6-digit zero-padded number (e.g., `000001`, `000125`)
+  - Random suffix: 2 alphanumeric characters (e.g., `AB`, `X7`, `9Z`) - randomly generated for each code
+  - Example codes: `EMP-000001-AB`, `EMP-000002-XY`, `EMP-000125-7K`
+- You can configure prefix, digits, random length, and random type in `employeeCode.service.ts` (`EmployeeCodeConfig`).
+
+### New payroll data model (Mongoose equivalents of migration tables)
+
+- `employees` (extended with `empNo`)
+- `salary_components` -> `SalaryComponent`
+- `employee_salary_components` -> `EmployeeSalaryComponent` (effective-dated assignments)
+- `employee_bank_accounts` -> `EmployeeBankAccount` (effective-dated)
+- `payroll_runs` -> existing `PayrollRun`
+- `payroll_run_items` -> existing `PayrollEntry`
+- `payslips` -> new `Payslip`
+- `apit_tax_tables` -> `ApitTaxTable`
+
+### Sri Lanka statutory logic
+
+- EPF employee: `8%` of EPF/ETF eligible earnings
+- EPF employer: `12%` of EPF/ETF eligible earnings
+- ETF employer: `3%` of EPF/ETF eligible earnings
+- APIT: table-driven using `ApitTaxTable` slabs (Table 01 seeded first)
+
+EPF/ETF inclusion/exclusion is controlled by component flags:
+
+- Include via `epfEtfEligible: true` (e.g., salary/wages, COLA, food allowance, commission, piece-rate/contract pay)
+- Exclude via `epfEtfEligible: false` (e.g., overtime, reimbursements, incentives/bonuses)
+
+### Run migration/seed for enterprise payroll
+
+```bash
+cd backend
+npm run migrate:enterprise-payroll
+```
+
+### APIT table extension (Tables 02-08)
+
+1. Insert/Upsert a new row in `ApitTaxTable` with:
+   - `tableCode` (e.g. `TABLE_02`)
+   - `effectiveFrom` / optional `effectiveTo`
+   - `slabs` array (`minMonthlyIncome`, `maxMonthlyIncome`, `fixedTax`, `ratePercent`)
+2. Keep old tables with `effectiveTo` for historical calculation integrity.
+3. Pass `apitTableCode` to enterprise payslip calculation endpoint.
+
+### Enterprise endpoints
+
+- `GET /api/v1/payroll/components`
+- `POST /api/v1/payroll/components`
+- `GET /api/v1/payroll/apit/:tableCode`
+- `POST /api/v1/payroll/enterprise/calculate-payslip`
+- `GET /api/v1/employees/:employeeId/compensation/components`
+- `POST /api/v1/employees/:employeeId/compensation/components`
+- `PATCH /api/v1/employees/compensation/components/:assignmentId`
+- `GET /api/v1/employees/:employeeId/bank-accounts`
+- `POST /api/v1/employees/:employeeId/bank-accounts`
+- `PATCH /api/v1/employees/bank-accounts/:bankAccountId`
+
 ## API Endpoints
 
 ### Authentication

@@ -20,6 +20,7 @@ interface AddEmployeeDialogProps {
 export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployeeDialogProps) {
   const [loading, setLoading] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [generatingNumber, setGeneratingNumber] = useState(false);
   const [sameAsCurrentAddress, setSameAsCurrentAddress] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);
@@ -87,6 +88,26 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
     }
   };
 
+  const generateEmployeeNumber = async (departmentId: string) => {
+    if (!departmentId) {
+      setFormData((prev) => ({ ...prev, employeeNumber: "" }));
+      return;
+    }
+    
+    setGeneratingNumber(true);
+    try {
+      const result: any = await api.generateEmployeeNumber(departmentId);
+      if (result?.empNo) {
+        setFormData((prev) => ({ ...prev, employeeNumber: result.empNo }));
+      }
+    } catch (error) {
+      console.error("Failed to generate employee number", error);
+      toast.error("Failed to generate employee number");
+    } finally {
+      setGeneratingNumber(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -147,14 +168,33 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
             <h3 className="text-lg font-semibold">Identification</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="employeeNumber">Employee Number *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="employeeNumber">Employee Number *</Label>
+                  {formData.departmentId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => generateEmployeeNumber(formData.departmentId)}
+                      disabled={generatingNumber || loading || !formData.departmentId}
+                      className="h-7 px-2"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${generatingNumber ? "animate-spin" : ""}`} />
+                    </Button>
+                  )}
+                </div>
                 <Input
                   id="employeeNumber"
                   required
+                  readOnly
                   value={formData.employeeNumber}
-                  onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
-                  placeholder="Manual HR/Payroll number"
+                  className="bg-gray-50"
+                  placeholder={formData.departmentId ? "Auto-generated (select department first)" : "Select department to generate"}
+                  disabled={!formData.departmentId}
                 />
+                <p className="text-xs text-gray-500">
+                  Auto-generated based on department (9 digits: DDDSSSRRR)
+                </p>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -256,7 +296,10 @@ export function AddEmployeeDialog({ open, onOpenChange, onSuccess }: AddEmployee
                 <Label htmlFor="departmentId">Department *</Label>
                 <Select
                   value={formData.departmentId || undefined}
-                  onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, departmentId: value });
+                    generateEmployeeNumber(value);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />

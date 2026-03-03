@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { EnterpriseTable, EnterpriseTableColumn, TableLink } from "../../components/ui/EnterpriseTable";
 import { EmployeeAvatar } from "../../components/ui/EmployeeAvatar";
 import { Input } from "../../components/ui/input";
@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { useEmployees, useDepartments } from "../../lib/hooks";
 import { AddEmployeeDialog } from "../../components/AddEmployeeDialog";
-import { Search, Plus, Download, Filter } from "lucide-react";
+import { Search, Plus, Download, Filter, Columns } from "lucide-react";
 import Link from "next/link";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
@@ -18,12 +18,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../components/ui/popover";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Label } from "../../components/ui/label";
 
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [newlyAddedFilter, setNewlyAddedFilter] = useState(false);
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
+    avatar: true,
+    employeeNumber: true,
+    employeeCode: true,
+    name: true,
+    initials: false,
+    preferredName: false,
+    email: true,
+    phone: false,
+    dob: false,
+    department: true,
+    jobTitle: true,
+    employmentType: false,
+    workLocation: false,
+    manager: true,
+    status: true,
+    hireDate: true,
+    addedDate: true,
+    salary: false,
+    emergencyContact: false,
+    currentAddress: false,
+    permanentAddress: false,
+    actions: true,
+  });
   const { data: departments = [] } = useDepartments();
   const { data: employees = [], loading, refetch } = useEmployees({
     search: searchTerm || undefined,
@@ -84,6 +115,7 @@ export default function Employees() {
           : "N/A",
         "Status": emp.status || "",
         "Hire Date": emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : "",
+        "Added Date": emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : "",
       }));
 
       // Convert to CSV
@@ -180,9 +212,68 @@ export default function Employees() {
                 <SelectItem value="new">Newly Added (Last 7 Days)</SelectItem>
               </SelectContent>
             </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Columns className="h-4 w-4 mr-2" />
+                  Columns
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-3" align="end">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Show/Hide Columns</Label>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {[
+                      { key: "avatar", label: "Avatar" },
+                      { key: "employeeNumber", label: "Employee Number" },
+                      { key: "employeeCode", label: "Employee Code" },
+                      { key: "name", label: "Full Name" },
+                      { key: "initials", label: "Initials" },
+                      { key: "preferredName", label: "Preferred Name" },
+                      { key: "email", label: "Email" },
+                      { key: "phone", label: "Phone" },
+                      { key: "dob", label: "Date of Birth" },
+                      { key: "department", label: "Department" },
+                      { key: "jobTitle", label: "Job Title" },
+                      { key: "employmentType", label: "Employment Type" },
+                      { key: "workLocation", label: "Work Location" },
+                      { key: "manager", label: "Manager" },
+                      { key: "status", label: "Status" },
+                      { key: "hireDate", label: "Hire Date" },
+                      { key: "addedDate", label: "Added Date" },
+                      { key: "salary", label: "Salary" },
+                      { key: "emergencyContact", label: "Emergency Contact" },
+                      { key: "currentAddress", label: "Current Address" },
+                      { key: "permanentAddress", label: "Permanent Address" },
+                      { key: "actions", label: "Actions" },
+                    ].map((col) => (
+                      <div key={col.key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={col.key}
+                          checked={columnVisibility[col.key] ?? true}
+                          onCheckedChange={(checked) => {
+                            setColumnVisibility((prev) => ({
+                              ...prev,
+                              [col.key]: checked === true,
+                            }));
+                          }}
+                        />
+                        <Label
+                          htmlFor={col.key}
+                          className="text-sm font-normal cursor-pointer flex-1"
+                        >
+                          {col.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         }
-        columns={[
+        columns={useMemo(() => {
+          const allColumns: EnterpriseTableColumn[] = [
           {
             key: "avatar",
             header: "",
@@ -231,6 +322,20 @@ export default function Employees() {
             ),
           },
           {
+            key: "initials",
+            header: "Initials",
+            sortable: true,
+            sortValue: (employee: any) => employee.initials || "",
+            render: (employee: any) => employee.initials || "N/A",
+          },
+          {
+            key: "preferredName",
+            header: "Preferred Name",
+            sortable: true,
+            sortValue: (employee: any) => employee.preferredName || "",
+            render: (employee: any) => employee.preferredName || "N/A",
+          },
+          {
             key: "email",
             header: "Email",
             sortable: true,
@@ -240,6 +345,25 @@ export default function Employees() {
                 {employee.email}
               </TableLink>
             ),
+          },
+          {
+            key: "phone",
+            header: "Phone",
+            sortable: true,
+            sortValue: (employee: any) => employee.phone || "",
+            render: (employee: any) => (
+              <TableLink href={`tel:${employee.phone}`}>
+                {employee.phone || "N/A"}
+              </TableLink>
+            ),
+          },
+          {
+            key: "dob",
+            header: "Date of Birth",
+            sortable: true,
+            sortValue: (employee: any) => employee.dob ? new Date(employee.dob) : null,
+            render: (employee: any) =>
+              employee.dob ? new Date(employee.dob).toLocaleDateString() : "N/A",
           },
           {
             key: "department",
@@ -256,6 +380,24 @@ export default function Employees() {
             sortable: true,
             sortValue: (employee: any) => employee.jobTitle || "ZZZ",
             render: (employee: any) => employee.jobTitle || "N/A",
+          },
+          {
+            key: "employmentType",
+            header: "Employment Type",
+            sortable: true,
+            sortValue: (employee: any) => employee.employmentType || "ZZZ",
+            render: (employee: any) => (
+              <Badge className="bg-blue-100 text-blue-800">
+                {employee.employmentType ? employee.employmentType.charAt(0).toUpperCase() + employee.employmentType.slice(1) : "N/A"}
+              </Badge>
+            ),
+          },
+          {
+            key: "workLocation",
+            header: "Work Location",
+            sortable: true,
+            sortValue: (employee: any) => employee.workLocation || "ZZZ",
+            render: (employee: any) => employee.workLocation || "N/A",
           },
           {
             key: "manager",
@@ -290,6 +432,57 @@ export default function Employees() {
               employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : "N/A",
           },
           {
+            key: "addedDate",
+            header: "Added Date",
+            sortable: true,
+            sortValue: (employee: any) => employee.createdAt ? new Date(employee.createdAt) : null,
+            render: (employee: any) =>
+              employee.createdAt ? new Date(employee.createdAt).toLocaleDateString() : "N/A",
+          },
+          {
+            key: "salary",
+            header: "Salary",
+            sortable: true,
+            align: "right",
+            sortValue: (employee: any) => employee.salary || 0,
+            render: (employee: any) =>
+              employee.salary ? `LKR ${employee.salary.toLocaleString()}` : "N/A",
+          },
+          {
+            key: "emergencyContact",
+            header: "Emergency Contact",
+            sortable: false,
+            render: (employee: any) => {
+              const ec = employee.emergencyContact;
+              if (!ec || !ec.name) return "N/A";
+              return (
+                <div className="text-xs">
+                  <div className="font-medium">{ec.name}</div>
+                  {ec.relationship && (
+                    <div className="text-gray-500">{ec.relationship}</div>
+                  )}
+                  {ec.phone && (
+                    <div className="text-gray-500">{ec.phone}</div>
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            key: "currentAddress",
+            header: "Current Address",
+            sortable: false,
+            widthClassName: "min-w-[200px]",
+            render: (employee: any) => employee.currentAddress || "N/A",
+          },
+          {
+            key: "permanentAddress",
+            header: "Permanent Address",
+            sortable: false,
+            widthClassName: "min-w-[200px]",
+            render: (employee: any) => employee.permanentAddress || "N/A",
+          },
+          {
             key: "actions",
             header: "Actions",
             align: "right",
@@ -303,13 +496,24 @@ export default function Employees() {
               </TableLink>
             ),
           },
-        ]}
+          ];
+          
+          // Filter columns based on visibility settings
+          return allColumns.filter((col) => columnVisibility[col.key] !== false);
+        }, [columnVisibility])}
         data={loading ? [] : filteredEmployees}
         getRowKey={(employee: any) => employee._id || employee.id}
         emptyStateText={loading ? "Loading employees..." : "No employees found. Try adjusting your search or filters."}
         onRowClick={(employee: any) => {
           window.location.href = `/employees/${employee._id || employee.id}`;
         }}
+        pagination={{
+          enabled: true,
+          pageSize: 10,
+          showPageSizeSelector: true,
+        }}
+        className="flex flex-col"
+        tableClassName="table-fixed"
       />
 
       <AddEmployeeDialog

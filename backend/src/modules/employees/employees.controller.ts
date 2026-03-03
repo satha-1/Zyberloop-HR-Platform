@@ -9,6 +9,8 @@ import { createAuditLog } from '../logs/log.service';
 import path from 'path';
 import fs from 'fs';
 import PDFDocument from 'pdfkit';
+import { getNextEmployeeCode } from './employeeCode.service';
+import { generateEmployeeNumber as generateEmpNo } from './employeeNumber.service';
 
 const splitFullName = (fullName: string) => {
   const clean = fullName.trim();
@@ -17,22 +19,6 @@ const splitFullName = (fullName: string) => {
     firstName: firstName || '',
     lastName: rest.join(' ') || 'N/A',
   };
-};
-
-const generateNextEmployeeCode = async (): Promise<string> => {
-  // Randomized code generation with uniqueness check.
-  for (let i = 0; i < 10; i += 1) {
-    const randomNumber = Math.floor(100000 + Math.random() * 900000);
-    const candidate = `EMP-${randomNumber}`;
-    const exists = await Employee.exists({ employeeCode: candidate });
-    if (!exists) {
-      return candidate;
-    }
-  }
-
-  // Fallback to timestamp-based suffix if random collisions occur repeatedly.
-  const fallback = `EMP-${Date.now().toString().slice(-6)}`;
-  return fallback;
 };
 
 export const getEmployees = async (
@@ -49,6 +35,7 @@ export const getEmployees = async (
 
     if (searchText) {
       query.$or = [
+        { empNo: { $regex: searchText, $options: 'i' } },
         { employeeNumber: { $regex: searchText, $options: 'i' } },
         { firstName: { $regex: searchText, $options: 'i' } },
         { lastName: { $regex: searchText, $options: 'i' } },
@@ -118,13 +105,43 @@ export const generateEmployeeCode = async (
   next: NextFunction
 ) => {
   try {
-    const code = await generateNextEmployeeCode();
+    const code = await getNextEmployeeCode();
     res.json({
       success: true,
       data: { code },
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const generateEmployeeNumberEndpoint = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { departmentId } = req.query;
+    
+    if (!departmentId || typeof departmentId !== 'string') {
+      throw new AppError(400, 'Department ID is required');
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+      throw new AppError(400, 'Invalid department ID format');
+    }
+
+    const empNo = await generateEmpNo(new mongoose.Types.ObjectId(departmentId));
+    res.json({
+      success: true,
+      data: { empNo },
+    });
+  } catch (error: any) {
+    if (error instanceof AppError) {
+      next(error);
+    } else {
+      next(new AppError(500, error.message || 'Failed to generate employee number'));
+    }
   }
 };
 
@@ -169,6 +186,7 @@ export const createEmployee = async (
   try {
     const {
       employeeNumber,
+      empNo: rawEmpNo,
       employeeCode,
       initials,
       fullName,
@@ -194,10 +212,26 @@ export const createEmployee = async (
       emergencyContactEmail,
     } = req.body;
 
-    if (!employeeNumber || !email || !phone || !hireDate || !departmentId) {
+    // Auto-generate EMPNO if not provided
+    let normalizedEmpNo: string;
+    if (rawEmpNo || employeeNumber) {
+      normalizedEmpNo = String(rawEmpNo || employeeNumber).trim();
+      // Validate format if manually provided (must be 9 digits)
+      if (!/^\d{9}$/.test(normalizedEmpNo)) {
+        throw new AppError(400, 'Employee Number must be exactly 9 digits (e.g., 000234859)');
+      }
+    } else {
+      // Auto-generate EMPNO based on department
+      if (!departmentId || !mongoose.Types.ObjectId.isValid(departmentId)) {
+        throw new AppError(400, 'Department is required to auto-generate Employee Number');
+      }
+      normalizedEmpNo = await generateEmpNo(departmentId);
+    }
+
+    if (!email || !phone || !hireDate || !departmentId) {
       throw new AppError(
         400,
-        'Employee number, email, phone, department, and hire date are required'
+        'Email, phone, department, and hire date are required'
       );
     }
 
@@ -214,14 +248,15 @@ export const createEmployee = async (
 
     let code = employeeCode;
     if (!code) {
-      code = await generateNextEmployeeCode();
+      code = await getNextEmployeeCode();
     }
 
     const employeeData: any = {
       firstName,
       lastName,
       fullName: fullName || `${firstName} ${lastName}`.trim(),
-      employeeNumber: String(employeeNumber).toUpperCase(),
+      empNo: normalizedEmpNo,
+      employeeNumber: normalizedEmpNo,
       employeeCode: code,
       initials,
       preferredName,
@@ -313,7 +348,7 @@ export const createEmployee = async (
     });
   } catch (error: any) {
     if (error.code === 11000) {
-      throw new AppError(400, 'Employee number, employee code, or email already exists');
+      throw new AppError(400, 'EMP NO, employee code, or email already exists');
     }
     next(error);
   }
@@ -332,10 +367,26 @@ export const updateEmployee = async (
       throw new AppError(400, 'Invalid employee ID format');
     }
 
+    const existingEmployee = await Employee.findById(id);
+    if (!existingEmployee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
     // Handle profile picture upload
     const updateData: any = { ...req.body };
     if (req.file) {
       updateData.profilePicture = `/uploads/profile-pictures/${req.file.filename}`;
+    }
+
+    if (updateData.empNo !== undefined || updateData.employeeNumber !== undefined) {
+      const nextEmpNo = String(updateData.empNo || updateData.employeeNumber || '')
+        .trim()
+        .toUpperCase();
+      if (!nextEmpNo) {
+        throw new AppError(400, 'EMP NO cannot be empty');
+      }
+      updateData.empNo = nextEmpNo;
+      updateData.employeeNumber = nextEmpNo;
     }
     
     // Validate and handle departmentId
@@ -363,10 +414,6 @@ export const updateEmployee = async (
       .populate('departmentId', 'name code')
       .populate('managerId', 'firstName lastName employeeCode');
 
-    if (!employee) {
-      throw new AppError(404, 'Employee not found');
-    }
-
     await createAuditLog({
       actorId: req.user!.id,
       actorName: req.user!.name || req.user!.email || 'Unknown',
@@ -376,6 +423,15 @@ export const updateEmployee = async (
       resourceType: 'employee',
       resourceId: id,
       ipAddress: req.ip || 'unknown',
+      diff:
+        updateData.empNo && updateData.empNo !== existingEmployee.empNo
+          ? {
+              empNo: {
+                before: existingEmployee.empNo || existingEmployee.employeeNumber,
+                after: updateData.empNo,
+              },
+            }
+          : undefined,
     });
 
     res.json({

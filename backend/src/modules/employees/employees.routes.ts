@@ -4,6 +4,7 @@ import { uploadEmployeeDocuments, uploadProfilePicture } from '../../middlewares
 import {
   getEmployees,
   generateEmployeeCode,
+  generateEmployeeNumberEndpoint,
   getEmployeeById,
   createEmployee,
   updateEmployee,
@@ -40,6 +41,14 @@ import {
   getProfileOrganizations,
   getProfileManagementChain,
 } from './employeeProfile.controller';
+import {
+  getEmployeeCompensationAssignments,
+  assignEmployeeSalaryComponent,
+  updateEmployeeSalaryComponent,
+  getEmployeeBankAccounts,
+  createEmployeeBankAccount,
+  updateEmployeeBankAccount,
+} from './employeeCompensation.controller';
 
 export const employeesRouter = Router();
 
@@ -47,11 +56,22 @@ employeesRouter.use(authenticate);
 
 // Employee CRUD
 employeesRouter.get('/generate-code', generateEmployeeCode);
+employeesRouter.get('/generate-number', generateEmployeeNumberEndpoint);
 employeesRouter.get('/', getEmployees);
 employeesRouter.get('/:id', getEmployeeById);
 employeesRouter.post('/', uploadEmployeeDocuments.array('documents', 10), createEmployee);
 employeesRouter.patch('/:id', uploadProfilePicture.single('profilePicture'), updateEmployee);
 employeesRouter.delete('/:id', deleteEmployee);
+
+// Compensation module
+employeesRouter.get('/:employeeId/compensation/components', getEmployeeCompensationAssignments);
+employeesRouter.post('/:employeeId/compensation/components', assignEmployeeSalaryComponent);
+employeesRouter.patch('/compensation/components/:assignmentId', updateEmployeeSalaryComponent);
+
+// Bank details module (effective-dated)
+employeesRouter.get('/:employeeId/bank-accounts', getEmployeeBankAccounts);
+employeesRouter.post('/:employeeId/bank-accounts', createEmployeeBankAccount);
+employeesRouter.patch('/bank-accounts/:bankAccountId', updateEmployeeBankAccount);
 
 // Document Management
 employeesRouter.get('/:id/documents', getEmployeeDocuments);

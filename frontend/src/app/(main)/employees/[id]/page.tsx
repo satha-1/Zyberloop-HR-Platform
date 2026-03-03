@@ -47,6 +47,8 @@ export default function EmployeeProfile() {
   const [bankSaved, setBankSaved] = useState(false);
   const [compEditMode, setCompEditMode] = useState(false);
   const [compSaved, setCompSaved] = useState(false);
+  const [basicSalaryAssignmentId, setBasicSalaryAssignmentId] = useState<string | null>(null);
+  const [activeBankAccountId, setActiveBankAccountId] = useState<string | null>(null);
 
   const [documents, setDocuments] = useState<any[]>([]);
   const [selectedDocumentType, setSelectedDocumentType] = useState("NIC");
@@ -133,6 +135,26 @@ export default function EmployeeProfile() {
     setBankEditMode(!hasBankDetails);
     setCompSaved(hasCompDetails);
     setCompEditMode(!hasCompDetails);
+
+    const loadEffectiveDatedModules = async () => {
+      try {
+        const [compAssignments, bankAccounts] = await Promise.all([
+          api.getEmployeeCompensationComponents(id),
+          api.getEmployeeBankAccounts(id),
+        ]);
+        const basicAssignment = (Array.isArray(compAssignments) ? compAssignments : []).find(
+          (row: any) => row.salaryComponentId?.code === "BASIC"
+        );
+        setBasicSalaryAssignmentId(basicAssignment?._id || null);
+
+        const activeBank = (Array.isArray(bankAccounts) ? bankAccounts : []).find((row: any) => row.isPrimary) ||
+          (Array.isArray(bankAccounts) ? bankAccounts[0] : null);
+        setActiveBankAccountId(activeBank?._id || null);
+      } catch (error) {
+        console.error("Failed to load effective-dated compensation/bank modules", error);
+      }
+    };
+    loadEffectiveDatedModules();
   }, [employee]);
 
   useEffect(() => {
@@ -198,6 +220,33 @@ export default function EmployeeProfile() {
         employmentType: compensationForm.employmentType,
         workLocation: compensationForm.workLocation,
       });
+
+      const salaryPayload = {
+        salaryComponentId: undefined as any,
+        effectiveFrom: new Date().toISOString(),
+        amount: compensationForm.salary ? Number(compensationForm.salary) : 0,
+      };
+      const allComponents = await api.getPayrollComponents();
+      const basicSalaryComponent = (Array.isArray(allComponents) ? allComponents : []).find(
+        (c: any) => c.code === "BASIC"
+      );
+      if (basicSalaryComponent?._id) {
+        if (basicSalaryAssignmentId) {
+          await api.updateEmployeeCompensationComponent(basicSalaryAssignmentId, {
+            amount: salaryPayload.amount,
+            effectiveFrom: salaryPayload.effectiveFrom,
+            isActive: true,
+          });
+        } else {
+          const assignment = await api.assignEmployeeCompensationComponent(id, {
+            salaryComponentId: basicSalaryComponent._id,
+            effectiveFrom: salaryPayload.effectiveFrom,
+            amount: salaryPayload.amount,
+          });
+          setBasicSalaryAssignmentId(assignment?._id || null);
+        }
+      }
+
       toast.success("Compensation details updated");
       setOriginalCompensationForm({ ...compensationForm });
       setCompSaved(true);
@@ -213,20 +262,29 @@ export default function EmployeeProfile() {
   const saveBankDetails = async () => {
     try {
       setSavingBank(true);
-      await api.updateEmployee(id, {
-        bankDetails: {
-          bankName: bankForm.bankName,
-          branchName: bankForm.branchName,
-          branchCode: bankForm.branchCode,
-          accountHolderName: bankForm.accountHolderName,
-          accountNumber: bankForm.accountNumber,
-          accountType:
-            bankForm.accountType === "OTHER"
-              ? bankForm.accountTypeOther || "OTHER"
-              : bankForm.accountType,
-          paymentMethod: bankForm.paymentMethod,
-        },
-      });
+      const payload = {
+        bankName: bankForm.bankName,
+        branchName: bankForm.branchName,
+        branchCode: bankForm.branchCode,
+        accountHolderName: bankForm.accountHolderName,
+        accountNumber: bankForm.accountNumber,
+        accountType:
+          bankForm.accountType === "OTHER"
+            ? bankForm.accountTypeOther || "OTHER"
+            : bankForm.accountType,
+        paymentMethod: bankForm.paymentMethod,
+        isPrimary: true,
+        effectiveFrom: new Date().toISOString(),
+      };
+
+      if (activeBankAccountId) {
+        await api.updateEmployeeBankAccount(activeBankAccountId, payload);
+      } else {
+        const account = await api.createEmployeeBankAccount(id, payload);
+        setActiveBankAccountId(account?._id || null);
+      }
+      // Keep backward compatibility with old embedded field.
+      await api.updateEmployee(id, { bankDetails: payload });
       toast.success("Bank details updated");
       setOriginalBankForm({ ...bankForm });
       setBankSaved(true);

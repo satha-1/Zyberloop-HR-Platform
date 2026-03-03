@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IEmployee extends Document {
+  empNo?: string;
   employeeNumber: string;
   employeeCode: string;
   userId?: mongoose.Types.ObjectId;
@@ -53,6 +54,14 @@ export interface IEmployee extends Document {
 
 const employeeSchema = new Schema<IEmployee>(
   {
+    empNo: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
     employeeNumber: {
       type: String,
       required: true,
@@ -185,5 +194,15 @@ const employeeSchema = new Schema<IEmployee>(
     timestamps: true,
   }
 );
+
+employeeSchema.pre('validate', function setEmpNo(next) {
+  if (!this.empNo && this.employeeNumber) {
+    this.empNo = this.employeeNumber;
+  }
+  if (!this.employeeNumber && this.empNo) {
+    this.employeeNumber = this.empNo;
+  }
+  next();
+});
 
 export const Employee = mongoose.model<IEmployee>('Employee', employeeSchema);
