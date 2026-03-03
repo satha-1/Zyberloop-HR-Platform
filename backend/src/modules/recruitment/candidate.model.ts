@@ -5,6 +5,10 @@ export interface ICandidate extends Document {
   email: string;
   phone: string;
   resumeUrl?: string;
+  resumeStorageKey?: string;
+  resumeFileName?: string;
+  resumeMimeType?: string;
+  resumeFileSize?: number;
   currentCompany?: string;
   experienceYears: number;
   skills: string[];
@@ -31,6 +35,10 @@ const candidateSchema = new Schema<ICandidate>(
       required: true,
     },
     resumeUrl: String,
+    resumeStorageKey: String,
+    resumeFileName: String,
+    resumeMimeType: String,
+    resumeFileSize: Number,
     currentCompany: String,
     experienceYears: {
       type: Number,

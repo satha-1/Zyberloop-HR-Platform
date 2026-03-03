@@ -11,6 +11,7 @@ import fs from 'fs';
 import PDFDocument from 'pdfkit';
 import { getNextEmployeeCode } from './employeeCode.service';
 import { generateEmployeeNumber as generateEmpNo } from './employeeNumber.service';
+import { storageService } from '../documents/services/storage.service';
 
 const splitFullName = (fullName: string) => {
   const clean = fullName.trim();
@@ -19,6 +20,30 @@ const splitFullName = (fullName: string) => {
     firstName: firstName || '',
     lastName: rest.join(' ') || 'N/A',
   };
+};
+
+const sanitizeFileName = (fileName: string) =>
+  fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+const getEmployeeDocumentKey = (
+  employeeId: string,
+  documentType: string,
+  originalName: string
+) => `employees/${employeeId}/documents/${documentType}/${Date.now()}-${sanitizeFileName(originalName)}`;
+
+const getEmployeePhotoKey = (employeeId: string, originalName: string) =>
+  `employees/${employeeId}/photos/${Date.now()}-${sanitizeFileName(originalName)}`;
+
+const resolveStoredFileUrl = async (storedPath?: string): Promise<string | undefined> => {
+  if (!storedPath) return undefined;
+  if (storedPath.startsWith('http://') || storedPath.startsWith('https://') || storedPath.startsWith('/uploads/')) {
+    return storedPath;
+  }
+  try {
+    return await storageService.getPresignedUrl(storedPath);
+  } catch {
+    return storedPath;
+  }
 };
 
 export const getEmployees = async (
@@ -81,6 +106,16 @@ export const getEmployees = async (
       .populate('managerId', 'firstName lastName employeeCode')
       .sort({ createdAt: -1 });
 
+    const employeesWithMedia = await Promise.all(
+      employees.map(async (employee: any) => {
+        const profilePicture = await resolveStoredFileUrl(employee.profilePicture);
+        if (profilePicture) {
+          employee.profilePicture = profilePicture;
+        }
+        return employee;
+      })
+    );
+
     console.log(`Found ${employees.length} employees matching query`);
     
     // If no employees found but there are employees in DB, log a sample
@@ -91,7 +126,7 @@ export const getEmployees = async (
 
     res.json({
       success: true,
-      data: employees,
+      data: employeesWithMedia,
     });
   } catch (error) {
     console.error('Error fetching employees:', error);
@@ -161,6 +196,11 @@ export const getEmployeeById = async (
     const employee = await Employee.findById(id)
       .populate('departmentId', 'name code')
       .populate('managerId', 'firstName lastName employeeCode');
+    const profilePicture = await resolveStoredFileUrl((employee as any).profilePicture);
+    if (profilePicture) {
+      (employee as any).profilePicture = profilePicture;
+    }
+
 
     if (!employee) {
       throw new AppError(404, 'Employee not found');
@@ -312,13 +352,15 @@ export const createEmployee = async (
     // Handle file uploads if any
     const files = req.files as Express.Multer.File[];
     if (files && files.length > 0) {
-      const documentPromises = files.map((file) => {
+      const documentPromises = files.map(async (file) => {
         const docType = req.body[`docType_${file.fieldname}`] || 'OTHER';
+        const storageKey = getEmployeeDocumentKey(employee._id.toString(), docType, file.originalname);
+        await storageService.putObject(storageKey, file.buffer, file.mimetype);
         return new EmployeeDocument({
           employeeId: employee._id,
           documentType: docType,
           fileName: file.originalname,
-          filePath: file.path,
+          filePath: storageKey,
           fileSize: file.size,
           mimeType: file.mimetype,
           uploadedBy: req.user!.id,
@@ -374,8 +416,10 @@ export const updateEmployee = async (
 
     // Handle profile picture upload
     const updateData: any = { ...req.body };
-    if (req.file) {
-      updateData.profilePicture = `/uploads/profile-pictures/${req.file.filename}`;
+    if (req.file?.buffer) {
+      const photoKey = getEmployeePhotoKey(id, req.file.originalname);
+      await storageService.putObject(photoKey, req.file.buffer, req.file.mimetype);
+      updateData.profilePicture = photoKey;
     }
 
     if (updateData.empNo !== undefined || updateData.employeeNumber !== undefined) {
@@ -413,6 +457,13 @@ export const updateEmployee = async (
     })
       .populate('departmentId', 'name code')
       .populate('managerId', 'firstName lastName employeeCode');
+
+    if (employee) {
+      const profilePicture = await resolveStoredFileUrl((employee as any).profilePicture);
+      if (profilePicture) {
+        (employee as any).profilePicture = profilePicture;
+      }
+    }
 
     await createAuditLog({
       actorId: req.user!.id,
@@ -488,9 +539,14 @@ export const getEmployeeDocuments = async (
       .populate('uploadedBy', 'name email')
       .sort({ uploadedAt: -1 });
 
+    const enriched = documents.map((doc: any) => ({
+      ...doc.toObject(),
+      downloadUrl: `/api/v1/employees/documents/${doc._id}/download`,
+    }));
+
     res.json({
       success: true,
-      data: documents,
+      data: enriched,
     });
   } catch (error) {
     next(error);
@@ -510,6 +566,9 @@ export const uploadEmployeeDocument = async (
     if (!file) {
       throw new AppError(400, 'No file uploaded');
     }
+    if (!file.buffer) {
+      throw new AppError(400, 'Uploaded file content is empty');
+    }
 
     if (!documentType) {
       throw new AppError(400, 'Document type is required');
@@ -524,7 +583,11 @@ export const uploadEmployeeDocument = async (
       employeeId: id,
       documentType,
       fileName: file.originalname,
-      filePath: file.path,
+      filePath: await (async () => {
+        const storageKey = getEmployeeDocumentKey(id, documentType, file.originalname);
+        await storageService.putObject(storageKey, file.buffer, file.mimetype);
+        return storageKey;
+      })(),
       fileSize: file.size,
       mimeType: file.mimetype,
       uploadedBy: req.user!.id,
@@ -565,11 +628,21 @@ export const downloadEmployeeDocument = async (
       throw new AppError(404, 'Document not found');
     }
 
-    if (!fs.existsSync(document.filePath)) {
-      throw new AppError(404, 'File not found on server');
+    const isLegacyLocalAbsolutePath = path.isAbsolute(document.filePath);
+    if (isLegacyLocalAbsolutePath) {
+      if (!fs.existsSync(document.filePath)) {
+        throw new AppError(404, 'File not found on server');
+      }
+      return res.download(document.filePath, document.fileName);
     }
-
-    res.download(document.filePath, document.fileName);
+    const downloadUrl = await resolveStoredFileUrl(document.filePath);
+    if (!downloadUrl) {
+      throw new AppError(404, 'File not found');
+    }
+    if (downloadUrl.startsWith('/uploads/')) {
+      return res.redirect(downloadUrl);
+    }
+    return res.redirect(downloadUrl);
   } catch (error) {
     next(error);
   }

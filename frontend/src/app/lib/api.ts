@@ -711,6 +711,14 @@ class ApiClient {
     return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);
   }
 
+  async getCandidateById(applicationId: string) {
+    return this.request(`/recruitment/candidates/${applicationId}`);
+  }
+
+  async getCandidateCvUrl(applicationId: string): Promise<{ url: string; fileName?: string; mimeType?: string }> {
+    return this.request(`/recruitment/candidates/${applicationId}/cv-url`);
+  }
+
   async checkApplicationStatus(requisitionId: string, email: string) {
     // Public endpoint - don't send auth token
     const url = `${this.baseUrl}/recruitment/public/check-application?requisitionId=${requisitionId}&email=${encodeURIComponent(email)}`;

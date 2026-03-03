@@ -10,9 +10,10 @@ import { useDepartments } from "@/app/lib/hooks";
 import { api } from "@/app/lib/api";
 import { CreateRequisitionDialog } from "@/app/components/CreateRequisitionDialog";
 import { ViewRequisitionDialog } from "@/app/components/ViewRequisitionDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { RequisitionsTab } from "./components/RequisitionsTab";
 import { RequisitionApprovalsTab } from "./components/RequisitionApprovalsTab";
-import { Plus, ExternalLink, Users } from "lucide-react";
+import { Plus, ExternalLink, Users, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -46,6 +47,9 @@ function RecruitmentContent() {
   const [editRequisition, setEditRequisition] = useState<any>(null);
   const [viewRequisitionOpen, setViewRequisitionOpen] = useState(false);
   const [viewRequisitionId, setViewRequisitionId] = useState<string | null>(null);
+  const [candidateDialogOpen, setCandidateDialogOpen] = useState(false);
+  const [candidateDetail, setCandidateDetail] = useState<any>(null);
+  const [candidateDetailLoading, setCandidateDetailLoading] = useState(false);
 
 
   // Load all candidates for accurate counts (always load all, not filtered)
@@ -90,6 +94,32 @@ function RecruitmentContent() {
   const handleEditRequisition = (req: any) => {
     setEditRequisition(req);
     setCreateRequisitionOpen(true);
+  };
+
+  const handleViewCandidate = async (applicationId: string) => {
+    try {
+      setCandidateDetailLoading(true);
+      const detail = await api.getCandidateById(applicationId);
+      setCandidateDetail(detail);
+      setCandidateDialogOpen(true);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load candidate");
+    } finally {
+      setCandidateDetailLoading(false);
+    }
+  };
+
+  const handleViewCv = async (applicationId: string) => {
+    try {
+      const result = await api.getCandidateCvUrl(applicationId);
+      if (!result?.url) {
+        toast.error("CV not available");
+        return;
+      }
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to open CV");
+    }
   };
 
 
@@ -179,10 +209,7 @@ function RecruitmentContent() {
                 columns={[
                   { key: "name", header: "Name", align: "left", render: (row) => <span className="font-medium">{row.name || 'N/A'}</span> },
                   { key: "email", header: "Email", align: "left" },
-                  { key: "position", header: "Position", align: "left", render: (row) => {
-                    // Position will be shown from candidate data
-                    return row.position || "N/A";
-                  }},
+                  { key: "position", header: "Applied Position", align: "left", render: (row) => row.position || "N/A" },
                   { key: "skillMatch", header: "Skill Match", align: "center", render: (row) => {
                     const match = row.skill_match || row.skillMatch || 0;
                     return (
@@ -210,19 +237,42 @@ function RecruitmentContent() {
                   { key: "actions", header: "Actions", align: "right", render: (row) => {
                     const applicationId = row.id || row._id;
                     return (
-                      <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
-                        <SelectTrigger className="w-32 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="APPLIED">Applied</SelectItem>
-                          <SelectItem value="SCREENING">Screening</SelectItem>
-                          <SelectItem value="INTERVIEW">Interview</SelectItem>
-                          <SelectItem value="OFFERED">Offered</SelectItem>
-                          <SelectItem value="HIRED">Hired</SelectItem>
-                          <SelectItem value="REJECTED">Rejected</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => handleViewCandidate(applicationId)}
+                          title="View candidate"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => handleViewCv(applicationId)}
+                          title="Open CV"
+                          disabled={!row.hasResume}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          CV
+                        </Button>
+                        <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
+                          <SelectTrigger className="w-32 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="APPLIED">Applied</SelectItem>
+                            <SelectItem value="SCREENING">Screening</SelectItem>
+                            <SelectItem value="INTERVIEW">Interview</SelectItem>
+                            <SelectItem value="OFFERED">Offered</SelectItem>
+                            <SelectItem value="HIRED">Hired</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     );
                   }},
                 ]}
@@ -285,6 +335,57 @@ function RecruitmentContent() {
         onOpenChange={setViewRequisitionOpen}
         requisitionId={viewRequisitionId}
       />
+
+      <Dialog open={candidateDialogOpen} onOpenChange={setCandidateDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Candidate Details</DialogTitle>
+            <DialogDescription>View candidate profile and resume details.</DialogDescription>
+          </DialogHeader>
+          {candidateDetailLoading ? (
+            <p className="text-sm text-gray-500">Loading candidate...</p>
+          ) : candidateDetail ? (
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-gray-500">Name</p>
+                <p className="font-medium">{candidateDetail.candidate?.fullName || "N/A"}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="font-medium">{candidateDetail.candidate?.email || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Phone</p>
+                  <p className="font-medium">{candidateDetail.candidate?.phone || "N/A"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500">Applied Position</p>
+                  <p className="font-medium">{candidateDetail.requisition?.title || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Status</p>
+                  <Badge className={getCandidateStatusColor(candidateDetail.status)}>{candidateDetail.status}</Badge>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => handleViewCv(candidateDetail.id || candidateDetail._id)}
+                  disabled={!candidateDetail?.candidate?.hasResume}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View CV
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Candidate data not available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

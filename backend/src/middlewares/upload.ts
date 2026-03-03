@@ -29,29 +29,8 @@ if (!fs.existsSync(candidateResumesDir)) {
   fs.mkdirSync(candidateResumesDir, { recursive: true });
 }
 
-// Configure storage for employee documents
-const employeeDocStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, employeeDocsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `emp-doc-${uniqueSuffix}${ext}`);
-  },
-});
-
-// Configure storage for profile pictures
-const profilePictureStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, profilePicturesDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `profile-${uniqueSuffix}${ext}`);
-  },
-});
+// Use memory storage for files that will be uploaded to S3 by controllers/services.
+const memoryStorage = multer.memoryStorage();
 
 // Configure storage for generated documents
 const generatedDocStorage = multer.diskStorage({
@@ -61,18 +40,6 @@ const generatedDocStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `gen-doc-${uniqueSuffix}.pdf`);
-  },
-});
-
-// Configure storage for candidate resumes
-const candidateResumeStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, candidateResumesDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `resume-${uniqueSuffix}${ext}`);
   },
 });
 
@@ -96,7 +63,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
 
 // Upload middleware for employee documents
 export const uploadEmployeeDocuments = multer({
-  storage: employeeDocStorage,
+  storage: memoryStorage,
   fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
@@ -105,7 +72,7 @@ export const uploadEmployeeDocuments = multer({
 
 // Upload middleware for profile pictures
 export const uploadProfilePicture = multer({
-  storage: profilePictureStorage,
+  storage: memoryStorage,
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (allowedMimes.includes(file.mimetype)) {
@@ -136,7 +103,7 @@ export const uploadGeneratedDocument = multer({
 
 // Upload middleware for candidate resumes
 export const uploadCandidateResume = multer({
-  storage: candidateResumeStorage,
+  storage: memoryStorage,
   fileFilter: (req, file, cb) => {
     const allowedMimes = [
       'application/pdf',

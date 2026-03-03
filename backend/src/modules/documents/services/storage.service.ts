@@ -1,12 +1,19 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../../../config';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-// For development, fallback to local storage if S3 is not configured
-const USE_LOCAL_STORAGE = !config.s3.accessKeyId || !config.s3.secretAccessKey;
+// Use local storage only when no bucket is configured.
+// On AWS EC2 we rely on IAM role credentials (no static keys required).
+const USE_LOCAL_STORAGE = !config.s3.bucket;
 
 class StorageService {
   private s3Client: S3Client | null = null;
@@ -14,15 +21,22 @@ class StorageService {
 
   constructor() {
     if (!USE_LOCAL_STORAGE) {
-      this.s3Client = new S3Client({
+      const clientConfig: ConstructorParameters<typeof S3Client>[0] = {
         region: config.s3.region,
-        credentials: {
-          accessKeyId: config.s3.accessKeyId,
-          secretAccessKey: config.s3.secretAccessKey,
-        },
         endpoint: config.s3.endpoint,
         forcePathStyle: config.s3.forcePathStyle,
-      });
+      };
+
+      // Only set static credentials when both values are provided.
+      // Otherwise AWS SDK uses the default credential chain (IAM role, etc.).
+      if (config.s3.accessKeyId && config.s3.secretAccessKey) {
+        clientConfig.credentials = {
+          accessKeyId: config.s3.accessKeyId,
+          secretAccessKey: config.s3.secretAccessKey,
+        };
+      }
+
+      this.s3Client = new S3Client(clientConfig);
     }
     this.localStoragePath = path.join(process.cwd(), 'uploads', 'documents');
     if (USE_LOCAL_STORAGE && !fs.existsSync(this.localStoragePath)) {

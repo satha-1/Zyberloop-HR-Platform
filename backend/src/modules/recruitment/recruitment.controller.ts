@@ -8,6 +8,24 @@ import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
 import { createNotification } from '../notifications/notification.service';
 import { generateBudgetCode } from './budgetCode.service';
+import { storageService } from '../documents/services/storage.service';
+
+function sanitizeFileName(fileName: string): string {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function getCandidateResumeKey(candidateId: string, originalName: string): string {
+  const now = Date.now();
+  const safeName = sanitizeFileName(originalName);
+  return `candidates/${candidateId}/cv/${now}-${safeName}`;
+}
+
+async function resolveResumeUrl(candidate: any): Promise<string | undefined> {
+  if (candidate?.resumeStorageKey) {
+    return storageService.getPresignedUrl(candidate.resumeStorageKey);
+  }
+  return candidate?.resumeUrl;
+}
 
 // Helper function to map application status to pipeline stage
 function mapStatusToPipelineStage(status: string): string {
@@ -596,11 +614,14 @@ export const getCandidates = async (
         phone: (app.candidateId as any)?.phone || 'N/A',
         requisition_id: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
         requisitionId: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
+        position: (app.requisitionId as any)?.title || 'N/A',
         status: app.status,
         skill_match: app.skillMatch || 0,
         skillMatch: app.skillMatch || 0,
         experience_match: app.experienceMatch || 0,
         experienceMatch: app.experienceMatch || 0,
+        candidateId: (app.candidateId as any)?._id?.toString() || '',
+        hasResume: Boolean((app.candidateId as any)?.resumeStorageKey || (app.candidateId as any)?.resumeUrl),
         applied_date: app.createdAt?.toISOString() || new Date().toISOString(),
         appliedDate: app.createdAt?.toISOString() || new Date().toISOString(),
         createdAt: app.createdAt?.toISOString() || new Date().toISOString(),
@@ -626,9 +647,84 @@ export const getCandidateById = async (
       throw new AppError(404, 'Candidate application not found');
     }
 
+    const candidate = application.candidateId as any;
+    const requisition = application.requisitionId as any;
+    const resumeUrl = await resolveResumeUrl(candidate);
+
     res.json({
       success: true,
-      data: application,
+      data: {
+        id: application._id.toString(),
+        _id: application._id.toString(),
+        status: application.status,
+        source: application.source,
+        matchScore: application.matchScore,
+        skillMatch: application.skillMatch,
+        experienceMatch: application.experienceMatch,
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+        interviewHistory: application.interviewHistory || [],
+        candidate: candidate
+          ? {
+              id: candidate._id?.toString(),
+              fullName: candidate.fullName,
+              email: candidate.email,
+              phone: candidate.phone,
+              currentCompany: candidate.currentCompany,
+              experienceYears: candidate.experienceYears,
+              notes: candidate.notes,
+              resumeFileName: candidate.resumeFileName,
+              resumeMimeType: candidate.resumeMimeType,
+              resumeFileSize: candidate.resumeFileSize,
+              hasResume: Boolean(candidate.resumeStorageKey || candidate.resumeUrl),
+              resumeUrl,
+            }
+          : null,
+        requisition: requisition
+          ? {
+              id: requisition._id?.toString(),
+              title: requisition.title,
+              location: requisition.location,
+              type: requisition.type,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCandidateCvUrl = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const application = await CandidateApplication.findById(id).populate('candidateId');
+
+    if (!application) {
+      throw new AppError(404, 'Candidate application not found');
+    }
+
+    const candidate = application.candidateId as any;
+    if (!candidate) {
+      throw new AppError(404, 'Candidate not found');
+    }
+
+    const url = await resolveResumeUrl(candidate);
+    if (!url) {
+      throw new AppError(404, 'CV/Resume not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        url,
+        fileName: candidate.resumeFileName || candidate.resumeUrl || 'resume',
+        mimeType: candidate.resumeMimeType || 'application/octet-stream',
+      },
     });
   } catch (error) {
     next(error);
@@ -643,14 +739,6 @@ export const createCandidateApplication = async (
   try {
     const { requisitionId, fullName, email, phone, experienceYears, currentCompany, coverLetter } = req.body;
 
-    // Handle resume file upload if present
-    let resumeUrl: string | undefined;
-    if (req.file) {
-      resumeUrl = `/uploads/candidate-resumes/${req.file.filename}`;
-    } else if (req.body.resumeUrl) {
-      resumeUrl = req.body.resumeUrl;
-    }
-
     // Create or find candidate
     let candidate = await Candidate.findOne({ email: email.toLowerCase() });
     if (!candidate) {
@@ -658,25 +746,33 @@ export const createCandidateApplication = async (
         fullName,
         email: email.toLowerCase(),
         phone,
-        resumeUrl,
         experienceYears: experienceYears ? parseInt(experienceYears) : 0,
         currentCompany: currentCompany || undefined,
         notes: coverLetter || undefined,
         skills: [], // Can be extracted from resume later
       });
       await candidate.save();
-    } else {
-      // Update existing candidate with new resume if provided
-      if (resumeUrl) {
-        candidate.resumeUrl = resumeUrl;
-      }
-      if (fullName) candidate.fullName = fullName;
-      if (phone) candidate.phone = phone;
-      if (experienceYears) candidate.experienceYears = parseInt(experienceYears);
-      if (currentCompany) candidate.currentCompany = currentCompany;
-      if (coverLetter) candidate.notes = coverLetter;
-      await candidate.save();
     }
+
+    // Handle resume file upload if present
+    if (req.file?.buffer) {
+      const storageKey = getCandidateResumeKey(candidate._id.toString(), req.file.originalname);
+      await storageService.putObject(storageKey, req.file.buffer, req.file.mimetype);
+      candidate.resumeStorageKey = storageKey;
+      candidate.resumeUrl = undefined;
+      candidate.resumeFileName = req.file.originalname;
+      candidate.resumeMimeType = req.file.mimetype;
+      candidate.resumeFileSize = req.file.size;
+    } else if (req.body.resumeUrl) {
+      candidate.resumeUrl = req.body.resumeUrl;
+    }
+
+    if (fullName) candidate.fullName = fullName;
+    if (phone) candidate.phone = phone;
+    if (experienceYears) candidate.experienceYears = parseInt(experienceYears);
+    if (currentCompany) candidate.currentCompany = currentCompany;
+    if (coverLetter) candidate.notes = coverLetter;
+    await candidate.save();
 
     // Check if application already exists for this requisition
     const existingApplication = await CandidateApplication.findOne({
@@ -943,11 +1039,14 @@ export const getRequisitionCandidates = async (
         phone: ((app as any).candidateId as any)?.phone || 'N/A',
         requisition_id: ((app as any).requisitionId as any)?._id?.toString() || '',
         requisitionId: ((app as any).requisitionId as any)?._id?.toString() || '',
+        position: ((app as any).requisitionId as any)?.title || 'N/A',
         status: (app as any).status,
         skill_match: (app as any).skillMatch || 0,
         skillMatch: (app as any).skillMatch || 0,
         experience_match: (app as any).experienceMatch || 0,
         experienceMatch: (app as any).experienceMatch || 0,
+        candidateId: ((app as any).candidateId as any)?._id?.toString() || '',
+        hasResume: Boolean(((app as any).candidateId as any)?.resumeStorageKey || ((app as any).candidateId as any)?.resumeUrl),
         applied_date: (app as any).createdAt?.toISOString() || new Date().toISOString(),
         appliedDate: (app as any).createdAt?.toISOString() || new Date().toISOString(),
         createdAt: (app as any).createdAt?.toISOString() || new Date().toISOString(),

@@ -9,6 +9,7 @@ import {
   updateRequisitionStatus,
   getCandidates,
   getCandidateById,
+  getCandidateCvUrl,
   createCandidateApplication,
   updateCandidateApplicationStatus,
   getPublicRequisition,
@@ -42,6 +43,7 @@ recruitmentRouter.post('/requisitions/:id/approve', approveRequisition);
 recruitmentRouter.post('/requisitions/:id/publish', publishRequisition);
 recruitmentRouter.get('/candidates', getCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);
+recruitmentRouter.get('/candidates/:id/cv-url', getCandidateCvUrl);
 recruitmentRouter.patch('/applications/:id/status', updateCandidateApplicationStatus);
 recruitmentRouter.get('/hiring-managers', getHiringManagers);
 recruitmentRouter.get('/locations', getLocations);

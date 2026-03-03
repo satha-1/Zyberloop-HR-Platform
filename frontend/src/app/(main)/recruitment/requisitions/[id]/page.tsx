@@ -8,7 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { WorkdayTable, WorkdayTableColumn } from "@/app/components/ui/WorkdayTable";
 import { api } from "@/app/lib/api";
-import { ArrowLeft, Eye, Pencil, ExternalLink, Users, MapPin, Briefcase, Building2 } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, ExternalLink, Users, MapPin, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/app/components/ui/utils";
@@ -35,6 +35,7 @@ export default function RequisitionDetailPage() {
   const [allRequisitions, setAllRequisitions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
 
   useEffect(() => {
     loadRequisition();
@@ -88,6 +89,28 @@ export default function RequisitionDetailPage() {
       loadCandidates();
     } catch (error: any) {
       toast.error(error.message || "Failed to update status");
+    }
+  };
+
+  const handleViewCandidate = async (applicationId: string) => {
+    try {
+      const detail = await api.getCandidateById(applicationId);
+      setSelectedCandidate(detail);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load candidate details");
+    }
+  };
+
+  const handleViewCv = async (applicationId: string) => {
+    try {
+      const result = await api.getCandidateCvUrl(applicationId);
+      if (!result?.url) {
+        toast.error("CV not available");
+        return;
+      }
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to open CV");
     }
   };
 
@@ -239,27 +262,43 @@ export default function RequisitionDetailPage() {
       render: (row) => {
         const applicationId = row.id || row._id;
         return (
-          <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
-            <SelectTrigger className="w-32 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="APPLIED">Applied</SelectItem>
-              <SelectItem value="REVIEW">Review</SelectItem>
-              <SelectItem value="SCREENING">Screening</SelectItem>
-              <SelectItem value="ASSESSMENT">Assessment</SelectItem>
-              <SelectItem value="INTERVIEW">Interview</SelectItem>
-              <SelectItem value="HIRING_MANAGER_INTERVIEW">Hiring Manager Interview</SelectItem>
-              <SelectItem value="PRE_EMPLOYMENT_CHECK">Pre-Employment</SelectItem>
-              <SelectItem value="EMPLOYMENT_AGREEMENT">Employment Agreement</SelectItem>
-              <SelectItem value="OFFERED">Offered</SelectItem>
-              <SelectItem value="OFFER">Offer</SelectItem>
-              <SelectItem value="BACKGROUND_CHECK">Background Check</SelectItem>
-              <SelectItem value="READY_FOR_HIRE">Ready for Hire</SelectItem>
-              <SelectItem value="HIRED">Hired</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={() => handleViewCandidate(applicationId)}>
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => handleViewCv(applicationId)}
+              disabled={!row.hasResume}
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              CV
+            </Button>
+            <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="APPLIED">Applied</SelectItem>
+                <SelectItem value="REVIEW">Review</SelectItem>
+                <SelectItem value="SCREENING">Screening</SelectItem>
+                <SelectItem value="ASSESSMENT">Assessment</SelectItem>
+                <SelectItem value="INTERVIEW">Interview</SelectItem>
+                <SelectItem value="HIRING_MANAGER_INTERVIEW">Hiring Manager Interview</SelectItem>
+                <SelectItem value="PRE_EMPLOYMENT_CHECK">Pre-Employment</SelectItem>
+                <SelectItem value="EMPLOYMENT_AGREEMENT">Employment Agreement</SelectItem>
+                <SelectItem value="OFFERED">Offered</SelectItem>
+                <SelectItem value="OFFER">Offer</SelectItem>
+                <SelectItem value="BACKGROUND_CHECK">Background Check</SelectItem>
+                <SelectItem value="READY_FOR_HIRE">Ready for Hire</SelectItem>
+                <SelectItem value="HIRED">Hired</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         );
       },
     },
@@ -413,6 +452,24 @@ export default function RequisitionDetailPage() {
                 isLoading={candidatesLoading}
                 emptyMessage="No candidates found for this requisition"
               />
+              {selectedCandidate && (
+                <div className="mt-4 rounded-md border p-4 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{selectedCandidate.candidate?.fullName || "N/A"}</p>
+                      <p className="text-sm text-gray-600">{selectedCandidate.candidate?.email || "N/A"}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleViewCv(selectedCandidate.id || selectedCandidate._id)}
+                      disabled={!selectedCandidate?.candidate?.hasResume}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open CV
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
