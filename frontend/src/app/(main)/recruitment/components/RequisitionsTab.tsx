@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
-import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
+import { WorkdayTable, WorkdayTableColumn } from "@/app/components/ui/WorkdayTable";
 import { api } from "@/app/lib/api";
 import { useDepartments } from "@/app/lib/hooks";
 import { Plus, ExternalLink, Users, Eye, Pencil, Filter, Globe } from "lucide-react";
@@ -233,7 +233,6 @@ export function RequisitionsTab({
         getRowKey={(row) => row._id || row.id}
         isLoading={loading}
         emptyMessage="No requisitions found. Create your first requisition to get started."
-        headerActions={<TableToolbarActions />}
       />
     );
   };

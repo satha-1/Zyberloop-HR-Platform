@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
-import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
+import { WorkdayTable, WorkdayTableColumn } from "@/app/components/ui/WorkdayTable";
 import { api } from "@/app/lib/api";
 import { ArrowLeft, Eye, Pencil, ExternalLink, Users, MapPin, Briefcase, Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
@@ -412,7 +412,6 @@ export default function RequisitionDetailPage() {
                 getRowKey={(row) => row._id || row.id}
                 isLoading={candidatesLoading}
                 emptyMessage="No candidates found for this requisition"
-                headerActions={<TableToolbarActions />}
               />
             </CardContent>
           </Card>

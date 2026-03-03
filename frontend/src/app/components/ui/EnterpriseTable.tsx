@@ -2,9 +2,12 @@
 
 import * as React from "react";
 import { cn } from "./utils";
-import { Inbox, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Inbox, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Filter, Download, Maximize2 } from "lucide-react";
 import { Button } from "./button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
+import { Input } from "./input";
+import { Label } from "./label";
 
 export type SortDirection = "asc" | "desc" | null;
 
@@ -42,6 +45,8 @@ export type EnterpriseTableProps<T = any> = {
     pageSize?: number; // Default: 10
     showPageSizeSelector?: boolean; // Default: true
   };
+  showToolbar?: boolean; // Show filter, download, expand icons (default: true)
+  exportFileName?: string; // Custom filename for CSV export
 };
 
 export function EnterpriseTable<T = any>({
@@ -59,6 +64,8 @@ export function EnterpriseTable<T = any>({
   tableClassName,
   rowClassName,
   pagination,
+  showToolbar = true,
+  exportFileName,
 }: EnterpriseTableProps<T>) {
   const [sortColumn, setSortColumn] = React.useState<string | null>(null);
   const [sortDirection, setSortDirection] = React.useState<SortDirection>(null);
@@ -66,7 +73,10 @@ export function EnterpriseTable<T = any>({
   const [pageSize, setPageSize] = React.useState(pagination?.pageSize || 10);
   const [columnWidths, setColumnWidths] = React.useState<Record<string, number>>({});
   const [resizingColumn, setResizingColumn] = React.useState<string | null>(null);
-  const hasHeader = !!(title || subtitle || itemCountLabel || headerActions);
+  const [filterOpen, setFilterOpen] = React.useState(false);
+  const [filters, setFilters] = React.useState<Record<string, string>>({});
+  const [expanded, setExpanded] = React.useState(false);
+  const hasHeader = !!(title || subtitle || itemCountLabel || headerActions || showToolbar);
   const isPaginationEnabled = pagination?.enabled ?? false;
 
   const handleSort = (columnKey: string) => {
@@ -84,11 +94,30 @@ export function EnterpriseTable<T = any>({
     }
   };
 
+  // Apply filters
+  const filteredData = React.useMemo(() => {
+    if (Object.keys(filters).length === 0) return data;
+    
+    return data.filter((row) => {
+      return Object.entries(filters).every(([key, value]) => {
+        if (!value || value.trim() === '') return true;
+        const column = columns.find((col) => col.key === key);
+        if (!column) return true;
+        
+        const cellValue = column.render 
+          ? String(column.render(row, 0) || '')
+          : String((row as any)[key] || '');
+        
+        return cellValue.toLowerCase().includes(value.toLowerCase());
+      });
+    });
+  }, [data, filters, columns]);
+
   const sortedData = React.useMemo(() => {
-    if (!sortColumn || !sortDirection) return data;
+    if (!sortColumn || !sortDirection) return filteredData;
 
     const column = columns.find((col) => col.key === sortColumn);
-    if (!column || !column.sortable) return data;
+    if (!column || !column.sortable) return filteredData;
 
     return [...data].sort((a, b) => {
       let aValue: any;
@@ -128,7 +157,185 @@ export function EnterpriseTable<T = any>({
         return bStr.localeCompare(aStr);
       }
     });
-  }, [data, sortColumn, sortDirection, columns]);
+  }, [filteredData, sortColumn, sortDirection, columns]);
+
+  // Helper function to extract text content from React elements or values
+  const extractTextContent = React.useCallback((value: any): string => {
+    if (value == null || value === undefined) return '';
+    
+    // If it's a string or number, return it
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value);
+    }
+    
+    // If it's a boolean, return it
+    if (typeof value === 'boolean') {
+      return String(value);
+    }
+    
+    // If it's a React element, try to extract text from props
+    if (typeof value === 'object' && value !== null) {
+      // Check if it's a React element with props.children
+      if (value.props) {
+        const children = value.props.children;
+        if (children !== undefined && children !== null) {
+          if (typeof children === 'string' || typeof children === 'number') {
+            return String(children);
+          }
+          if (typeof children === 'boolean') {
+            return String(children);
+          }
+          if (Array.isArray(children)) {
+            return children
+              .map((child: any) => extractTextContent(child))
+              .filter((text: string) => text.trim() !== '')
+              .join(' ')
+              .trim();
+          }
+          if (typeof children === 'object') {
+            return extractTextContent(children);
+          }
+        }
+        
+        // Check for common props that contain text
+        if (value.props.title) return String(value.props.title);
+        if (value.props.label) return String(value.props.label);
+        if (value.props.value) return String(value.props.value);
+        if (value.props.text) return String(value.props.text);
+      }
+      
+      // Check for common object patterns (non-React objects)
+      if (value.name) return String(value.name);
+      if (value.title) return String(value.title);
+      if (value.label) return String(value.label);
+      if (value.text) return String(value.text);
+      if (value.value) return String(value.value);
+      
+      // For date objects
+      if (value instanceof Date) {
+        return value.toLocaleDateString();
+      }
+      
+      // For arrays, join elements
+      if (Array.isArray(value)) {
+        return value.map((item: any) => extractTextContent(item)).filter((t: string) => t).join(', ');
+      }
+      
+      // For nested objects, try to get a meaningful string representation
+      try {
+        const keys = Object.keys(value);
+        if (keys.length > 0 && keys.length <= 5) {
+          // For simple objects, return key-value pairs
+          return keys
+            .map(key => {
+              const val = extractTextContent(value[key]);
+              return val ? `${key}: ${val}` : null;
+            })
+            .filter(Boolean)
+            .join(', ');
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    
+    // Fallback to string conversion
+    const str = String(value);
+    // If it contains [object Object], return empty string
+    if (str.includes('[object Object]') || str.includes('[object')) {
+      return '';
+    }
+    
+    return str.trim();
+  }, []);
+
+  // CSV Download handler
+  const handleDownloadCSV = React.useCallback(() => {
+    // Get module name from title or use default
+    const moduleName = (title || 'table').toLowerCase().replace(/\s+/g, '_');
+    
+    // Get user ID from localStorage (if available)
+    let userId = 'unknown';
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        userId = user.id || user._id || user.email?.split('@')[0] || 'unknown';
+      }
+    } catch (e) {
+      // If no user in localStorage, try to get from token
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          // Extract user info from token if possible (basic approach)
+          const payload = JSON.parse(atob(token.split('.')[1] || '{}'));
+          userId = payload.userId || payload.id || payload.email?.split('@')[0] || 'unknown';
+        }
+      } catch (e2) {
+        // Keep default 'unknown'
+      }
+    }
+    
+    // Generate timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    
+    const headers = columns.map(col => col.header);
+    const rows = sortedData.map(row => 
+      columns.map(col => {
+        let value: string = '';
+        
+        // First, try to get raw value from row object (preferred - actual data)
+        const rawValue = (row as any)[col.key];
+        if (rawValue !== undefined && rawValue !== null) {
+          value = extractTextContent(rawValue);
+        }
+        
+        // If raw value is empty or not meaningful, try to extract from rendered component
+        if (!value || value.trim() === '' || value === '[object Object]') {
+          if (col.render) {
+            try {
+              const rendered = col.render(row, 0);
+              const renderedText = extractTextContent(rendered);
+              if (renderedText && renderedText.trim() !== '' && !renderedText.includes('[object')) {
+                value = renderedText;
+              }
+            } catch (e) {
+              // If rendering fails, keep the raw value
+            }
+          }
+        }
+        
+        // If still no value, use empty string
+        if (!value || value.trim() === '') {
+          value = '';
+        }
+        
+        // Clean and escape the value
+        value = value.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '').trim();
+        return `"${value}"`;
+      })
+    );
+
+    const csvContent = [
+      headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Generate filename: module_userId_timestamp.csv
+    const filename = exportFileName || `${moduleName}_${userId}_${timestamp}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [columns, sortedData, exportFileName, title, extractTextContent]);
 
   // Pagination logic
   const paginatedData = React.useMemo(() => {
@@ -181,6 +388,37 @@ export function EnterpriseTable<T = any>({
               <span className="text-xs text-gray-500 whitespace-nowrap">
                 {itemCountLabel}
               </span>
+            )}
+            {showToolbar && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setFilterOpen(true)}
+                  title="Filter"
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => handleDownloadCSV()}
+                  title="Download CSV"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setExpanded(true)}
+                  title="Expand Table"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </div>
             )}
             {headerActions && <div className="flex items-center gap-2 flex-wrap">{headerActions}</div>}
           </div>
@@ -398,6 +636,134 @@ export function EnterpriseTable<T = any>({
           </div>
         )}
       </div>
+
+      {/* Filter Dialog */}
+      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Filter Table</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {columns.map((column) => (
+              <div key={column.key} className="space-y-2">
+                <Label htmlFor={`filter-${column.key}`}>{column.header}</Label>
+                <Input
+                  id={`filter-${column.key}`}
+                  placeholder={`Filter by ${column.header.toLowerCase()}...`}
+                  value={filters[column.key] || ''}
+                  onChange={(e) => {
+                    const newFilters = { ...filters };
+                    if (e.target.value.trim() === '') {
+                      delete newFilters[column.key];
+                    } else {
+                      newFilters[column.key] = e.target.value;
+                    }
+                    setFilters(newFilters);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilters({});
+                  setCurrentPage(1);
+                }}
+              >
+                Clear All
+              </Button>
+              <Button onClick={() => setFilterOpen(false)}>Apply Filters</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Expanded Table Modal */}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="!max-w-[99vw] !w-[99vw] !max-h-[99vh] !h-[99vh] p-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+            <DialogTitle>{title || 'Table View'}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto flex-1 p-6 min-h-0">
+            <table className={cn("text-sm border-collapse w-full min-w-full", tableClassName)}>
+              <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  {columns.map((column) => (
+                    <th
+                      key={column.key}
+                      className={cn(
+                        "px-4 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide text-left align-middle border-r border-gray-200 last:border-r-0",
+                        column.align === "right" && "text-right",
+                        column.align === "center" && "text-center",
+                        column.sortable && "cursor-pointer hover:bg-gray-100"
+                      )}
+                      onClick={() => column.sortable && handleSort(column.key)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>{column.header}</span>
+                        {column.sortable && (
+                          <span className="text-gray-400">
+                            {sortColumn === column.key ? (
+                              sortDirection === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 opacity-50" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length} className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        {emptyStateIcon || <Inbox className="h-8 w-8 text-gray-400 mb-2" />}
+                        <p className="text-sm text-gray-500">{emptyStateText}</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  sortedData.map((row, index) => (
+                    <tr
+                      key={getRowKey(row, index)}
+                      className={cn(
+                        "border-b border-gray-200 last:border-b-0 hover:bg-gray-50",
+                        onRowClick && "cursor-pointer",
+                        rowClassName?.(row, index)
+                      )}
+                      onClick={() => onRowClick?.(row, index)}
+                    >
+                      {columns.map((column) => (
+                        <td
+                          key={column.key}
+                          className={cn(
+                            "px-4 py-2.5 text-sm text-gray-800 align-top border-r border-gray-200 last:border-r-0",
+                            column.align === "right" && "text-right",
+                            column.align === "center" && "text-center"
+                          )}
+                        >
+                          {column.render
+                            ? column.render(row, index)
+                            : (row as any)[column.key] ?? ""}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

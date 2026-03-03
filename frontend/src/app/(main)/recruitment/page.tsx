@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
-import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
+import { WorkdayTable, WorkdayTableColumn } from "@/app/components/ui/WorkdayTable";
 import { useDepartments } from "@/app/lib/hooks";
 import { api } from "@/app/lib/api";
 import { CreateRequisitionDialog } from "@/app/components/CreateRequisitionDialog";
@@ -171,6 +171,7 @@ export default function Recruitment() {
             </CardHeader>
             <CardContent>
               <WorkdayTable
+                title="All Candidates"
                 columns={[
                   { key: "name", header: "Name", align: "left", render: (row) => <span className="font-medium">{row.name || 'N/A'}</span> },
                   { key: "email", header: "Email", align: "left" },
@@ -224,7 +225,6 @@ export default function Recruitment() {
                 data={candidates}
                 getRowKey={(row) => row._id || row.id}
                 emptyMessage="No candidates found"
-                headerActions={<TableToolbarActions />}
               />
             </CardContent>
           </Card>
