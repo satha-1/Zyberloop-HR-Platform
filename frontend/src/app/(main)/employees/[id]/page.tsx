@@ -42,6 +42,8 @@ export default function EmployeeProfile() {
 
   const [savingComp, setSavingComp] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [savingJobHistory, setSavingJobHistory] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankSaved, setBankSaved] = useState(false);
@@ -49,6 +51,7 @@ export default function EmployeeProfile() {
   const [compSaved, setCompSaved] = useState(false);
   const [basicSalaryAssignmentId, setBasicSalaryAssignmentId] = useState<string | null>(null);
   const [activeBankAccountId, setActiveBankAccountId] = useState<string | null>(null);
+  const [jobHistory, setJobHistory] = useState<any[]>([]);
 
   const [documents, setDocuments] = useState<any[]>([]);
   const [selectedDocumentType, setSelectedDocumentType] = useState("NIC");
@@ -89,6 +92,35 @@ export default function EmployeeProfile() {
     accountTypeOther: "",
     paymentMethod: "BANK_TRANSFER",
   });
+
+  const [personalEditMode, setPersonalEditMode] = useState(false);
+  const [personalSaved, setPersonalSaved] = useState(false);
+  const [personalForm, setPersonalForm] = useState({
+    gender: "",
+    maritalStatus: "",
+    nic: "",
+    nationality: "",
+    personalEmail: "",
+    personalPhone: "",
+    address: "",
+  });
+  const [originalPersonalForm, setOriginalPersonalForm] = useState({
+    gender: "",
+    maritalStatus: "",
+    nic: "",
+    nationality: "",
+    personalEmail: "",
+    personalPhone: "",
+    address: "",
+  });
+  const [newJobHistory, setNewJobHistory] = useState({
+    jobTitle: "",
+    company: "",
+    startDate: "",
+    endDate: "",
+    achievements: "",
+  });
+  const [editingJobHistoryId, setEditingJobHistoryId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!employee) return;
@@ -138,9 +170,11 @@ export default function EmployeeProfile() {
 
     const loadEffectiveDatedModules = async () => {
       try {
-        const [compAssignments, bankAccounts] = await Promise.all([
+        const [compAssignments, bankAccounts, personalData, careerData] = await Promise.all([
           api.getEmployeeCompensationComponents(id),
           api.getEmployeeBankAccounts(id),
+          api.getEmployeeProfilePersonal(id),
+          api.getEmployeeProfileCareer(id),
         ]);
         const basicAssignment = (Array.isArray(compAssignments) ? compAssignments : []).find(
           (row: any) => row.salaryComponentId?.code === "BASIC"
@@ -150,6 +184,39 @@ export default function EmployeeProfile() {
         const activeBank = (Array.isArray(bankAccounts) ? bankAccounts : []).find((row: any) => row.isPrimary) ||
           (Array.isArray(bankAccounts) ? bankAccounts[0] : null);
         setActiveBankAccountId(activeBank?._id || null);
+
+        const personal = {
+          gender: personalData?.gender || "",
+          maritalStatus: personalData?.maritalStatus || "",
+          nic: personalData?.nic || "",
+          nationality: personalData?.nationality || "",
+          personalEmail: personalData?.personalEmail || "",
+          personalPhone: personalData?.personalPhone || "",
+          address: personalData?.address || "",
+        };
+        setPersonalForm(personal);
+        setOriginalPersonalForm(personal);
+        setPersonalSaved(Boolean(
+          personal.gender ||
+            personal.maritalStatus ||
+            personal.nic ||
+            personal.nationality ||
+            personal.personalEmail ||
+            personal.personalPhone ||
+            personal.address
+        ));
+        setPersonalEditMode(
+          !(
+            personal.gender ||
+            personal.maritalStatus ||
+            personal.nic ||
+            personal.nationality ||
+            personal.personalEmail ||
+            personal.personalPhone ||
+            personal.address
+          )
+        );
+        setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
       } catch (error) {
         console.error("Failed to load effective-dated compensation/bank modules", error);
       }
@@ -197,6 +264,18 @@ export default function EmployeeProfile() {
       bankForm.accountNumber !== originalBankForm.accountNumber ||
       currentAccountType !== originalAccountType ||
       bankForm.paymentMethod !== originalBankForm.paymentMethod
+    );
+  };
+
+  const hasPersonalChanges = () => {
+    return (
+      personalForm.gender !== originalPersonalForm.gender ||
+      personalForm.maritalStatus !== originalPersonalForm.maritalStatus ||
+      personalForm.nic !== originalPersonalForm.nic ||
+      personalForm.nationality !== originalPersonalForm.nationality ||
+      personalForm.personalEmail !== originalPersonalForm.personalEmail ||
+      personalForm.personalPhone !== originalPersonalForm.personalPhone ||
+      personalForm.address !== originalPersonalForm.address
     );
   };
 
@@ -313,6 +392,51 @@ export default function EmployeeProfile() {
       toast.error(error.message || "Failed to upload document");
     } finally {
       setUploadingDoc(false);
+    }
+  };
+
+  const savePersonalDetails = async () => {
+    try {
+      setSavingPersonal(true);
+      await api.updateEmployeeProfilePersonal(id, personalForm);
+      setOriginalPersonalForm({ ...personalForm });
+      setPersonalSaved(true);
+      setPersonalEditMode(false);
+      toast.success("Personal details updated");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update personal details");
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+
+  const addJobHistory = async () => {
+    if (!newJobHistory.jobTitle || !newJobHistory.startDate) {
+      toast.error("Job Title and Start Date are required");
+      return;
+    }
+    try {
+      setSavingJobHistory(true);
+      if (editingJobHistoryId) {
+        await api.updateEmployeeProfileJobHistory(id, editingJobHistoryId, newJobHistory);
+      } else {
+        await api.createEmployeeProfileJobHistory(id, newJobHistory);
+      }
+      const careerData = await api.getEmployeeProfileCareer(id);
+      setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
+      setNewJobHistory({
+        jobTitle: "",
+        company: "",
+        startDate: "",
+        endDate: "",
+        achievements: "",
+      });
+      setEditingJobHistoryId(null);
+      toast.success(editingJobHistoryId ? "Job history updated" : "Job history added");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add job history");
+    } finally {
+      setSavingJobHistory(false);
     }
   };
 
@@ -454,6 +578,8 @@ export default function EmployeeProfile() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="compensation">Compensation</TabsTrigger>
           <TabsTrigger value="bank">Bank Details</TabsTrigger>
+          <TabsTrigger value="personal">Personal</TabsTrigger>
+          <TabsTrigger value="career">Career</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
@@ -674,6 +800,240 @@ export default function EmployeeProfile() {
                         <div>
                           <p className="font-medium text-sm">{doc.fileName || "Document"}</p>
                           <p className="text-xs text-gray-500">{doc.documentType || "OTHER"} • {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : ""}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="personal" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Gender</Label>
+                  <Select
+                    value={personalForm.gender || undefined}
+                    disabled={!personalEditMode}
+                    onValueChange={(value) => setPersonalForm((p) => ({ ...p, gender: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Non-binary">Non-binary</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Marital Status</Label>
+                  <Select
+                    value={personalForm.maritalStatus || undefined}
+                    disabled={!personalEditMode}
+                    onValueChange={(value) => setPersonalForm((p) => ({ ...p, maritalStatus: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select marital status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Single">Single</SelectItem>
+                      <SelectItem value="Married">Married</SelectItem>
+                      <SelectItem value="Divorced">Divorced</SelectItem>
+                      <SelectItem value="Widowed">Widowed</SelectItem>
+                      <SelectItem value="Separated">Separated</SelectItem>
+                      <SelectItem value="Registered Partnership">Registered Partnership</SelectItem>
+                      <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>NIC / ID</Label>
+                  <Input
+                    disabled={!personalEditMode}
+                    value={personalForm.nic}
+                    onChange={(e) => setPersonalForm((p) => ({ ...p, nic: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nationality</Label>
+                  <Input
+                    disabled={!personalEditMode}
+                    value={personalForm.nationality}
+                    onChange={(e) => setPersonalForm((p) => ({ ...p, nationality: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Personal Email</Label>
+                  <Input
+                    disabled={!personalEditMode}
+                    type="email"
+                    value={personalForm.personalEmail}
+                    onChange={(e) => setPersonalForm((p) => ({ ...p, personalEmail: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Personal Phone</Label>
+                  <Input
+                    disabled={!personalEditMode}
+                    value={personalForm.personalPhone}
+                    onChange={(e) => setPersonalForm((p) => ({ ...p, personalPhone: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Address</Label>
+                  <Input
+                    disabled={!personalEditMode}
+                    value={personalForm.address}
+                    onChange={(e) => setPersonalForm((p) => ({ ...p, address: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {personalEditMode ? (
+                  <Button
+                    onClick={savePersonalDetails}
+                    disabled={savingPersonal || !hasPersonalChanges()}
+                    className={!hasPersonalChanges() ? "opacity-60 cursor-not-allowed" : ""}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {savingPersonal ? "Saving..." : "Save Personal Details"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button disabled className="opacity-60 cursor-not-allowed">
+                      {personalSaved ? "Personal Details Saved" : "Save Personal Details"}
+                    </Button>
+                    <Button variant="outline" onClick={() => setPersonalEditMode(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="career" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Job History Timeline</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Job Title *</Label>
+                  <Input
+                    value={newJobHistory.jobTitle}
+                    onChange={(e) => setNewJobHistory((p) => ({ ...p, jobTitle: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Company</Label>
+                  <Input
+                    value={newJobHistory.company}
+                    onChange={(e) => setNewJobHistory((p) => ({ ...p, company: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Start Date *</Label>
+                  <Input
+                    type="date"
+                    value={newJobHistory.startDate}
+                    onChange={(e) => setNewJobHistory((p) => ({ ...p, startDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={newJobHistory.endDate}
+                    onChange={(e) => setNewJobHistory((p) => ({ ...p, endDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Achievements</Label>
+                  <Input
+                    value={newJobHistory.achievements}
+                    onChange={(e) => setNewJobHistory((p) => ({ ...p, achievements: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <Button onClick={addJobHistory} disabled={savingJobHistory}>
+                {savingJobHistory ? "Adding..." : "Add to Timeline"}
+              </Button>
+
+              <div className="pt-4 border-t">
+                {jobHistory.length === 0 ? (
+                  <p className="text-sm text-gray-500">No job history available.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {jobHistory.map((row: any, idx: number) => (
+                      <div key={`${row._id || idx}`} className="border rounded-md p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{row.jobTitle || "N/A"}</p>
+                          <p className="text-sm text-gray-600">{row.company || "N/A"}</p>
+                          <p className="text-xs text-gray-500">
+                            {(row.startDate ? new Date(row.startDate).toLocaleDateString() : "N/A")} -{" "}
+                            {(row.endDate ? new Date(row.endDate).toLocaleDateString() : "Current")}
+                          </p>
+                          {row.achievements && (
+                            <p className="text-sm mt-1">{row.achievements}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 self-start md:self-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingJobHistoryId(row._id || null);
+                              setNewJobHistory({
+                                jobTitle: row.jobTitle || "",
+                                company: row.company || "",
+                                startDate: row.startDate ? new Date(row.startDate).toISOString().split("T")[0] : "",
+                                endDate: row.endDate ? new Date(row.endDate).toISOString().split("T")[0] : "",
+                                achievements: row.achievements || "",
+                              });
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={async () => {
+                              if (!row._id) return;
+                              const confirmed = window.confirm("Are you sure you want to delete this job history entry?");
+                              if (!confirmed) return;
+                              try {
+                                setSavingJobHistory(true);
+                                await api.deleteEmployeeProfileJobHistory(id, row._id);
+                                const careerData = await api.getEmployeeProfileCareer(id);
+                                setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
+                                toast.success("Job history deleted");
+                              } catch (error: any) {
+                                toast.error(error.message || "Failed to delete job history");
+                              } finally {
+                                setSavingJobHistory(false);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
                     ))}

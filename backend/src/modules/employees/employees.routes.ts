@@ -30,6 +30,10 @@ import {
   getProfileCareer,
   getProfileContact,
   getProfilePersonal,
+  updateProfilePersonal,
+  createProfileJobHistory,
+  updateProfileJobHistory,
+  deleteProfileJobHistory,
   getProfilePay,
   getProfileAbsence,
   getProfileBenefits,
@@ -97,8 +101,12 @@ employeesRouter.get('/:employeeId/profile/job', getProfileJob);
 employeesRouter.get('/:employeeId/profile/compensation', getProfileCompensation);
 employeesRouter.get('/:employeeId/profile/performance', getProfilePerformance);
 employeesRouter.get('/:employeeId/profile/career', getProfileCareer);
+employeesRouter.post('/:employeeId/profile/job-history', createProfileJobHistory);
+employeesRouter.patch('/:employeeId/profile/job-history/:historyId', updateProfileJobHistory);
+employeesRouter.delete('/:employeeId/profile/job-history/:historyId', deleteProfileJobHistory);
 employeesRouter.get('/:employeeId/profile/contact', getProfileContact);
 employeesRouter.get('/:employeeId/profile/personal', getProfilePersonal);
+employeesRouter.patch('/:employeeId/profile/personal', updateProfilePersonal);
 employeesRouter.get('/:employeeId/profile/pay', getProfilePay);
 employeesRouter.get('/:employeeId/profile/absence', getProfileAbsence);
 employeesRouter.get('/:employeeId/profile/benefits', getProfileBenefits);

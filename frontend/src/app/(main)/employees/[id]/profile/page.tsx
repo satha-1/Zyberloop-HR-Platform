@@ -398,7 +398,16 @@ function SummarySection({ data, employee }: { data: any; employee: any }) {
         {data.primaryManager && (
           <div className="col-span-2">
             <p className="text-sm text-gray-500">Primary Manager</p>
-            <p className="font-medium">{data.primaryManager.name} ({data.primaryManager.employeeCode})</p>
+            {data.primaryManager.employeeId ? (
+              <Link
+                href={`/employees/${data.primaryManager.employeeId}/profile`}
+                className="font-medium text-blue-600 hover:underline"
+              >
+                {data.primaryManager.name} ({data.primaryManager.employeeCode})
+              </Link>
+            ) : (
+              <p className="font-medium">{data.primaryManager.name} ({data.primaryManager.employeeCode})</p>
+            )}
           </div>
         )}
       </div>
@@ -435,10 +444,6 @@ function JobSection({ data }: { data: any }) {
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-sm font-medium text-gray-700">FTE</span>
             <span className="text-sm text-gray-900">{data.fte || 'N/A'}</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-gray-100">
-            <span className="text-sm font-medium text-gray-700">Grade</span>
-            <span className="text-sm text-gray-900">{data.grade || 'N/A'}</span>
           </div>
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-sm font-medium text-gray-700">Location</span>
@@ -927,6 +932,15 @@ function SupportRolesTab({ data }: { data: any }) {
           if (columnKey === "assignableRole") {
             return <span className="font-medium text-gray-900">{row.assignableRole}</span>;
           }
+          if (columnKey === "workerName") {
+            return row.workerId ? (
+              <Link href={`/employees/${row.workerId}/profile`} className="text-blue-600 hover:underline font-medium">
+                {row.workerName || "N/A"}
+              </Link>
+            ) : (
+              row.workerName || "N/A"
+            );
+          }
           return row[columnKey] || "N/A";
         }}
       />
@@ -1050,7 +1064,13 @@ function ManagementChainTab({ data }: { data: any }) {
             return <span className="font-medium text-gray-900">{row.levelIndex + 1}</span>;
           }
           if (columnKey === "managerName") {
-            return <span className="font-medium text-gray-900">{row.managerName}</span>;
+            return row.managerId ? (
+              <Link href={`/employees/${row.managerId}/profile`} className="text-blue-600 hover:underline font-medium">
+                {row.managerName}
+              </Link>
+            ) : (
+              <span className="font-medium text-gray-900">{row.managerName}</span>
+            );
           }
           return row[columnKey] || "N/A";
         }}

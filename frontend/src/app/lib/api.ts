@@ -299,6 +299,33 @@ class ApiClient {
     return this.request(`/employees/${employeeId}/profile/personal`);
   }
 
+  async updateEmployeeProfilePersonal(employeeId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/profile/personal`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async createEmployeeProfileJobHistory(employeeId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/profile/job-history`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateEmployeeProfileJobHistory(employeeId: string, historyId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/profile/job-history/${historyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteEmployeeProfileJobHistory(employeeId: string, historyId: string) {
+    return this.request(`/employees/${employeeId}/profile/job-history/${historyId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getEmployeeProfilePay(employeeId: string) {
     return this.request(`/employees/${employeeId}/profile/pay`);
   }

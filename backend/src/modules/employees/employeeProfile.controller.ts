@@ -17,6 +17,7 @@ import { LeaveRequest } from '../leave/leaveRequest.model';
 import { LeaveType } from '../leave/leaveType.model';
 import { PayrollEntry } from '../payroll/payrollEntry.model';
 import { Goal, PerformanceCycle } from '../performance/performance.model';
+import { EmployeeBankAccount } from './employeeBankAccount.model';
 
 // Helper function to calculate length of service
 function calculateLengthOfService(startDate: Date, endDate?: Date): string {
@@ -88,6 +89,7 @@ export const getProfileSummary = async (
         department: (employee.departmentId as any)?.name || 'N/A',
         primaryManager: employee.managerId
           ? {
+              employeeId: (employee.managerId as any)._id?.toString(),
               name: `${(employee.managerId as any).firstName} ${(employee.managerId as any).lastName}`,
               employeeCode: (employee.managerId as any).employeeCode,
               email: (employee.managerId as any).email,
@@ -132,15 +134,15 @@ export const getProfileJob = async (
         employeeId: employee._id.toString(),
         employeeCode: employee.employeeCode,
         organization: (employee.departmentId as any)?.name || 'N/A',
-        position: employee.grade,
-        jobProfile: employee.grade, // Can be extended
+        position: employee.jobTitle || employee.grade || 'N/A',
+        jobProfile: employee.jobTitle || employee.grade || 'N/A',
         jobFamily: 'General', // Can be extended
-        employeeType: 'PERMANENT', // Can be extended
+        employeeType: (employee.employmentType || 'permanent').toUpperCase(),
         timeType: 'FULL_TIME', // Can be extended
         fte: 1.0, // Can be extended
-        grade: employee.grade,
-        level: employee.grade, // Can be extended
-        location: (employee.departmentId as any)?.name || 'N/A',
+        grade: employee.grade || 'N/A',
+        level: employee.grade || 'N/A',
+        location: employee.workLocation || (employee.departmentId as any)?.name || 'N/A',
         hireDate: serviceDates?.hireDate || employee.hireDate,
         originalHireDate: serviceDates?.originalHireDate || serviceDates?.hireDate || employee.hireDate,
         continuousServiceDate: serviceDates?.continuousServiceDate || serviceDates?.hireDate || employee.hireDate,
@@ -295,6 +297,186 @@ export const getProfileCareer = async (
   }
 };
 
+// PATCH /api/employees/:employeeId/profile/personal
+export const updateProfilePersonal = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { employeeId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      throw new AppError(400, 'Invalid employee ID');
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
+    const {
+      gender,
+      maritalStatus,
+      nic,
+      nationality,
+      personalEmail,
+      personalPhone,
+      address,
+    } = req.body || {};
+
+    let additionalData = await EmployeeAdditionalData.findOne({ employeeId });
+    if (!additionalData) {
+      additionalData = await EmployeeAdditionalData.create({
+        employeeId,
+        dataGroups: {},
+      });
+    }
+
+    const currentPersonal = (additionalData.dataGroups as any)?.personal || {};
+    additionalData.dataGroups = {
+      ...(additionalData.dataGroups || {}),
+      personal: {
+        ...currentPersonal,
+        gender: gender ?? currentPersonal.gender ?? null,
+        maritalStatus: maritalStatus ?? currentPersonal.maritalStatus ?? null,
+        nic: nic ?? currentPersonal.nic ?? null,
+        nationality: nationality ?? currentPersonal.nationality ?? null,
+        personalEmail: personalEmail ?? currentPersonal.personalEmail ?? null,
+        personalPhone: personalPhone ?? currentPersonal.personalPhone ?? employee.phone ?? null,
+        address:
+          address ??
+          currentPersonal.address ??
+          employee.currentAddress ??
+          employee.permanentAddress ??
+          employee.address ??
+          null,
+      },
+    } as any;
+    await additionalData.save();
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Personal information updated successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/employees/:employeeId/profile/job-history
+export const createProfileJobHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { employeeId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      throw new AppError(400, 'Invalid employee ID');
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
+    const { jobTitle, company, startDate, endDate, achievements, responsibilitiesText } = req.body || {};
+    if (!jobTitle || !startDate) {
+      throw new AppError(400, 'Job title and start date are required');
+    }
+
+    const jobHistory = await EmployeeJobHistory.create({
+      employeeId,
+      jobTitle,
+      company: company || employee.departmentId?.toString() || 'Company',
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      achievements: achievements || undefined,
+      responsibilitiesText: responsibilitiesText || undefined,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: jobHistory,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /api/employees/:employeeId/profile/job-history/:historyId
+export const updateProfileJobHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { employeeId, historyId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(employeeId) || !mongoose.Types.ObjectId.isValid(historyId)) {
+      throw new AppError(400, 'Invalid employee or history ID');
+    }
+
+    const jobHistory = await EmployeeJobHistory.findOne({
+      _id: historyId,
+      employeeId,
+    });
+
+    if (!jobHistory) {
+      throw new AppError(404, 'Job history entry not found');
+    }
+
+    const { jobTitle, company, startDate, endDate, achievements, responsibilitiesText } = req.body || {};
+
+    if (jobTitle !== undefined) jobHistory.jobTitle = jobTitle || jobHistory.jobTitle;
+    if (company !== undefined) jobHistory.company = company || jobHistory.company;
+    if (startDate !== undefined) jobHistory.startDate = startDate ? new Date(startDate) : jobHistory.startDate;
+    if (endDate !== undefined) jobHistory.endDate = endDate ? new Date(endDate) : undefined;
+    if (achievements !== undefined) jobHistory.achievements = achievements || undefined;
+    if (responsibilitiesText !== undefined) jobHistory.responsibilitiesText = responsibilitiesText || undefined;
+
+    await jobHistory.save();
+
+    res.json({
+      success: true,
+      data: jobHistory,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/employees/:employeeId/profile/job-history/:historyId
+export const deleteProfileJobHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { employeeId, historyId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(employeeId) || !mongoose.Types.ObjectId.isValid(historyId)) {
+      throw new AppError(400, 'Invalid employee or history ID');
+    }
+
+    const jobHistory = await EmployeeJobHistory.findOneAndDelete({
+      _id: historyId,
+      employeeId,
+    });
+
+    if (!jobHistory) {
+      throw new AppError(404, 'Job history entry not found');
+    }
+
+    res.json({
+      success: true,
+      data: { message: 'Job history entry deleted' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /api/employees/:employeeId/profile/contact
 export const getProfileContact = async (
   req: Request,
@@ -347,18 +529,37 @@ export const getProfilePersonal = async (
       throw new AppError(404, 'Employee not found');
     }
     
+    const emergencyContacts = employee.emergencyContact?.name
+      ? [
+          {
+            name: employee.emergencyContact.name,
+            relationship: employee.emergencyContact.relationship || 'N/A',
+            phone: employee.emergencyContact.phone || 'N/A',
+            email: employee.emergencyContact.email || 'N/A',
+          },
+        ]
+      : [];
+
+    const additionalData = await EmployeeAdditionalData.findOne({ employeeId }).lean();
+    const personal = (additionalData?.dataGroups as any)?.personal || {};
+
     res.json({
       success: true,
       data: {
         dateOfBirth: employee.dob,
-        gender: null, // Can be extended
-        maritalStatus: null, // Can be extended
-        nic: null, // Can be extended
-        nationality: null, // Can be extended
-        emergencyContacts: [], // Can be extended
-        personalEmail: null, // Can be extended
-        personalPhone: employee.phone,
-        address: employee.address,
+        gender: personal.gender ?? null,
+        maritalStatus: personal.maritalStatus ?? null,
+        nic: personal.nic ?? null,
+        nationality: personal.nationality ?? null,
+        emergencyContacts,
+        personalEmail: personal.personalEmail ?? employee.email ?? null,
+        personalPhone: personal.personalPhone ?? employee.phone,
+        address:
+          personal.address ??
+          employee.currentAddress ??
+          employee.permanentAddress ??
+          employee.address ??
+          null,
       },
     });
   } catch (error) {
@@ -379,9 +580,17 @@ export const getProfilePay = async (
       throw new AppError(400, 'Invalid employee ID');
     }
     
-    // Get latest payroll entry for bank account info
-    const latestPayroll = await PayrollEntry.findOne({ employeeId })
-      .sort({ createdAt: -1 });
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
+    const bankAccounts = await EmployeeBankAccount.find({
+      employeeId: new mongoose.Types.ObjectId(employeeId),
+      isActive: true,
+    })
+      .sort({ isPrimary: -1, effectiveFrom: -1 })
+      .lean();
     
     res.json({
       success: true,
@@ -389,14 +598,25 @@ export const getProfilePay = async (
         payGroup: 'DEFAULT', // Can be extended
         payFrequency: 'MONTHLY',
         payrollCurrency: 'LKR',
-        bankAccounts: [
-          {
-            bankName: 'N/A',
-            branch: 'N/A',
-            accountNumber: 'N/A',
-            isPrimary: true,
-          },
-        ],
+        bankAccounts:
+          bankAccounts.length > 0
+            ? bankAccounts.map((account: any) => ({
+                bankName: account.bankName,
+                branch: account.branchName || account.branchCode || 'N/A',
+                accountNumber: account.accountNumber,
+                isPrimary: !!account.isPrimary,
+              }))
+            : [
+                {
+                  bankName: employee?.bankDetails?.bankName || 'N/A',
+                  branch:
+                    employee?.bankDetails?.branchName ||
+                    employee?.bankDetails?.branchCode ||
+                    'N/A',
+                  accountNumber: employee?.bankDetails?.accountNumber || 'N/A',
+                  isPrimary: true,
+                },
+              ],
       },
     });
   } catch (error) {
@@ -558,14 +778,31 @@ export const getProfileAssignedRoles = async (
       throw new AppError(400, 'Invalid employee ID');
     }
     
+    const employee = await Employee.findById(employeeId).populate('departmentId', 'name');
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
     const roles = await EmployeeAssignedRole.find({ employeeId })
       .sort({ dateAssigned: -1 })
       .lean();
+
+    const fallbackRoles =
+      roles.length === 0
+        ? [
+            {
+              roleName: employee.jobTitle || 'Employee',
+              organizationName: (employee.departmentId as any)?.name || 'Organization',
+              organizationType: 'Department',
+              dateAssigned: employee.hireDate,
+            },
+          ]
+        : [];
     
     res.json({
       success: true,
       data: {
-        roles: (roles || []).map((role: any) => ({
+        roles: [...(roles || []), ...fallbackRoles].map((role: any) => ({
           roleName: role.roleName,
           organizationName: role.organizationName,
           organizationType: role.organizationType,
@@ -591,16 +828,41 @@ export const getProfileSupportRoles = async (
       throw new AppError(400, 'Invalid employee ID');
     }
     
+    const employee = await Employee.findById(employeeId)
+      .populate('departmentId', 'name')
+      .populate('managerId', 'firstName lastName');
+
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
     const roles = await EmployeeSupportRole.find({ employeeId })
       .sort({ effectiveStartDate: -1 })
       .lean();
+
+    const manager = employee.managerId as any;
+    const fallbackRoles =
+      roles.length === 0 && manager
+        ? [
+            {
+              assignableRole: 'Line Manager',
+              workerName: `${manager.firstName || ''} ${manager.lastName || ''}`.trim(),
+              workerId: manager._id?.toString(),
+              organization: (employee.departmentId as any)?.name || 'Organization',
+              roleEnabledDescription: 'Primary reporting manager',
+              effectiveStartDate: employee.hireDate,
+              effectiveEndDate: null,
+            },
+          ]
+        : [];
     
     res.json({
       success: true,
       data: {
-        roles: (roles || []).map((role: any) => ({
+        roles: [...(roles || []), ...fallbackRoles].map((role: any) => ({
           assignableRole: role.assignableRole,
           workerName: role.workerName,
+          workerId: role.workerId || null,
           organization: role.organization,
           roleEnabledDescription: role.roleEnabledDescription || 'N/A',
           effectiveStartDate: role.effectiveStartDate,
@@ -740,8 +1002,9 @@ export const getProfileManagementChain = async (
       
       chain.push({
         organizationName: (employee.departmentId as any)?.name || 'N/A',
+        managerId: manager._id?.toString(),
         managerName: `${manager.firstName} ${manager.lastName}`,
-        managerTitle: manager.grade || 'N/A',
+        managerTitle: manager.jobTitle || manager.grade || 'N/A',
         phoneNumber: manager.phone || 'N/A',
         levelIndex,
       });
