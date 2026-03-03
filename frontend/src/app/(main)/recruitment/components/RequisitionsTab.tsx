@@ -7,7 +7,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { WorkdayTable, WorkdayTableColumn, TableToolbarActions } from "@/app/components/ui/WorkdayTable";
 import { api } from "@/app/lib/api";
 import { useDepartments } from "@/app/lib/hooks";
-import { Plus, ExternalLink, Users, Eye, Pencil, Filter } from "lucide-react";
+import { Plus, ExternalLink, Users, Eye, Pencil, Filter, Globe } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { cn } from "@/app/components/ui/utils";
 import Link from "next/link";
@@ -202,8 +202,24 @@ export function RequisitionsTab({
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={() => onCopyPortalLink(row._id || row.id)} title="Copy Portal Link">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                const link = `${window.location.origin}/portal/jobs/${row._id || row.id}`;
+                window.open(link, '_blank');
+              }} 
+              title="Open Job Portal"
+            >
               <ExternalLink className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onCopyPortalLink(row._id || row.id)} 
+              title="Copy Portal Link"
+            >
+              <Globe className="h-4 w-4" />
             </Button>
           </div>
         ),
@@ -479,10 +495,6 @@ export function RequisitionsTab({
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={onCreateRequisition}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Requisition
-            </Button>
           </div>
         </CardHeader>
         <CardContent>

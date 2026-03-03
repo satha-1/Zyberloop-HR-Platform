@@ -664,6 +664,26 @@ class ApiClient {
     return data.data || data;
   }
 
+  async generateBudgetCode() {
+    return this.request('/recruitment/generate-budget-code');
+  }
+
+  async getPendingApprovals() {
+    return this.request('/recruitment/approvals/pending');
+  }
+
+  async approveRequisition(requisitionId: string) {
+    return this.request(`/recruitment/requisitions/${requisitionId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async publishRequisition(requisitionId: string) {
+    return this.request(`/recruitment/requisitions/${requisitionId}/publish`, {
+      method: 'POST',
+    });
+  }
+
   async createRequisition(data: any) {
     return this.request('/recruitment/requisitions', {
       method: 'POST',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -9,7 +9,7 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { api } from "../lib/api";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 
 interface CreateRequisitionDialogProps {
   open: boolean;
@@ -20,6 +20,7 @@ interface CreateRequisitionDialogProps {
 
 export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisition }: CreateRequisitionDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [generatingBudgetCode, setGeneratingBudgetCode] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -34,6 +35,31 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisi
     keyResponsibilities: [""],
     requirements: [""],
   });
+
+  const generateBudgetCode = useCallback(async () => {
+    setGeneratingBudgetCode(true);
+    try {
+      const result: any = await api.generateBudgetCode();
+      let code: string | undefined;
+      
+      if (typeof result === 'string') {
+        code = result;
+      } else if (result?.code) {
+        code = result.code;
+      } else if (result?.data?.code) {
+        code = result.data.code;
+      }
+      
+      if (code) {
+        setFormData((prev) => ({ ...prev, budgetCode: code }));
+      }
+    } catch (error: any) {
+      console.error("Failed to generate budget code:", error);
+      toast.error("Failed to generate budget code");
+    } finally {
+      setGeneratingBudgetCode(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -58,7 +84,7 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisi
             : [""],
         });
       } else {
-        // Reset form for new requisition
+        // Reset form for new requisition and auto-generate budget code
         setFormData({
           title: "",
           departmentId: "",
@@ -72,9 +98,10 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisi
           keyResponsibilities: [""],
           requirements: [""],
         });
+        generateBudgetCode();
       }
     }
-  }, [open, requisition]);
+  }, [open, requisition, generateBudgetCode]);
 
   const fetchDepartments = async () => {
     try {
@@ -271,12 +298,37 @@ export function CreateRequisitionDialog({ open, onOpenChange, onSuccess, requisi
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="budgetCode">Budget Code</Label>
-                <Input
-                  id="budgetCode"
-                  value={formData.budgetCode}
-                  onChange={(e) => setFormData({ ...formData, budgetCode: e.target.value })}
-                  placeholder="Optional"
-                />
+                <div className="flex gap-2">
+                  {!requisition && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={generateBudgetCode}
+                      disabled={generatingBudgetCode}
+                      className="flex-shrink-0"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${generatingBudgetCode ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
+                  <Input
+                    id="budgetCode"
+                    readOnly
+                    value={formData.budgetCode}
+                    className="bg-gray-50 cursor-not-allowed flex-1"
+                    placeholder={generatingBudgetCode ? "Generating..." : "Will be generated automatically"}
+                  />
+                </div>
+                {generatingBudgetCode && (
+                  <p className="text-xs text-blue-600 animate-pulse">
+                    Generating budget code...
+                  </p>
+                )}
+                {!requisition && !generatingBudgetCode && formData.budgetCode && (
+                  <p className="text-xs text-green-600">
+                    ✓ Budget code generated
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="estimatedSalaryBandMin">Min Salary (LKR) *</Label>

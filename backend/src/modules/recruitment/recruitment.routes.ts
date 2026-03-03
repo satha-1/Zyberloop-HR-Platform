@@ -16,6 +16,10 @@ import {
   getHiringManagers,
   getLocations,
   getRequisitionCandidates,
+  generateBudgetCodeEndpoint,
+  getPendingApprovals,
+  approveRequisition,
+  publishRequisition,
 } from './recruitment.controller';
 
 export const recruitmentRouter = Router();
@@ -27,11 +31,15 @@ recruitmentRouter.post('/public/applications', uploadCandidateResume.single('res
 
 // Protected routes
 recruitmentRouter.use(authenticate);
+recruitmentRouter.get('/generate-budget-code', generateBudgetCodeEndpoint);
 recruitmentRouter.get('/requisitions', getRequisitions);
 recruitmentRouter.get('/requisitions/:id', getRequisitionById);
 recruitmentRouter.post('/requisitions', createRequisition);
 recruitmentRouter.patch('/requisitions/:id', updateRequisition);
 recruitmentRouter.patch('/requisitions/:id/status', updateRequisitionStatus);
+recruitmentRouter.get('/approvals/pending', getPendingApprovals);
+recruitmentRouter.post('/requisitions/:id/approve', approveRequisition);
+recruitmentRouter.post('/requisitions/:id/publish', publishRequisition);
 recruitmentRouter.get('/candidates', getCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);
 recruitmentRouter.patch('/applications/:id/status', updateCandidateApplicationStatus);

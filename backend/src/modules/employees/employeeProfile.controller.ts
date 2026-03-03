@@ -18,6 +18,7 @@ import { calculateLeaveBalanceForType } from '../leave/leaveBalance.service';
 import { PayrollEntry } from '../payroll/payrollEntry.model';
 import { Goal, PerformanceCycle } from '../performance/performance.model';
 import { EmployeeBankAccount } from './employeeBankAccount.model';
+import { getCurrentJobRecord } from './jobHistory.service';
 
 // Helper function to calculate length of service
 function calculateLengthOfService(startDate: Date, endDate?: Date): string {
@@ -128,21 +129,55 @@ export const getProfileJob = async (
     
     const serviceDates = await EmployeeServiceDates.findOne({ employeeId });
     
+    // Get current job advancement record to use latest job details
+    let currentJobRecord: any = null;
+    try {
+      currentJobRecord = await getCurrentJobRecord(employeeId);
+    } catch (error) {
+      // If no job advancement record exists, fall back to employee fields
+      console.log('No job advancement record found, using employee fields');
+    }
+    
+    // Use current job advancement data if available, otherwise fall back to employee fields
+    const currentJobTitle = currentJobRecord?.jobTitle || employee.currentJobTitle || employee.jobTitle || employee.grade || 'N/A';
+    const currentDepartmentId = currentJobRecord?.departmentId?._id || currentJobRecord?.departmentId || employee.currentDepartmentId || employee.departmentId;
+    const currentEmploymentType = currentJobRecord?.employmentType || employee.currentEmploymentType || employee.employmentType || 'permanent';
+    const currentWorkLocation = currentJobRecord?.workLocation || employee.workLocation || 'N/A';
+    const currentGrade = currentJobRecord?.grade || employee.grade || 'N/A';
+    
+    // Populate department if we have an ID
+    let departmentName = 'N/A';
+    let departmentCode = 'N/A';
+    if (currentDepartmentId) {
+      if (typeof currentDepartmentId === 'object' && (currentDepartmentId as any).name) {
+        // Already populated
+        departmentName = (currentDepartmentId as any).name;
+        departmentCode = (currentDepartmentId as any).code || 'N/A';
+      } else {
+        // Need to populate
+        const dept = await mongoose.model('Department').findById(currentDepartmentId).select('name code').lean();
+        if (dept) {
+          departmentName = (dept as any).name;
+          departmentCode = (dept as any).code || 'N/A';
+        }
+      }
+    }
+    
     res.json({
       success: true,
       data: {
         employeeId: employee._id.toString(),
         employeeCode: employee.employeeCode,
-        organization: (employee.departmentId as any)?.name || 'N/A',
-        position: employee.jobTitle || employee.grade || 'N/A',
-        jobProfile: employee.jobTitle || employee.grade || 'N/A',
+        organization: departmentName,
+        position: currentJobTitle,
+        jobProfile: currentJobTitle,
         jobFamily: 'General', // Can be extended
-        employeeType: (employee.employmentType || 'permanent').toUpperCase(),
+        employeeType: currentEmploymentType.toUpperCase(),
         timeType: 'FULL_TIME', // Can be extended
         fte: 1.0, // Can be extended
-        grade: employee.grade || 'N/A',
-        level: employee.grade || 'N/A',
-        location: employee.workLocation || (employee.departmentId as any)?.name || 'N/A',
+        grade: currentGrade,
+        level: currentGrade,
+        location: currentWorkLocation !== 'N/A' ? currentWorkLocation : departmentName,
         hireDate: serviceDates?.hireDate || employee.hireDate,
         originalHireDate: serviceDates?.originalHireDate || serviceDates?.hireDate || employee.hireDate,
         continuousServiceDate: serviceDates?.continuousServiceDate || serviceDates?.hireDate || employee.hireDate,
@@ -781,18 +816,43 @@ export const getProfileAssignedRoles = async (
       throw new AppError(404, 'Employee not found');
     }
 
+    // Get current job advancement record to use latest job details
+    let currentJobRecord: any = null;
+    try {
+      currentJobRecord = await getCurrentJobRecord(employeeId);
+    } catch (error) {
+      // If no job advancement record exists, fall back to employee fields
+      console.log('No job advancement record found, using employee fields');
+    }
+
     const roles = await EmployeeAssignedRole.find({ employeeId })
       .sort({ dateAssigned: -1 })
       .lean();
+
+    // Use current job advancement data for fallback if no explicit roles exist
+    const currentJobTitle = currentJobRecord?.jobTitle || employee.currentJobTitle || employee.jobTitle || 'Employee';
+    let currentDepartmentName = 'Organization';
+    if (currentJobRecord?.departmentId) {
+      if (typeof currentJobRecord.departmentId === 'object' && (currentJobRecord.departmentId as any).name) {
+        currentDepartmentName = (currentJobRecord.departmentId as any).name;
+      } else {
+        const dept = await mongoose.model('Department').findById(currentJobRecord.departmentId).select('name').lean();
+        if (dept) {
+          currentDepartmentName = (dept as any).name;
+        }
+      }
+    } else if (employee.departmentId) {
+      currentDepartmentName = (employee.departmentId as any)?.name || 'Organization';
+    }
 
     const fallbackRoles =
       roles.length === 0
         ? [
             {
-              roleName: employee.jobTitle || 'Employee',
-              organizationName: (employee.departmentId as any)?.name || 'Organization',
+              roleName: currentJobTitle,
+              organizationName: currentDepartmentName,
               organizationType: 'Department',
-              dateAssigned: employee.hireDate,
+              dateAssigned: currentJobRecord?.effectiveFrom || employee.hireDate,
             },
           ]
         : [];

@@ -21,10 +21,18 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
   const [checkingStatus, setCheckingStatus] = useState(false);
 
   useEffect(() => {
+    if (!requisitionId) return;
+    
     api.getPublicRequisition(requisitionId)
-      .then(setRequisition)
-      .catch(() => {
-        toast.error("Requisition not found");
+      .then((data: any) => {
+        // Handle both direct data and wrapped response
+        const requisition = data?.data || data;
+        setRequisition(requisition);
+      })
+      .catch((error: any) => {
+        console.error("Error loading requisition:", error);
+        toast.error(error.message || "Job posting not found or not available");
+        setLoading(false);
       })
       .finally(() => setLoading(false));
   }, [requisitionId]);
@@ -253,6 +261,47 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
                 "You'll receive updates via email as your application progresses." :
                 "You'll receive a confirmation email at the address you provided."
               }
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading job posting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!requisition) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardContent className="py-12 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+              <svg
+                className="w-8 h-8 text-red-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mt-6">Job Not Found</h2>
+            <p className="text-gray-600 mt-4">
+              This job posting may not be available, has been closed, or the link is invalid.
             </p>
           </CardContent>
         </Card>

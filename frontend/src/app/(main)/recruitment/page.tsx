@@ -11,6 +11,7 @@ import { api } from "@/app/lib/api";
 import { CreateRequisitionDialog } from "@/app/components/CreateRequisitionDialog";
 import { ViewRequisitionDialog } from "@/app/components/ViewRequisitionDialog";
 import { RequisitionsTab } from "./components/RequisitionsTab";
+import { RequisitionApprovalsTab } from "./components/RequisitionApprovalsTab";
 import { Plus, ExternalLink, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
@@ -29,6 +30,11 @@ export default function Recruitment() {
       params.set("tab", value);
     }
     router.push(`/recruitment?${params.toString()}`, { scroll: false });
+  };
+
+  const handleRequisitionCreated = () => {
+    // After creating a requisition, it should appear in approvals tab
+    // The approvals tab will auto-refresh when opened
   };
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<string>("");
@@ -131,6 +137,7 @@ export default function Recruitment() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
+          <TabsTrigger value="approvals">Job Requisition Approvals</TabsTrigger>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
         </TabsList>
@@ -141,6 +148,14 @@ export default function Recruitment() {
             onViewRequisition={handleViewRequisition}
             onEditRequisition={handleEditRequisition}
             onCopyPortalLink={handleCopyPortalLink}
+          />
+        </TabsContent>
+
+        <TabsContent value="approvals" className="space-y-4">
+          <RequisitionApprovalsTab
+            onViewRequisition={handleViewRequisition}
+            onCopyPortalLink={handleCopyPortalLink}
+            active={activeTab === "approvals"}
           />
         </TabsContent>
 
@@ -256,6 +271,7 @@ export default function Recruitment() {
         requisition={editRequisition}
         onSuccess={() => {
           setEditRequisition(null);
+          handleRequisitionCreated();
           // Reload will be handled by RequisitionsTab component
         }}
       />

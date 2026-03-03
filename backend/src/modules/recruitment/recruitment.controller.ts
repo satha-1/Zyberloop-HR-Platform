@@ -7,6 +7,7 @@ import { Employee } from '../employees/employee.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
 import { createNotification } from '../notifications/notification.service';
+import { generateBudgetCode } from './budgetCode.service';
 
 // Helper function to map application status to pipeline stage
 function mapStatusToPipelineStage(status: string): string {
@@ -260,11 +261,10 @@ export const getPublicRequisition = async (
       throw new AppError(404, 'Job posting not found');
     }
 
-    // Allow viewing requisitions that are not CLOSED or REJECTED
-    // This allows admins to preview DRAFT and approval-stage requisitions
-    // Only block CLOSED and REJECTED from public view
-    if (requisition.status === 'CLOSED' || requisition.status === 'REJECTED') {
-      throw new AppError(404, 'Job posting is no longer available');
+    // Only allow viewing PUBLISHED requisitions on the public portal
+    // This ensures only approved and published jobs are visible to candidates
+    if (requisition.status !== 'PUBLISHED') {
+      throw new AppError(404, 'Job posting is not available. This position may not be published yet or has been closed.');
     }
 
     res.json({
@@ -283,8 +283,15 @@ export const createRequisition = async (
   next: NextFunction
 ) => {
   try {
+    // Auto-generate budget code if not provided
+    let budgetCode = req.body.budgetCode;
+    if (!budgetCode || budgetCode.trim() === '') {
+      budgetCode = await generateBudgetCode();
+    }
+
     const requisition = new Requisition({
       ...req.body,
+      budgetCode,
       createdBy: req.user!.id,
     });
     await requisition.save();
@@ -384,6 +391,168 @@ export const updateRequisitionStatus = async (
       actorName: req.user!.name || req.user!.email || 'Unknown',
       actorRoles: req.user!.roles || [],
       action: 'UPDATE',
+      module: 'Recruitment',
+      resourceType: 'requisition',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    res.json({
+      success: true,
+      data: requisition,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/recruitment/approvals/pending
+export const getPendingApprovals = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Get requisitions that need approval (DRAFT for managers, MANAGER_APPROVED for HR)
+    const userRoles = req.user!.roles || [];
+    const isManager = userRoles.some((r: string) => ['MANAGER', 'ADMIN'].includes(r));
+    const isHR = userRoles.some((r: string) => ['HR_ADMIN', 'ADMIN'].includes(r));
+
+    let statusFilter: string[] = [];
+    if (isHR) {
+      // HR can see both DRAFT (for reference) and MANAGER_APPROVED (to publish)
+      statusFilter = ['DRAFT', 'MANAGER_APPROVED'];
+    } else if (isManager) {
+      // Managers can see DRAFT requisitions to approve
+      statusFilter = ['DRAFT'];
+    } else {
+      // Others see nothing
+      statusFilter = [];
+    }
+
+    const requisitions = await Requisition.find({
+      status: { $in: statusFilter },
+    })
+      .populate('departmentId', 'name code')
+      .populate('createdBy', 'name email')
+      .populate('hiringManagerId', 'firstName lastName employeeCode')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      data: requisitions.map((req: any) => ({
+        _id: req._id,
+        id: req._id.toString(),
+        title: req.title,
+        department: req.departmentId ? {
+          id: req.departmentId._id.toString(),
+          name: req.departmentId.name,
+          code: req.departmentId.code,
+        } : null,
+        location: req.location,
+        type: req.type,
+        status: req.status,
+        budgetCode: req.budgetCode,
+        estimatedSalaryBand: req.estimatedSalaryBand,
+        createdBy: req.createdBy ? {
+          id: req.createdBy._id.toString(),
+          name: req.createdBy.name || req.createdBy.email,
+        } : null,
+        hiringManager: req.hiringManagerId ? {
+          id: req.hiringManagerId._id.toString(),
+          name: `${req.hiringManagerId.firstName || ''} ${req.hiringManagerId.lastName || ''}`.trim(),
+          code: req.hiringManagerId.employeeCode,
+        } : null,
+        createdAt: req.createdAt,
+        updatedAt: req.updatedAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/recruitment/requisitions/:id/approve
+export const approveRequisition = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const userRoles = req.user!.roles || [];
+    const isManager = userRoles.some((r: string) => ['MANAGER', 'ADMIN'].includes(r));
+
+    if (!isManager) {
+      throw new AppError(403, 'Only managers can approve requisitions');
+    }
+
+    const requisition = await Requisition.findById(id);
+    if (!requisition) {
+      throw new AppError(404, 'Requisition not found');
+    }
+
+    if (requisition.status !== 'DRAFT') {
+      throw new AppError(400, `Cannot approve requisition in status: ${requisition.status}. Only DRAFT requisitions can be approved.`);
+    }
+
+    requisition.status = 'MANAGER_APPROVED';
+    requisition.budgetHoldFlag = true;
+    await requisition.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'APPROVE',
+      module: 'Recruitment',
+      resourceType: 'requisition',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    res.json({
+      success: true,
+      data: requisition,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/recruitment/requisitions/:id/publish
+export const publishRequisition = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const userRoles = req.user!.roles || [];
+    const isHR = userRoles.some((r: string) => ['HR_ADMIN', 'ADMIN'].includes(r));
+
+    if (!isHR) {
+      throw new AppError(403, 'Only HR admins can publish requisitions');
+    }
+
+    const requisition = await Requisition.findById(id);
+    if (!requisition) {
+      throw new AppError(404, 'Requisition not found');
+    }
+
+    if (requisition.status !== 'MANAGER_APPROVED') {
+      throw new AppError(400, `Cannot publish requisition in status: ${requisition.status}. Only MANAGER_APPROVED requisitions can be published.`);
+    }
+
+    requisition.status = 'PUBLISHED';
+    await requisition.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'PUBLISH',
       module: 'Recruitment',
       resourceType: 'requisition',
       resourceId: id,
@@ -717,6 +886,23 @@ export const getLocations = async (
     res.json({
       success: true,
       data: locations.filter(loc => loc && loc.trim() !== ''),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/recruitment/generate-budget-code
+export const generateBudgetCodeEndpoint = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const code = await generateBudgetCode();
+    res.json({
+      success: true,
+      data: { code },
     });
   } catch (error) {
     next(error);
