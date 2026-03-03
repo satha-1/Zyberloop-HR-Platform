@@ -5,8 +5,12 @@ import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { TrendingUp, Users, DollarSign, AlertTriangle } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 
-export default function WorkforcePlanning() {
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
+function WorkforcePlanningContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "scenarios";
@@ -292,5 +296,22 @@ export default function WorkforcePlanning() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function WorkforcePlanning() {
+  return (
+    <Suspense fallback={
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Workforce Planning</h2>
+            <p className="text-gray-600 mt-1">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <WorkforcePlanningContent />
+    </Suspense>
   );
 }

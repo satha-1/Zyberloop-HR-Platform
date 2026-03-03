@@ -69,9 +69,10 @@ export function useLeaveRequests(params?: { status?: string }) {
       try {
         setLoading(true);
         const result = await api.getLeaveRequests(params);
-        setData(result);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -81,7 +82,10 @@ export function useLeaveRequests(params?: { status?: string }) {
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getLeaveRequests(params).then(setData).catch(setError).finally(() => setLoading(false));
+    api.getLeaveRequests(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
   }};
 }
 
@@ -95,9 +99,10 @@ export function useRequisitions(params?: { status?: string; department?: string 
       try {
         setLoading(true);
         const result = await api.getRequisitions(params);
-        setData(result);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -107,7 +112,10 @@ export function useRequisitions(params?: { status?: string; department?: string 
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getRequisitions(params).then(setData).catch(setError).finally(() => setLoading(false));
+    api.getRequisitions(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
   }};
 }
 
@@ -121,9 +129,10 @@ export function useLogs(params?: { search?: string; module?: string; action?: st
       try {
         setLoading(true);
         const result = await api.getLogs(params);
-        setData(result);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -133,7 +142,10 @@ export function useLogs(params?: { search?: string; module?: string; action?: st
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getLogs(params).then(setData).catch(setError).finally(() => setLoading(false));
+    api.getLogs(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
   }};
 }
 
@@ -234,7 +246,10 @@ export function useDepartments() {
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getDepartments().then(setData).catch(setError).finally(() => setLoading(false));
+    api.getDepartments().then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
+      setError(err as Error);
+      setData([]);
+    }).finally(() => setLoading(false));
   }};
 }
 
@@ -252,7 +267,7 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
       try {
         setLoading(true);
         const result = await api.getGoals({ employeeId, cycleId });
-        setData(result || []);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
         setData([]);
@@ -266,7 +281,7 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
   return { data, loading, error, refetch: () => {
     if (!employeeId) return;
     setLoading(true);
-    api.getGoals({ employeeId, cycleId }).then(setData).catch((err) => {
+    api.getGoals({ employeeId, cycleId }).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
       setError(err as Error);
       setData([]);
     }).finally(() => setLoading(false));
@@ -283,7 +298,7 @@ export function usePerformanceCycles() {
       try {
         setLoading(true);
         const result = await api.getPerformanceCycles();
-        setData(result || []);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
         setData([]);
@@ -296,7 +311,7 @@ export function usePerformanceCycles() {
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getPerformanceCycles().then(setData).catch((err) => {
+    api.getPerformanceCycles().then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
       setError(err as Error);
       setData([]);
     }).finally(() => setLoading(false));
@@ -312,8 +327,8 @@ export function useTemplates(params?: { docType?: string; status?: string; local
     async function fetchData() {
       try {
         setLoading(true);
-        const result = await api.getTemplates(params);
-        setData(result || []);
+        const result = await api.getDocumentTemplates(params);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
         setData([]);
@@ -326,7 +341,7 @@ export function useTemplates(params?: { docType?: string; status?: string; local
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getTemplates(params).then(setData).catch((err) => {
+    api.getDocumentTemplates(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
       setError(err as Error);
       setData([]);
     }).finally(() => setLoading(false));
@@ -343,7 +358,7 @@ export function useDocuments(params?: { docType?: string; status?: string; subje
       try {
         setLoading(true);
         const result = await api.getDocuments(params);
-        setData(result || []);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
         setData([]);
@@ -356,7 +371,7 @@ export function useDocuments(params?: { docType?: string; status?: string; subje
 
   return { data, loading, error, refetch: () => {
     setLoading(true);
-    api.getDocuments(params).then(setData).catch((err) => {
+    api.getDocuments(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
       setError(err as Error);
       setData([]);
     }).finally(() => setLoading(false));
@@ -378,9 +393,10 @@ export function useAttendanceRecords(params?: {
       try {
         setLoading(true);
         const result = await api.getAttendanceRecords(params);
-        setData(result);
+        setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -396,8 +412,11 @@ export function useAttendanceRecords(params?: {
       setLoading(true);
       api
         .getAttendanceRecords(params)
-        .then(setData)
-        .catch(setError)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
         .finally(() => setLoading(false));
     },
   };

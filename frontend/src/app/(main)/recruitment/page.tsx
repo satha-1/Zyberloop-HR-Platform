@@ -16,8 +16,12 @@ import { Plus, ExternalLink, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
 
-export default function Recruitment() {
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
+function RecruitmentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "requisitions";
@@ -282,5 +286,22 @@ export default function Recruitment() {
         requisitionId={viewRequisitionId}
       />
     </div>
+  );
+}
+
+export default function Recruitment() {
+  return (
+    <Suspense fallback={
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Recruitment</h2>
+            <p className="text-gray-600 mt-1">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <RecruitmentContent />
+    </Suspense>
   );
 }

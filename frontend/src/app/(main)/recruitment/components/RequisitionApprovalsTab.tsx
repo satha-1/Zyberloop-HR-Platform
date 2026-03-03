@@ -241,7 +241,7 @@ export function RequisitionApprovalsTab({
             columns={columns}
             data={approvals}
             getRowKey={(row) => row.id || row._id}
-            emptyMessage="No pending approvals available"
+            emptyStateText="No pending approvals available"
           />
         )}
       </CardContent>

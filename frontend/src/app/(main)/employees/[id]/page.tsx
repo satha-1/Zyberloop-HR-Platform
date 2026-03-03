@@ -178,14 +178,24 @@ export default function EmployeeProfile() {
           (Array.isArray(bankAccounts) ? bankAccounts[0] : null);
         setActiveBankAccountId(activeBank?._id || null);
 
+        const personalDataTyped = personalData as {
+          gender?: string;
+          maritalStatus?: string;
+          nic?: string;
+          nationality?: string;
+          personalEmail?: string;
+          personalPhone?: string;
+          address?: string;
+        } | null | undefined;
+
         const personal = {
-          gender: personalData?.gender || "",
-          maritalStatus: personalData?.maritalStatus || "",
-          nic: personalData?.nic || "",
-          nationality: personalData?.nationality || "",
-          personalEmail: personalData?.personalEmail || "",
-          personalPhone: personalData?.personalPhone || "",
-          address: personalData?.address || "",
+          gender: personalDataTyped?.gender || "",
+          maritalStatus: personalDataTyped?.maritalStatus || "",
+          nic: personalDataTyped?.nic || "",
+          nationality: personalDataTyped?.nationality || "",
+          personalEmail: personalDataTyped?.personalEmail || "",
+          personalPhone: personalDataTyped?.personalPhone || "",
+          address: personalDataTyped?.address || "",
         };
         setPersonalForm(personal);
         setOriginalPersonalForm(personal);
@@ -334,7 +344,7 @@ export default function EmployeeProfile() {
             salaryComponentId: basicSalaryComponent._id,
             effectiveFrom: salaryPayload.effectiveFrom,
             amount: salaryPayload.amount,
-          });
+          }) as { _id?: string } | null | undefined;
           setBasicSalaryAssignmentId(assignment?._id || null);
         }
       }
@@ -372,7 +382,7 @@ export default function EmployeeProfile() {
       if (activeBankAccountId) {
         await api.updateEmployeeBankAccount(activeBankAccountId, payload);
       } else {
-        const account = await api.createEmployeeBankAccount(id, payload);
+        const account = await api.createEmployeeBankAccount(id, payload) as { _id?: string } | null | undefined;
         setActiveBankAccountId(account?._id || null);
       }
       // Keep backward compatibility with old embedded field.
