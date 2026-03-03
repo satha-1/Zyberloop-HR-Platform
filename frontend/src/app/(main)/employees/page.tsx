@@ -5,6 +5,7 @@ import { EmployeeAvatar } from "../../components/ui/EmployeeAvatar";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
+import { cn } from "../../components/ui/utils";
 import { useEmployees, useDepartments } from "../../lib/hooks";
 import { AddEmployeeDialog } from "../../components/AddEmployeeDialog";
 import { Search, Plus, Download, Filter, Columns } from "lucide-react";
@@ -152,10 +153,10 @@ export default function Employees() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Employees</h1>
-          <p className="text-sm text-gray-600 mt-1.5">Manage your organization's workforce</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">Employees</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1.5">Manage your organization's workforce</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
@@ -171,7 +172,6 @@ export default function Employees() {
 
       <EnterpriseTable
         title="Employees"
-        subtitle="View and manage all employees in your organization"
         itemCountLabel={loading ? "Loading..." : `${filteredEmployees.length} of ${employees.length} employees`}
         headerActions={
           <div className="flex flex-col sm:flex-row gap-3">
@@ -276,10 +276,12 @@ export default function Employees() {
           const allColumns: EnterpriseTableColumn[] = [
           {
             key: "avatar",
-            header: "",
-            widthClassName: "w-12",
+            header: "Photo",
+            minWidth: 80,
+            maxWidth: 120,
             align: "center",
             sortable: false,
+            resizable: true,
             render: (employee: any) => (
               <div className="flex items-center justify-center">
                 <EmployeeAvatar
@@ -415,10 +417,12 @@ export default function Employees() {
           {
             key: "status",
             header: "Status",
+            minWidth: 100,
+            maxWidth: 120,
             sortable: true,
             sortValue: (employee: any) => employee.status || "ZZZ",
             render: (employee: any) => (
-              <Badge className={getStatusColor(employee.status)}>
+              <Badge className={cn(getStatusColor(employee.status), "whitespace-nowrap")}>
                 {employee.status?.replace("_", " ") || employee.status}
               </Badge>
             ),
@@ -486,8 +490,10 @@ export default function Employees() {
             key: "actions",
             header: "Actions",
             align: "right",
-            widthClassName: "w-20",
+            minWidth: 80,
+            maxWidth: 100,
             sortable: false,
+            resizable: false,
             render: (employee: any) => (
               <TableLink
                 href={`/employees/${employee._id || employee.id}`}
@@ -512,8 +518,8 @@ export default function Employees() {
           pageSize: 10,
           showPageSizeSelector: true,
         }}
-        className="flex flex-col"
-        tableClassName="table-fixed"
+        className="flex flex-col flex-1 min-h-0"
+        tableClassName="table-auto"
       />
 
       <AddEmployeeDialog

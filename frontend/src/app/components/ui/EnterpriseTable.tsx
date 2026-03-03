@@ -157,28 +157,32 @@ export function EnterpriseTable<T = any>({
         "w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col",
         className
       )}
-      style={isPaginationEnabled ? { height: 'calc(100vh - 250px)', maxHeight: 'calc(100vh - 250px)' } : undefined}
+      style={isPaginationEnabled ? { 
+        height: 'calc(100vh - 280px)', 
+        maxHeight: 'calc(100vh - 280px)',
+        minHeight: '500px'
+      } : undefined}
     >
       {/* Optional Header */}
       {hasHeader && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-gray-200 bg-white flex-shrink-0">
           <div className="flex-1 min-w-0">
             {title && (
-              <h3 className="text-base font-semibold text-gray-900 mb-0.5">
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-xs text-gray-500">{subtitle}</p>
+              <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">{subtitle}</p>
             )}
           </div>
-          <div className="flex items-center gap-3 ml-4">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {itemCountLabel && (
               <span className="text-xs text-gray-500 whitespace-nowrap">
                 {itemCountLabel}
               </span>
             )}
-            {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
+            {headerActions && <div className="flex items-center gap-2 flex-wrap">{headerActions}</div>}
           </div>
         </div>
       )}
@@ -198,10 +202,14 @@ export function EnterpriseTable<T = any>({
         >
           <table
             className={cn(
-              "text-sm border-collapse table-auto",
+              "text-sm border-collapse",
               tableClassName || "w-full"
             )}
-            style={{ width: '100%', tableLayout: 'auto' }}
+            style={{ 
+              width: '100%', 
+              tableLayout: 'auto',
+              borderSpacing: 0
+            }}
           >
             <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -223,14 +231,15 @@ export function EnterpriseTable<T = any>({
                       column.sortable && "cursor-pointer hover:bg-gray-100 select-none"
                     )}
                     style={{
-                      minWidth: columnWidth || column.minWidth || (column.widthClassName ? undefined : 120),
-                      maxWidth: columnWidth || column.maxWidth,
-                      width: columnWidth ? `${columnWidth}px` : undefined,
+                      minWidth: columnWidth || column.minWidth || (column.widthClassName ? undefined : 'auto'),
+                      maxWidth: columnWidth || column.maxWidth || 'none',
+                      width: columnWidth ? `${columnWidth}px` : (column.widthClassName ? undefined : 'auto'),
+                      whiteSpace: 'nowrap',
                     }}
                     onClick={() => column.sortable && handleSort(column.key)}
                   >
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="truncate">{column.header}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={column.widthClassName ? "truncate" : ""}>{column.header}</span>
                       {column.sortable && (
                         <span className="text-gray-400 flex items-center flex-shrink-0">
                           {sortColumn === column.key ? (
@@ -316,11 +325,12 @@ export function EnterpriseTable<T = any>({
                             column.cellClassName
                           )}
                           style={{
-                            minWidth: columnWidths[column.key] || column.minWidth || (column.widthClassName ? undefined : 120),
-                            maxWidth: columnWidths[column.key] || column.maxWidth,
-                            width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
+                            minWidth: columnWidths[column.key] || column.minWidth || (column.widthClassName ? undefined : 'auto'),
+                            maxWidth: columnWidths[column.key] || column.maxWidth || 'none',
+                            width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : (column.widthClassName ? undefined : 'auto'),
+                            wordBreak: column.widthClassName ? 'break-word' : 'normal',
+                            overflowWrap: column.widthClassName ? 'break-word' : 'normal',
+                            whiteSpace: column.widthClassName ? 'normal' : 'nowrap',
                           }}
                         >
                           {column.render

@@ -137,12 +137,13 @@ export default function Departments() {
           {
             key: "status",
             header: "Status",
-            widthClassName: "w-24",
+            minWidth: 120,
+            maxWidth: 150,
             render: (dept: any) => {
               const isActive = dept.status === "ACTIVE";
               return (
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                     isActive
                       ? "bg-green-100 text-green-800"
                       : "bg-gray-100 text-gray-800"
