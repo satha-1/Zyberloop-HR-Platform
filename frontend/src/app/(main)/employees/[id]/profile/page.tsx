@@ -855,8 +855,10 @@ function AbsenceSection({ data }: { data: any }) {
     { key: "beginningBalance", header: "Beginning Balance", align: "right" },
     { key: "accruedYTD", header: "Accrued YTD", align: "right" },
     { key: "takenYTD", header: "Taken YTD", align: "right" },
+    { key: "availableBalance", header: "Available", align: "right" },
     { key: "carryOver", header: "Carry Over", align: "right" },
     { key: "forfeited", header: "Forfeited", align: "right" },
+    { key: "serviceStartDate", header: "Accrual Start", align: "left" },
     { key: "balanceAsOfDate", header: "Balance As Of", align: "left" },
   ];
   
@@ -874,7 +876,10 @@ function AbsenceSection({ data }: { data: any }) {
           if (columnKey === "balanceAsOfDate" && row.balanceAsOfDate) {
             return new Date(row.balanceAsOfDate).toLocaleDateString();
           }
-          if (["beginningBalance", "accruedYTD", "takenYTD", "carryOver", "forfeited"].includes(columnKey)) {
+          if (columnKey === "serviceStartDate" && row.serviceStartDate) {
+            return new Date(row.serviceStartDate).toLocaleDateString();
+          }
+          if (["beginningBalance", "accruedYTD", "takenYTD", "availableBalance", "carryOver", "forfeited"].includes(columnKey)) {
             return (row[columnKey] || 0).toLocaleString();
           }
           return row[columnKey] || "N/A";

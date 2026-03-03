@@ -13,8 +13,8 @@ import {
   EmployeeAdditionalData,
   EmployeeBenefit,
 } from './employeeProfile.models';
-import { LeaveRequest } from '../leave/leaveRequest.model';
 import { LeaveType } from '../leave/leaveType.model';
+import { calculateLeaveBalanceForType } from '../leave/leaveBalance.service';
 import { PayrollEntry } from '../payroll/payrollEntry.model';
 import { Goal, PerformanceCycle } from '../performance/performance.model';
 import { EmployeeBankAccount } from './employeeBankAccount.model';
@@ -637,34 +637,32 @@ export const getProfileAbsence = async (
       throw new AppError(400, 'Invalid employee ID');
     }
     
-    // Get leave types and calculate balances
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new AppError(404, 'Employee not found');
+    }
+
+    // Use leave-module accrual logic so 360 balances match leave request validation
     const leaveTypes = await LeaveType.find({});
-    const leaveRequests = await LeaveRequest.find({ employeeId });
-    
     const balances = await Promise.all(
       leaveTypes.map(async (leaveType) => {
-        const requests = leaveRequests.filter(
-          (req) => req.leaveTypeId.toString() === leaveType._id.toString()
-        );
-        
-        const takenYTD = requests
-          .filter((req) => {
-            const year = new Date().getFullYear();
-            const reqYear = new Date(req.startDate).getFullYear();
-            return reqYear === year && req.status !== 'REJECTED' && req.status !== 'CANCELLED';
-          })
-          .reduce((sum, req) => sum + req.days, 0);
-        
+        const result = await calculateLeaveBalanceForType(employee as any, leaveType as any, {
+          asOfDate: new Date(),
+          casualType: 'PAID',
+        });
+
         return {
           plan: leaveType.name,
           unit: 'Days',
-          beginningBalance: leaveType.entitlementDays || 0,
-          accruedYTD: 0, // Can be calculated based on accrual rules
-          takenYTD,
+          beginningBalance: Number(result.accruedTotal.toFixed(2)),
+          accruedYTD: Number(result.accruedTotal.toFixed(2)),
+          takenYTD: Number(result.takenYTD.toFixed(2)),
           carryOver: 0,
           forfeited: 0,
+          availableBalance: Number(result.currentBalance.toFixed(2)),
+          serviceStartDate: result.joinDate,
           balanceAsOfDate: new Date(),
-          includesPendingApprovals: requests.some((req) => req.status === 'PENDING'),
+          includesPendingApprovals: result.includesPendingApprovals,
         };
       })
     );

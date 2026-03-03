@@ -3,9 +3,9 @@ import { LeaveRequest } from "./leaveRequest.model";
 import { Employee } from "../employees/employee.model";
 import { AppError } from "../../middlewares/errorHandler";
 import { createAuditLog } from "../logs/log.service";
-import mongoose from "mongoose";
 import { LeaveType } from "./leaveType.model";
 import { AttendanceRecord } from "../attendance/attendance.model";
+import { calculateLeaveBalanceForType } from "./leaveBalance.service";
 export const getLeaveRequests = async (
   req: Request,
   res: Response,
@@ -87,101 +87,22 @@ export const createLeaveRequest = async (
       throw new AppError(404, `Employee with code ${employeeCode} not found`);
     if (!leaveType) throw new AppError(404, "Leave type not found");
 
-    // Accrual logic
-    const hireDate = new Date(employee.hireDate);
-    const now = new Date();
+    const casualType = req.body.casualType || "PAID";
+    const balanceResult = await calculateLeaveBalanceForType(employee as any, leaveType as any, {
+      asOfDate: new Date(startDate || Date.now()),
+      casualType,
+    });
+    const currentBalance = balanceResult.currentBalance;
 
-    // calculate months worked
-    const monthsWorked =
-      (now.getFullYear() - hireDate.getFullYear()) * 12 +
-      (now.getMonth() - hireDate.getMonth());
-    const yearsWorked = Math.floor(monthsWorked / 12);
-
-    let totalAccrued = 0;
-    const typeCode = leaveType.code?.toUpperCase() || "";
-    const casualType = req.body.casualType || "PAID"; // Default to PAID if not provided
-
-    // Determine if this specific request even needs a balance check
     const isUnpaidCasual =
-      typeCode === "CASUAL" &&
-      (casualType === "UNPAID_AUTHORIZED" ||
-        casualType === "UNPAID_UNAUTHORIZED");
+      leaveType.code?.toUpperCase() === "CASUAL" &&
+      (casualType === "UNPAID_AUTHORIZED" || casualType === "UNPAID_UNAUTHORIZED");
 
-    let currentBalance = 0;
-
-    if (!isUnpaidCasual) {
-      if (typeCode === "CASUAL") {
-        // Casual Leave Logic:
-        // Paid Leaves: Earns 0.5 days per month worked starting from join month
-        totalAccrued = monthsWorked * 0.5;
-      } else if (typeCode === "ANNUAL" || typeCode === "SICK") {
-        // Annual and Sick Leave Logic:
-        // First year: 0 leaves
-        if (yearsWorked >= 1) {
-          // Calculate the prorated entitlement ONLY for the 2nd year based on join quarter
-          const joinMonth = hireDate.getMonth(); // 0-based (0 = Jan, 11 = Dec)
-          let secondYearEntitlement = 0;
-
-          if (joinMonth <= 2) {
-            secondYearEntitlement = 14; // Joined in Q1 (Jan - Mar)
-          } else if (joinMonth <= 5) {
-            secondYearEntitlement = 10; // Joined in Q2 (Apr - Jun)
-          } else if (joinMonth <= 8) {
-            secondYearEntitlement = 7; // Joined in Q3 (Jul - Sep)
-          } else {
-            secondYearEntitlement = 4; // Joined in Q4 (Oct - Dec)
-          }
-
-          if (yearsWorked === 1) {
-            // They are currently in their 2nd year of employment
-            totalAccrued = secondYearEntitlement;
-          } else {
-            // They are in their 3rd year or beyond
-            // They get the prorated amount from year 2, PLUS full 14 days for every year after year 2
-            const fullYearsAfterSecond = yearsWorked - 1;
-            totalAccrued = secondYearEntitlement + fullYearsAfterSecond * 14;
-          }
-        } else {
-          totalAccrued = 0;
-        }
-      } else {
-        // Default fallback for any other leave types
-        totalAccrued = monthsWorked * (leaveType.accrualRule?.perMonth || 0);
-      }
-
-      // calculate taken in that leave type
-      const takenAccrued = await LeaveRequest.aggregate([
-        {
-          $match: {
-            employeeId: employee._id,
-            leaveTypeId: new mongoose.Types.ObjectId(leaveTypeId),
-            status: "HR_APPROVED",
-          },
-        },
-        {
-          $group: { _id: null, total: { $sum: "$days" } },
-        },
-      ]);
-
-      // We need to implement the carryIn from previous year and encashedLeaves logic later
-      // For now, we will consider it as 0
-      const carryIn = 0;
-      const encashedLeaves = 0;
-
-      // Calculate current balance
-      currentBalance =
-        totalAccrued - (takenAccrued[0]?.total || 0) + carryIn - encashedLeaves;
-
-      // Check if the leave request is valid
-      if (days > currentBalance) {
-        throw new AppError(
-          400,
-          `Insufficient leave balance. Available: ${currentBalance}`,
-        );
-      }
-    } else {
-      // Logic for unpaid leaves (bypass checking earned balance)
-      currentBalance = 0;
+    if (!isUnpaidCasual && days > currentBalance) {
+      throw new AppError(
+        400,
+        `Insufficient leave balance. Available: ${currentBalance}`,
+      );
     }
 
     // The leaves that cant take in certain period and check if the leave request is valid logic go here
