@@ -178,24 +178,14 @@ export default function EmployeeProfile() {
           (Array.isArray(bankAccounts) ? bankAccounts[0] : null);
         setActiveBankAccountId(activeBank?._id || null);
 
-        const personalDataTyped = personalData as {
-          gender?: string;
-          maritalStatus?: string;
-          nic?: string;
-          nationality?: string;
-          personalEmail?: string;
-          personalPhone?: string;
-          address?: string;
-        } | null | undefined;
-
         const personal = {
-          gender: personalDataTyped?.gender || "",
-          maritalStatus: personalDataTyped?.maritalStatus || "",
-          nic: personalDataTyped?.nic || "",
-          nationality: personalDataTyped?.nationality || "",
-          personalEmail: personalDataTyped?.personalEmail || "",
-          personalPhone: personalDataTyped?.personalPhone || "",
-          address: personalDataTyped?.address || "",
+          gender: personalData?.gender || "",
+          maritalStatus: personalData?.maritalStatus || "",
+          nic: personalData?.nic || "",
+          nationality: personalData?.nationality || "",
+          personalEmail: personalData?.personalEmail || "",
+          personalPhone: personalData?.personalPhone || "",
+          address: personalData?.address || "",
         };
         setPersonalForm(personal);
         setOriginalPersonalForm(personal);

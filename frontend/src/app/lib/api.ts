@@ -295,7 +295,15 @@ class ApiClient {
     return this.request(`/employees/${employeeId}/profile/contact`);
   }
 
-  async getEmployeeProfilePersonal(employeeId: string) {
+  async getEmployeeProfilePersonal(employeeId: string): Promise<{
+    gender?: string;
+    maritalStatus?: string;
+    nic?: string;
+    nationality?: string;
+    personalEmail?: string;
+    personalPhone?: string;
+    address?: string;
+  } | null> {
     return this.request(`/employees/${employeeId}/profile/personal`);
   }
 
