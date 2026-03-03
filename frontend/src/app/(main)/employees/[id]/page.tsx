@@ -17,7 +17,8 @@ import { DocumentGenerator } from "../../../components/DocumentGenerator";
 import { EditEmployeeDialog } from "../../../components/EditEmployeeDialog";
 import { LeaveHistoryDialog } from "../../../components/LeaveHistoryDialog";
 import { AssignManagerDialog } from "../../../components/AssignManagerDialog";
-import { ArrowLeft, Mail, Phone, Briefcase, Edit, UserPlus, Save, Upload, ExternalLink } from "lucide-react";
+import { JobAdvancementDialog } from "../../../components/JobAdvancementDialog";
+import { ArrowLeft, Mail, Phone, Briefcase, Edit, UserPlus, Save, Upload, ExternalLink, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 const BANK_ACCOUNT_TYPES = ["SAVINGS", "CURRENT", "SALARY", "FIXED_DEPOSIT", "OTHER"] as const;
@@ -39,11 +40,13 @@ export default function EmployeeProfile() {
   const [editEmployeeOpen, setEditEmployeeOpen] = useState(false);
   const [leaveHistoryOpen, setLeaveHistoryOpen] = useState(false);
   const [assignManagerOpen, setAssignManagerOpen] = useState(false);
+  const [jobAdvancementOpen, setJobAdvancementOpen] = useState(false);
+  const [jobTimeline, setJobTimeline] = useState<any[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   const [savingComp, setSavingComp] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
   const [savingPersonal, setSavingPersonal] = useState(false);
-  const [savingJobHistory, setSavingJobHistory] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankSaved, setBankSaved] = useState(false);
@@ -51,7 +54,6 @@ export default function EmployeeProfile() {
   const [compSaved, setCompSaved] = useState(false);
   const [basicSalaryAssignmentId, setBasicSalaryAssignmentId] = useState<string | null>(null);
   const [activeBankAccountId, setActiveBankAccountId] = useState<string | null>(null);
-  const [jobHistory, setJobHistory] = useState<any[]>([]);
 
   const [documents, setDocuments] = useState<any[]>([]);
   const [selectedDocumentType, setSelectedDocumentType] = useState("NIC");
@@ -113,14 +115,6 @@ export default function EmployeeProfile() {
     personalPhone: "",
     address: "",
   });
-  const [newJobHistory, setNewJobHistory] = useState({
-    jobTitle: "",
-    company: "",
-    startDate: "",
-    endDate: "",
-    achievements: "",
-  });
-  const [editingJobHistoryId, setEditingJobHistoryId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!employee) return;
@@ -170,11 +164,10 @@ export default function EmployeeProfile() {
 
     const loadEffectiveDatedModules = async () => {
       try {
-        const [compAssignments, bankAccounts, personalData, careerData] = await Promise.all([
+        const [compAssignments, bankAccounts, personalData] = await Promise.all([
           api.getEmployeeCompensationComponents(id),
           api.getEmployeeBankAccounts(id),
           api.getEmployeeProfilePersonal(id),
-          api.getEmployeeProfileCareer(id),
         ]);
         const basicAssignment = (Array.isArray(compAssignments) ? compAssignments : []).find(
           (row: any) => row.salaryComponentId?.code === "BASIC"
@@ -216,7 +209,6 @@ export default function EmployeeProfile() {
             personal.address
           )
         );
-        setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
       } catch (error) {
         console.error("Failed to load effective-dated compensation/bank modules", error);
       }
@@ -229,6 +221,27 @@ export default function EmployeeProfile() {
       loadDocuments();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (id && activeTab === "job-timeline") {
+      loadJobTimeline();
+    }
+  }, [id, activeTab]);
+
+  const loadJobTimeline = async () => {
+    if (!id) return;
+    setLoadingTimeline(true);
+    try {
+      const result: any = await api.getJobTimeline(id);
+      const data = result?.data || result || [];
+      setJobTimeline(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load job timeline:", error);
+      setJobTimeline([]);
+    } finally {
+      setLoadingTimeline(false);
+    }
+  };
 
   const loadDocuments = async () => {
     try {
@@ -410,35 +423,6 @@ export default function EmployeeProfile() {
     }
   };
 
-  const addJobHistory = async () => {
-    if (!newJobHistory.jobTitle || !newJobHistory.startDate) {
-      toast.error("Job Title and Start Date are required");
-      return;
-    }
-    try {
-      setSavingJobHistory(true);
-      if (editingJobHistoryId) {
-        await api.updateEmployeeProfileJobHistory(id, editingJobHistoryId, newJobHistory);
-      } else {
-        await api.createEmployeeProfileJobHistory(id, newJobHistory);
-      }
-      const careerData = await api.getEmployeeProfileCareer(id);
-      setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
-      setNewJobHistory({
-        jobTitle: "",
-        company: "",
-        startDate: "",
-        endDate: "",
-        achievements: "",
-      });
-      setEditingJobHistoryId(null);
-      toast.success(editingJobHistoryId ? "Job history updated" : "Job history added");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add job history");
-    } finally {
-      setSavingJobHistory(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -579,7 +563,7 @@ export default function EmployeeProfile() {
           <TabsTrigger value="compensation">Compensation</TabsTrigger>
           <TabsTrigger value="bank">Bank Details</TabsTrigger>
           <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="career">Career</TabsTrigger>
+          <TabsTrigger value="job-timeline">Job Timeline</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
@@ -925,121 +909,129 @@ export default function EmployeeProfile() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="career" className="space-y-4">
+        <TabsContent value="job-timeline" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Job History Timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Job Title *</Label>
-                  <Input
-                    value={newJobHistory.jobTitle}
-                    onChange={(e) => setNewJobHistory((p) => ({ ...p, jobTitle: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Company</Label>
-                  <Input
-                    value={newJobHistory.company}
-                    onChange={(e) => setNewJobHistory((p) => ({ ...p, company: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Start Date *</Label>
-                  <Input
-                    type="date"
-                    value={newJobHistory.startDate}
-                    onChange={(e) => setNewJobHistory((p) => ({ ...p, startDate: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Date</Label>
-                  <Input
-                    type="date"
-                    value={newJobHistory.endDate}
-                    onChange={(e) => setNewJobHistory((p) => ({ ...p, endDate: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Achievements</Label>
-                  <Input
-                    value={newJobHistory.achievements}
-                    onChange={(e) => setNewJobHistory((p) => ({ ...p, achievements: e.target.value }))}
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <CardTitle>Job Advancement Timeline</CardTitle>
+                <Button onClick={() => setJobAdvancementOpen(true)}>
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  New Job Advancement
+                </Button>
               </div>
-              <Button onClick={addJobHistory} disabled={savingJobHistory}>
-                {savingJobHistory ? "Adding..." : "Add to Timeline"}
-              </Button>
-
-              <div className="pt-4 border-t">
-                {jobHistory.length === 0 ? (
-                  <p className="text-sm text-gray-500">No job history available.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {jobHistory.map((row: any, idx: number) => (
-                      <div key={`${row._id || idx}`} className="border rounded-md p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{row.jobTitle || "N/A"}</p>
-                          <p className="text-sm text-gray-600">{row.company || "N/A"}</p>
-                          <p className="text-xs text-gray-500">
-                            {(row.startDate ? new Date(row.startDate).toLocaleDateString() : "N/A")} -{" "}
-                            {(row.endDate ? new Date(row.endDate).toLocaleDateString() : "Current")}
-                          </p>
-                          {row.achievements && (
-                            <p className="text-sm mt-1">{row.achievements}</p>
-                          )}
+            </CardHeader>
+            <CardContent>
+              {loadingTimeline ? (
+                <div className="text-center py-8 text-gray-500">Loading timeline...</div>
+              ) : jobTimeline.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No job advancement records found.</p>
+                  <p className="text-sm mt-2">Click "New Job Advancement" to record a promotion, transfer, or other job change.</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                  
+                  <div className="space-y-6">
+                    {jobTimeline.map((entry, index) => (
+                      <div key={entry.id || index} className="relative pl-12">
+                        {/* Timeline dot */}
+                        <div className="absolute left-0 top-1 w-8 h-8 bg-blue-500 rounded-full border-4 border-white flex items-center justify-center">
+                          <Calendar className="h-3 w-3 text-white" />
                         </div>
-                        <div className="flex items-center gap-2 self-start md:self-auto">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingJobHistoryId(row._id || null);
-                              setNewJobHistory({
-                                jobTitle: row.jobTitle || "",
-                                company: row.company || "",
-                                startDate: row.startDate ? new Date(row.startDate).toISOString().split("T")[0] : "",
-                                endDate: row.endDate ? new Date(row.endDate).toISOString().split("T")[0] : "",
-                                achievements: row.achievements || "",
-                              });
-                            }}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                            onClick={async () => {
-                              if (!row._id) return;
-                              const confirmed = window.confirm("Are you sure you want to delete this job history entry?");
-                              if (!confirmed) return;
-                              try {
-                                setSavingJobHistory(true);
-                                await api.deleteEmployeeProfileJobHistory(id, row._id);
-                                const careerData = await api.getEmployeeProfileCareer(id);
-                                setJobHistory(Array.isArray(careerData?.jobHistory) ? careerData.jobHistory : []);
-                                toast.success("Job history deleted");
-                              } catch (error: any) {
-                                toast.error(error.message || "Failed to delete job history");
-                              } finally {
-                                setSavingJobHistory(false);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
+                        
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="font-semibold text-lg">{entry.title}</h3>
+                              <p className="text-sm text-gray-500">
+                                {new Date(entry.effectiveFrom).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                                {entry.effectiveTo && (
+                                  <span>
+                                    {" "}→ {new Date(entry.effectiveTo).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric'
+                                    })}
+                                  </span>
+                                )}
+                                {!entry.effectiveTo && (
+                                  <Badge variant="default" className="ml-2">Current</Badge>
+                                )}
+                              </p>
+                            </div>
+                            <Badge variant="outline">{entry.actionType?.replace('_', ' ')}</Badge>
+                          </div>
+                          
+                          {entry.changes && entry.changes.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-sm font-medium text-gray-700 mb-2">Changes:</p>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                                {entry.changes.map((change: string, idx: number) => (
+                                  <li key={idx}>{change}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                            {entry.department && (
+                              <div>
+                                <span className="text-gray-500">Department: </span>
+                                <span className="font-medium">{entry.department.name} ({entry.department.code})</span>
+                              </div>
+                            )}
+                            {entry.manager && (
+                              <div>
+                                <span className="text-gray-500">Manager: </span>
+                                <span className="font-medium">{entry.manager.name} ({entry.manager.code})</span>
+                              </div>
+                            )}
+                            {entry.jobTitle && (
+                              <div>
+                                <span className="text-gray-500">Job Title: </span>
+                                <span className="font-medium">{entry.jobTitle}</span>
+                              </div>
+                            )}
+                            {entry.employmentType && (
+                              <div>
+                                <span className="text-gray-500">Employment Type: </span>
+                                <span className="font-medium">{entry.employmentType.toUpperCase()}</span>
+                              </div>
+                            )}
+                            {entry.workLocation && (
+                              <div>
+                                <span className="text-gray-500">Location: </span>
+                                <span className="font-medium">{entry.workLocation}</span>
+                              </div>
+                            )}
+                            {entry.grade && (
+                              <div>
+                                <span className="text-gray-500">Grade: </span>
+                                <span className="font-medium">{entry.grade}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {entry.notes && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Notes: </span>
+                                {entry.notes}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1102,6 +1094,16 @@ export default function EmployeeProfile() {
         onSuccess={() => {
           refetch();
           setAssignManagerOpen(false);
+        }}
+      />
+      <JobAdvancementDialog
+        open={jobAdvancementOpen}
+        onOpenChange={setJobAdvancementOpen}
+        employee={employee}
+        onSuccess={() => {
+          refetch();
+          loadJobTimeline();
+          setJobAdvancementOpen(false);
         }}
       />
 

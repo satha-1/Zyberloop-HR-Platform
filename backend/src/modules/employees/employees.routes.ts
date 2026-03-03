@@ -53,6 +53,11 @@ import {
   createEmployeeBankAccount,
   updateEmployeeBankAccount,
 } from './employeeCompensation.controller';
+import {
+  createJobAdvancement,
+  getJobTimelineEndpoint,
+  getCurrentJobRecordEndpoint,
+} from './jobHistory.controller';
 
 export const employeesRouter = Router();
 
@@ -76,6 +81,11 @@ employeesRouter.patch('/compensation/components/:assignmentId', updateEmployeeSa
 employeesRouter.get('/:employeeId/bank-accounts', getEmployeeBankAccounts);
 employeesRouter.post('/:employeeId/bank-accounts', createEmployeeBankAccount);
 employeesRouter.patch('/bank-accounts/:bankAccountId', updateEmployeeBankAccount);
+
+// Job Advancement module
+employeesRouter.post('/:employeeId/job-advancement', createJobAdvancement);
+employeesRouter.get('/:employeeId/job-timeline', getJobTimelineEndpoint);
+employeesRouter.get('/:employeeId/job-advancement/current', getCurrentJobRecordEndpoint);
 
 // Document Management
 employeesRouter.get('/:id/documents', getEmployeeDocuments);

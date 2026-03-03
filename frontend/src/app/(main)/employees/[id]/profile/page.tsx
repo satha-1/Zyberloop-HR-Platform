@@ -82,7 +82,7 @@ export default function EmployeeProfile360() {
           data = await api.getEmployeeProfilePerformance(employeeId);
           break;
         case 'career':
-          data = await api.getEmployeeProfileCareer(employeeId);
+          data = await api.getJobTimeline(employeeId);
           break;
         case 'contact':
           data = await api.getEmployeeProfileContact(employeeId);
@@ -578,36 +578,128 @@ function PerformanceSection({ data }: { data: any }) {
 }
 
 function CareerSection({ data }: { data: any }) {
-  const jobHistory = data.jobHistory || [];
-  
-  const columns: ProfileTableColumn[] = [
-    { key: "jobTitle", header: "Job Title", align: "left" },
-    { key: "company", header: "Company", align: "left" },
-    { key: "startDate", header: "Start Date", align: "left" },
-    { key: "endDate", header: "End Date", align: "left" },
-    { key: "achievements", header: "Achievements", align: "left" },
-  ];
+  // Timeline data comes as an array (already reversed from backend - most recent first)
+  const timeline = Array.isArray(data) ? data : [];
   
   return (
     <div className="space-y-6">
-      <ProfileTableSection
-        title="Job History"
-        columns={columns}
-        rows={jobHistory}
-        emptyMessage="No job history available."
-        renderCell={(columnKey, row, index) => {
-          if (columnKey === "startDate") {
-            return new Date(row.startDate).toLocaleDateString();
-          }
-          if (columnKey === "endDate") {
-            return row.endDate ? new Date(row.endDate).toLocaleDateString() : "Current";
-          }
-          if (columnKey === "jobTitle") {
-            return <span className="font-medium text-gray-900">{row.jobTitle}</span>;
-          }
-          return row[columnKey] || "N/A";
-        }}
-      />
+      <ProfileSectionCard>
+        <ProfileSectionHeader
+          title="Job Advancement Timeline"
+          subtitle="Complete job history and advancement records"
+          itemCount={timeline.length}
+        />
+        
+        {timeline.length === 0 ? (
+          <ProfileEmptyState
+            message="No job advancement records found."
+            icon={<GraduationCap className="h-8 w-8" />}
+          />
+        ) : (
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+            
+            <div className="space-y-6">
+              {timeline.map((entry: any, index: number) => (
+                <div key={entry.id || index} className="relative pl-12">
+                  {/* Timeline dot */}
+                  <div className="absolute left-0 top-1 w-8 h-8 bg-blue-500 rounded-full border-4 border-white flex items-center justify-center">
+                    <Calendar className="h-3 w-3 text-white" />
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold text-lg">{entry.title}</h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(entry.effectiveFrom).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                          {entry.effectiveTo && (
+                            <span>
+                              {" "}→ {new Date(entry.effectiveTo).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          )}
+                          {!entry.effectiveTo && (
+                            <Badge variant="default" className="ml-2">Current</Badge>
+                          )}
+                        </p>
+                      </div>
+                      <Badge variant="outline">{entry.actionType?.replace('_', ' ')}</Badge>
+                    </div>
+                    
+                    {entry.changes && entry.changes.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Changes:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                          {entry.changes.map((change: string, idx: number) => (
+                            <li key={idx}>{change}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      {entry.department && (
+                        <div>
+                          <span className="text-gray-500">Department: </span>
+                          <span className="font-medium">{entry.department.name} ({entry.department.code})</span>
+                        </div>
+                      )}
+                      {entry.manager && (
+                        <div>
+                          <span className="text-gray-500">Manager: </span>
+                          <span className="font-medium">{entry.manager.name} ({entry.manager.code})</span>
+                        </div>
+                      )}
+                      {entry.jobTitle && (
+                        <div>
+                          <span className="text-gray-500">Job Title: </span>
+                          <span className="font-medium">{entry.jobTitle}</span>
+                        </div>
+                      )}
+                      {entry.employmentType && (
+                        <div>
+                          <span className="text-gray-500">Employment Type: </span>
+                          <span className="font-medium">{entry.employmentType.toUpperCase()}</span>
+                        </div>
+                      )}
+                      {entry.workLocation && (
+                        <div>
+                          <span className="text-gray-500">Location: </span>
+                          <span className="font-medium">{entry.workLocation}</span>
+                        </div>
+                      )}
+                      {entry.grade && (
+                        <div>
+                          <span className="text-gray-500">Grade: </span>
+                          <span className="font-medium">{entry.grade}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {entry.notes && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">Notes: </span>
+                          {entry.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </ProfileSectionCard>
     </div>
   );
 }
@@ -983,6 +1075,46 @@ function AdditionalDataTab({ data }: { data: any }) {
   const dataGroups = data.dataGroups || {};
   const groupCount = Object.keys(dataGroups).length;
   
+  // Helper function to render data in a readable format
+  const renderDataValue = (value: any, indent: number = 0): JSX.Element => {
+    const indentClass = `pl-${indent * 4}`;
+    
+    if (value === null || value === undefined) {
+      return <span className="text-gray-400">null</span>;
+    }
+    
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return <span className="text-gray-900">{String(value)}</span>;
+    }
+    
+    if (Array.isArray(value)) {
+      return (
+        <div className={`${indentClass} space-y-2`}>
+          {value.map((item, idx) => (
+            <div key={idx} className="border-l-2 border-gray-300 pl-3">
+              {renderDataValue(item, indent + 1)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    if (typeof value === 'object') {
+      return (
+        <div className={`${indentClass} space-y-2`}>
+          {Object.entries(value).map(([key, val]) => (
+            <div key={key} className="border-l-2 border-gray-300 pl-3">
+              <span className="font-medium text-gray-700">{key}: </span>
+              {renderDataValue(val, indent + 1)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    return <span className="text-gray-500">{String(value)}</span>;
+  };
+  
   return (
     <ProfileSectionCard>
       <ProfileSectionHeader
@@ -996,9 +1128,9 @@ function AdditionalDataTab({ data }: { data: any }) {
           {Object.entries(dataGroups).map(([groupName, groupData]: [string, any]) => (
             <div key={groupName} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <h4 className="font-medium text-gray-900 mb-3">{groupName}</h4>
-              <pre className="text-xs bg-white p-3 rounded border border-gray-200 overflow-auto">
-                {JSON.stringify(groupData, null, 2)}
-              </pre>
+              <div className="bg-white p-4 rounded border border-gray-200">
+                {renderDataValue(groupData)}
+              </div>
             </div>
           ))}
         </div>

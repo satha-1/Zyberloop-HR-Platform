@@ -326,6 +326,22 @@ class ApiClient {
     });
   }
 
+  // Job Advancement APIs
+  async createJobAdvancement(employeeId: string, payload: any) {
+    return this.request(`/employees/${employeeId}/job-advancement`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getJobTimeline(employeeId: string) {
+    return this.request(`/employees/${employeeId}/job-timeline`);
+  }
+
+  async getCurrentJobRecord(employeeId: string) {
+    return this.request(`/employees/${employeeId}/job-advancement/current`);
+  }
+
   async getEmployeeProfilePay(employeeId: string) {
     return this.request(`/employees/${employeeId}/profile/pay`);
   }

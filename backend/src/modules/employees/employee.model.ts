@@ -23,6 +23,12 @@ export interface IEmployee extends Document {
   workLocation?: string;
   departmentId?: mongoose.Types.ObjectId;
   managerId?: mongoose.Types.ObjectId;
+  // Denormalized current fields (updated by job advancement)
+  currentDepartmentId?: mongoose.Types.ObjectId;
+  currentManagerId?: mongoose.Types.ObjectId;
+  currentJobTitle?: string;
+  currentEmploymentType?: 'permanent' | 'contract' | 'intern' | 'casual';
+  currentSalaryPackageId?: mongoose.Types.ObjectId;
   hireDate: Date;
   terminationDate?: Date;
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
@@ -144,6 +150,29 @@ const employeeSchema = new Schema<IEmployee>(
       type: Schema.Types.ObjectId,
       ref: 'Employee',
       index: true,
+    },
+    // Denormalized current fields (updated by job advancement)
+    currentDepartmentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Department',
+      index: true,
+    },
+    currentManagerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+      index: true,
+    },
+    currentJobTitle: {
+      type: String,
+      trim: true,
+    },
+    currentEmploymentType: {
+      type: String,
+      enum: ['permanent', 'contract', 'intern', 'casual'],
+    },
+    currentSalaryPackageId: {
+      type: Schema.Types.ObjectId,
+      ref: 'EmployeeSalaryComponent',
     },
     hireDate: {
       type: Date,
