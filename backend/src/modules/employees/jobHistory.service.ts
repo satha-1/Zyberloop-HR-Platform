@@ -163,11 +163,17 @@ export async function createJobChange(
     await session.commitTransaction();
 
     // Populate and return
-    return await EmployeeJobAdvancement.findById(newRecord._id)
+    const populated = await EmployeeJobAdvancement.findById(newRecord._id)
       .populate('departmentId', 'name code')
       .populate('managerId', 'firstName lastName fullName employeeCode')
       .populate('createdBy', 'firstName lastName email')
       .lean();
+    
+    if (!populated) {
+      throw new Error('Failed to retrieve created job advancement');
+    }
+    
+    return populated as any;
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -270,26 +276,26 @@ export async function getJobTimeline(employeeId: string): Promise<TimelineEntry[
     // Compare with previous record to detect changes
     if (previousRecord) {
       // Department change
-      const prevDeptId = previousRecord.departmentId?._id?.toString() || previousRecord.departmentId?.toString();
-      const currDeptId = record.departmentId?._id?.toString() || record.departmentId?.toString();
+      const prevDeptId = (previousRecord.departmentId as any)?._id?.toString() || (previousRecord.departmentId as any)?.toString();
+      const currDeptId = (record.departmentId as any)?._id?.toString() || (record.departmentId as any)?.toString();
       if (prevDeptId !== currDeptId) {
-        const prevDept = previousRecord.departmentId?.name || 'N/A';
-        const currDept = record.departmentId?.name || 'N/A';
+        const prevDept = (previousRecord.departmentId as any)?.name || 'N/A';
+        const currDept = (record.departmentId as any)?.name || 'N/A';
         changes.push(`Department: ${prevDept} → ${currDept}`);
       }
 
       // Manager change
-      const prevMgrId = previousRecord.managerId?._id?.toString() || previousRecord.managerId?.toString();
-      const currMgrId = record.managerId?._id?.toString() || record.managerId?.toString();
+      const prevMgrId = (previousRecord.managerId as any)?._id?.toString() || (previousRecord.managerId as any)?.toString();
+      const currMgrId = (record.managerId as any)?._id?.toString() || (record.managerId as any)?.toString();
       if (prevMgrId !== currMgrId) {
         const prevMgr = previousRecord.managerId
-          ? `${previousRecord.managerId.firstName || ''} ${previousRecord.managerId.lastName || ''}`.trim() ||
-            previousRecord.managerId.fullName ||
+          ? `${(previousRecord.managerId as any).firstName || ''} ${(previousRecord.managerId as any).lastName || ''}`.trim() ||
+            (previousRecord.managerId as any).fullName ||
             'N/A'
           : 'N/A';
         const currMgr = record.managerId
-          ? `${record.managerId.firstName || ''} ${record.managerId.lastName || ''}`.trim() ||
-            record.managerId.fullName ||
+          ? `${(record.managerId as any).firstName || ''} ${(record.managerId as any).lastName || ''}`.trim() ||
+            (record.managerId as any).fullName ||
             'N/A'
           : 'N/A';
         changes.push(`Manager: ${prevMgr} → ${currMgr}`);
@@ -327,7 +333,7 @@ export async function getJobTimeline(employeeId: string): Promise<TimelineEntry[
         }
         break;
       case 'TRANSFER':
-        title = `Transferred${record.departmentId ? ` to ${record.departmentId.name}` : ''}`;
+        title = `Transferred${record.departmentId ? ` to ${(record.departmentId as any).name || 'New Department'}` : ''}`;
         break;
       case 'SALARY_REVISION':
         title = 'Salary Revision';
@@ -359,19 +365,19 @@ export async function getJobTimeline(employeeId: string): Promise<TimelineEntry[
       changes,
       department: record.departmentId
         ? {
-            id: record.departmentId._id.toString(),
-            name: record.departmentId.name,
-            code: record.departmentId.code,
+            id: ((record.departmentId as any)._id?.toString()) || (record.departmentId as any).toString(),
+            name: (record.departmentId as any).name || 'N/A',
+            code: (record.departmentId as any).code || 'N/A',
           }
         : undefined,
       manager: record.managerId
         ? {
-            id: record.managerId._id.toString(),
+            id: ((record.managerId as any)._id?.toString()) || (record.managerId as any).toString(),
             name:
-              `${record.managerId.firstName || ''} ${record.managerId.lastName || ''}`.trim() ||
-              record.managerId.fullName ||
+              `${(record.managerId as any).firstName || ''} ${(record.managerId as any).lastName || ''}`.trim() ||
+              (record.managerId as any).fullName ||
               'N/A',
-            code: record.managerId.employeeCode || 'N/A',
+            code: (record.managerId as any).employeeCode || 'N/A',
           }
         : undefined,
       jobTitle: record.jobTitle,
@@ -396,11 +402,13 @@ export async function getCurrentJobRecord(employeeId: string): Promise<IEmployee
     throw new AppError(400, 'Invalid employee ID');
   }
 
-  return await EmployeeJobAdvancement.findOne({
+  const result = await EmployeeJobAdvancement.findOne({
     employeeId,
     effectiveTo: null,
   })
     .populate('departmentId', 'name code')
     .populate('managerId', 'firstName lastName fullName employeeCode')
     .lean();
+  
+  return result as any as IEmployeeJobAdvancement | null;
 }

@@ -26,6 +26,12 @@ export interface MergeContext {
       start: Date;
       end: Date;
     };
+    statutory?: {
+      epfEmployee: number;
+      epfEmployer: number;
+      etfEmployer: number;
+      tax: number;
+    };
   };
   termination?: any;
   [key: string]: any;

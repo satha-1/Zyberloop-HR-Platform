@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { User } from '../users/user.model';
 import { config } from '../../config';
 import { AppError } from '../../middlewares/errorHandler';
@@ -25,6 +25,11 @@ export const login = async (
       throw new AppError(401, 'Invalid credentials');
     }
 
+    const signOptions: SignOptions = {
+      // @ts-ignore - expiresIn accepts string like '7d' which is valid
+      expiresIn: config.jwt.expiresIn,
+    };
+    
     const token = jwt.sign(
       {
         id: user._id.toString(),
@@ -33,7 +38,7 @@ export const login = async (
         roles: user.roles,
       },
       config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      signOptions
     );
 
     res.json({

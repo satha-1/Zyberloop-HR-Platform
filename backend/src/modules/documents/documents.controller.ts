@@ -29,8 +29,8 @@ async function getQueues() {
         retryStrategy: () => null, // Don't retry if connection fails
       });
 
-      documentQueue = new Queue('document:generate', { connection });
-      bulkDocumentQueue = new Queue('document:bulkGenerate', { connection });
+      documentQueue = new Queue('document:generate', { connection: connection as any });
+      bulkDocumentQueue = new Queue('document:bulkGenerate', { connection: connection as any });
     } catch (error) {
       console.warn('BullMQ/Redis not available, document generation will be synchronous:', error);
     }
@@ -132,7 +132,7 @@ export const generateDocument = async (req: Request, res: Response, next: NextFu
         redactedPreview: { subjectType, subjectId },
       },
       artefacts: [],
-      createdBy: req.user!.id,
+      createdBy: new mongoose.Types.ObjectId(req.user!.id),
     });
 
     // Queue generation job or generate synchronously
@@ -263,7 +263,7 @@ export const bulkGenerateDocuments = async (req: Request, res: Response, next: N
       docType,
       inputsRef: {
         payrollRunId,
-        createdBy: req.user!.id,
+        createdBy: new mongoose.Types.ObjectId(req.user!.id),
       },
       status: 'QUEUED',
       progress: { total: 0, succeeded: 0, failed: 0 },

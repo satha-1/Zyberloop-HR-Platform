@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Task } from './task.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createNotification } from '../notifications/notification.service';
+import { createTask as createTaskService } from './task.service';
 
 export const getTasks = async (
   req: Request,

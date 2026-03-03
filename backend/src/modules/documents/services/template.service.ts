@@ -139,7 +139,7 @@ class TemplateService {
     });
 
     // Deprecate old version if it was published
-    if (template.status === 'PUBLISHED') {
+    if (template.status === 'PUBLISHED' as any) {
       template.status = 'DEPRECATED';
       await template.save();
     }

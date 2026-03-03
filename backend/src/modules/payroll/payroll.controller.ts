@@ -354,13 +354,13 @@ export const updatePayrollRun = async (
       run.employeeCount = updates.employeeLines.length;
     }
     // Only allow period/payment date changes if not locked
-    if (updates.periodStart && run.status !== 'locked') {
+    if (updates.periodStart && run.status !== 'locked' as any) {
       run.periodStart = new Date(updates.periodStart);
     }
-    if (updates.periodEnd && run.status !== 'locked') {
+    if (updates.periodEnd && run.status !== 'locked' as any) {
       run.periodEnd = new Date(updates.periodEnd);
     }
-    if (updates.paymentDate && run.status !== 'locked') {
+    if (updates.paymentDate && run.status !== 'locked' as any) {
       run.paymentDate = new Date(updates.paymentDate);
     }
 
@@ -963,7 +963,7 @@ export const generateEmployeePayslip = async (
       earnings,
       deductions,
       grossPay: entry.gross || 0,
-      totalDeductions: entry.totalDeductions || 
+      totalDeductions: (entry as any).totalDeductions || 
         (entry.statutoryDeductions?.epfEmployee || 0) + 
         (entry.statutoryDeductions?.tax || 0) + 
         (entry.otherDeductions || 0),

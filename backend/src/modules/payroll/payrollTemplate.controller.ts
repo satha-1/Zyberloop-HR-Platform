@@ -26,7 +26,10 @@ export const getPayrollTemplates = async (
     }
 
     if (isActive !== undefined && isActive !== 'all') {
-      query.isActive = isActive === 'true' || isActive === true;
+      const isActiveValue = typeof isActive === 'string' 
+        ? isActive === 'true' 
+        : Boolean(isActive);
+      query.isActive = isActiveValue;
     }
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -335,8 +338,8 @@ export const duplicatePayrollTemplate = async (
       isActive: false, // Duplicates are inactive by default
       effectiveFrom: new Date(),
       effectiveTo: originalTemplate.effectiveTo,
-      defaultPayItems: originalTemplate.defaultPayItems.map((item) => ({ ...item.toObject() })),
-      taxConfig: { ...originalTemplate.taxConfig.toObject() },
+      defaultPayItems: originalTemplate.defaultPayItems.map((item) => ({ ...(item as any).toObject?.() || item })),
+      taxConfig: { ...(originalTemplate.taxConfig as any).toObject?.() || originalTemplate.taxConfig },
     });
 
     await duplicate.save();

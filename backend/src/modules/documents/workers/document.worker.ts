@@ -68,7 +68,7 @@ export async function initializeDocumentWorkers() {
         }
       },
       {
-        connection,
+        connection: connection as any,
         concurrency: 5,
         limiter: {
           max: 10,
@@ -191,7 +191,7 @@ export async function initializeDocumentWorkers() {
         }
       },
       {
-        connection,
+        connection: connection as any,
         concurrency: 1,
       }
     );

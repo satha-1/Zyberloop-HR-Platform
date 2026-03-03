@@ -153,14 +153,18 @@ class DocumentService {
     }
 
     // Find artefact
-    const artefact = doc.artefacts.find((a) => a.kind === artefactKind);
+    let artefact = doc.artefacts.find((a) => a.kind === artefactKind);
     if (!artefact) {
       // Fallback to PDF_MASTER if PDF_DELIVERABLE not found
       const masterArtefact = doc.artefacts.find((a) => a.kind === 'PDF_MASTER');
       if (!masterArtefact) {
         throw new AppError(404, 'Document artefact not found');
       }
-      artefact.kind = 'PDF_MASTER';
+      artefact = { ...masterArtefact, kind: 'PDF_MASTER' };
+    }
+
+    if (!artefact) {
+      throw new AppError(404, 'Document artefact not found');
     }
 
     const ttl = expiresIn || config.documents.presignedUrlTTL;

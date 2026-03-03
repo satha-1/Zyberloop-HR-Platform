@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { templateService } from './services/template.service';
 import { createAuditLog } from '../logs/log.service';
 import { AppError } from '../../middlewares/errorHandler';
@@ -100,7 +101,7 @@ export const approveTemplate = async (req: Request, res: Response, next: NextFun
   try {
     const template = await templateService.approveTemplate(
       req.params.id,
-      req.user!.id,
+      new mongoose.Types.ObjectId(req.user!.id),
       req.user!.name || req.user!.email || 'Unknown',
       req.body.notes
     );
