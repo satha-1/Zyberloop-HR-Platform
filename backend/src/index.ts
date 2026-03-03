@@ -40,6 +40,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API Health check (matches frontend API path structure)
+app.get('/api/v1/health', (req, res) => {
+  res.status(200).json({ ok: true, service: 'zyberhr-backend' });
+});
+
 // API Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
