@@ -316,10 +316,10 @@ export default function CandidatePortal({ params }: { params: Promise<{ requisit
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">NG</span>
+              <span className="text-white font-bold text-lg">ZJ</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">NG-IHRP</h1>
+              <h1 className="text-xl font-bold text-gray-900">ZyberJR</h1>
               <p className="text-sm text-gray-600">Careers Portal</p>
             </div>
           </div>

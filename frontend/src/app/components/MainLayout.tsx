@@ -242,10 +242,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               )}
             >
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">NG</span>
+                <span className="text-white font-bold text-sm">ZJ</span>
               </div>
               <span className="font-semibold text-gray-900 whitespace-nowrap">
-                NG-IHRP
+                ZyberJR
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -481,10 +481,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {/* Logo placeholder */}
             <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                <span className="text-white font-bold text-sm">NG</span>
+                <span className="text-white font-bold text-sm">ZJ</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                NG-IHRP
+                ZyberJR
               </span>
             </div>
 
