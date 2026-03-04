@@ -13,7 +13,7 @@ import { ViewRequisitionDialog } from "@/app/components/ViewRequisitionDialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { RequisitionsTab } from "./components/RequisitionsTab";
 import { RequisitionApprovalsTab } from "./components/RequisitionApprovalsTab";
-import { Plus, ExternalLink, Users, Eye, FileText } from "lucide-react";
+import { Plus, ExternalLink, Users, Eye, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -122,6 +122,42 @@ function RecruitmentContent() {
     }
   };
 
+  const handleDownloadCv = async (applicationId: string, candidateName?: string) => {
+    try {
+      const result = await api.getCandidateCvUrl(applicationId);
+      if (!result?.url) {
+        toast.error("CV not available");
+        return;
+      }
+      
+      // Fetch the file from the pre-signed URL
+      const response = await fetch(result.url);
+      if (!response.ok) {
+        throw new Error("Failed to download CV");
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      // Use the filename from the API response, or generate one
+      const fileName = result.fileName || 
+        (candidateName ? `${candidateName.replace(/\s+/g, '_')}_CV.pdf` : `candidate_cv_${applicationId}.pdf`) ||
+        `candidate_cv_${Date.now()}.pdf`;
+      
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast.success("CV downloaded successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to download CV");
+    }
+  };
+
 
   const getCandidateStatusColor = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -198,9 +234,26 @@ function RecruitmentContent() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>All Candidates</CardTitle>
-                <Button variant="outline" size="sm" onClick={loadAllCandidates}>
-                  Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={async () => {
+                      try {
+                        await api.exportCandidates({ format: 'csv' });
+                        toast.success("Candidate export downloaded successfully!");
+                      } catch (error: any) {
+                        toast.error(error.message || "Failed to export candidates");
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={loadAllCandidates}>
+                    Refresh
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -253,11 +306,21 @@ function RecruitmentContent() {
                           size="sm"
                           className="h-8"
                           onClick={() => handleViewCv(applicationId)}
-                          title="Open CV"
+                          title="View CV"
                           disabled={!row.hasResume}
                         >
-                          <FileText className="h-4 w-4 mr-1" />
+                          <Eye className="h-4 w-4 mr-1" />
                           CV
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => handleDownloadCv(applicationId, row.name)}
+                          title="Download CV"
+                          disabled={!row.hasResume}
+                        >
+                          <Download className="h-4 w-4" />
                         </Button>
                         <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
                           <SelectTrigger className="w-32 h-8">
@@ -373,11 +436,24 @@ function RecruitmentContent() {
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
+                  variant="outline"
                   onClick={() => handleViewCv(candidateDetail.id || candidateDetail._id)}
                   disabled={!candidateDetail?.candidate?.hasResume}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
+                  <Eye className="h-4 w-4 mr-2" />
                   View CV
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDownloadCv(
+                    candidateDetail.id || candidateDetail._id,
+                    candidateDetail?.candidate?.fullName || candidateDetail?.name
+                  )}
+                  disabled={!candidateDetail?.candidate?.hasResume}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download CV
                 </Button>
               </div>
             </div>

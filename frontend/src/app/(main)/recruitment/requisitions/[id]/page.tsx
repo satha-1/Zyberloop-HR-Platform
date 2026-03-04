@@ -8,7 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { WorkdayTable, WorkdayTableColumn } from "@/app/components/ui/WorkdayTable";
 import { api } from "@/app/lib/api";
-import { ArrowLeft, Eye, Pencil, ExternalLink, Users, MapPin, FileText } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, ExternalLink, Users, MapPin, FileText, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/app/components/ui/utils";
@@ -111,6 +111,42 @@ export default function RequisitionDetailPage() {
       window.open(result.url, "_blank", "noopener,noreferrer");
     } catch (error: any) {
       toast.error(error.message || "Failed to open CV");
+    }
+  };
+
+  const handleDownloadCv = async (applicationId: string, candidateName?: string) => {
+    try {
+      const result = await api.getCandidateCvUrl(applicationId);
+      if (!result?.url) {
+        toast.error("CV not available");
+        return;
+      }
+      
+      // Fetch the file from the pre-signed URL
+      const response = await fetch(result.url);
+      if (!response.ok) {
+        throw new Error("Failed to download CV");
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      // Use the filename from the API response, or generate one
+      const fileName = result.fileName || 
+        (candidateName ? `${candidateName.replace(/\s+/g, '_')}_CV.pdf` : `candidate_cv_${applicationId}.pdf`) ||
+        `candidate_cv_${Date.now()}.pdf`;
+      
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast.success("CV downloaded successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to download CV");
     }
   };
 
@@ -272,10 +308,21 @@ export default function RequisitionDetailPage() {
               size="sm"
               className="h-8"
               onClick={() => handleViewCv(applicationId)}
+              title="View CV"
               disabled={!row.hasResume}
             >
-              <FileText className="h-4 w-4 mr-1" />
+              <Eye className="h-4 w-4 mr-1" />
               CV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => handleDownloadCv(applicationId, row.name)}
+              title="Download CV"
+              disabled={!row.hasResume}
+            >
+              <Download className="h-4 w-4" />
             </Button>
             <Select value={row.status} onValueChange={(newStatus) => handleStatusUpdate(applicationId, newStatus)}>
               <SelectTrigger className="w-32 h-8">
@@ -442,7 +489,24 @@ export default function RequisitionDetailPage() {
           {/* Candidates Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Candidates</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Candidates</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={async () => {
+                    try {
+                      await api.exportCandidates({ requisitionId, format: 'csv' });
+                      toast.success("Candidate export downloaded successfully!");
+                    } catch (error: any) {
+                      toast.error(error.message || "Failed to export candidates");
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <WorkdayTable
@@ -459,14 +523,29 @@ export default function RequisitionDetailPage() {
                       <p className="font-semibold">{selectedCandidate.candidate?.fullName || "N/A"}</p>
                       <p className="text-sm text-gray-600">{selectedCandidate.candidate?.email || "N/A"}</p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleViewCv(selectedCandidate.id || selectedCandidate._id)}
-                      disabled={!selectedCandidate?.candidate?.hasResume}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Open CV
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewCv(selectedCandidate.id || selectedCandidate._id)}
+                        disabled={!selectedCandidate?.candidate?.hasResume}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View CV
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadCv(
+                          selectedCandidate.id || selectedCandidate._id,
+                          selectedCandidate?.candidate?.fullName || selectedCandidate?.name
+                        )}
+                        disabled={!selectedCandidate?.candidate?.hasResume}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download CV
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

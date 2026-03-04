@@ -21,6 +21,7 @@ import {
   getPendingApprovals,
   approveRequisition,
   publishRequisition,
+  exportCandidates,
 } from './recruitment.controller';
 
 export const recruitmentRouter = Router();
@@ -42,6 +43,7 @@ recruitmentRouter.get('/approvals/pending', getPendingApprovals);
 recruitmentRouter.post('/requisitions/:id/approve', approveRequisition);
 recruitmentRouter.post('/requisitions/:id/publish', publishRequisition);
 recruitmentRouter.get('/candidates', getCandidates);
+recruitmentRouter.get('/candidates/export', exportCandidates);
 recruitmentRouter.get('/candidates/:id', getCandidateById);
 recruitmentRouter.get('/candidates/:id/cv-url', getCandidateCvUrl);
 recruitmentRouter.patch('/applications/:id/status', updateCandidateApplicationStatus);

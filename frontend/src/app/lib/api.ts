@@ -711,6 +711,48 @@ class ApiClient {
     return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);
   }
 
+  async exportCandidates(params?: { requisitionId?: string; format?: 'csv' | 'json' }) {
+    const query = new URLSearchParams(params as any).toString();
+    const url = `${this.baseUrl}/recruitment/candidates/export${query ? `?${query}` : ''}`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.error?.message || error.message || 'Request failed');
+    }
+
+    // If CSV, trigger download
+    if (params?.format === 'csv' || !params?.format) {
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') || 'candidates.csv'
+        : `candidates_${Date.now()}.csv`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      return { success: true };
+    }
+
+    // JSON format
+    const result = await response.json();
+    return result.data || result;
+  }
+
   async getCandidateById(applicationId: string) {
     return this.request(`/recruitment/candidates/${applicationId}`);
   }

@@ -288,7 +288,16 @@ Frontend runs on `http://localhost:3000`
 - **Template Editor**: Visual document template creation
 - **Document Generation**: Generate documents from templates
 - **Document Management**: Upload, view, download documents
+- **S3 Storage**: All documents stored in AWS S3 with metadata in MongoDB
 - **Signature Support**: DocuSign integration ready
+
+### ✅ File Storage & Media Management
+- **S3 Integration**: All files (CVs, photos, documents) stored in AWS S3
+- **Pre-signed URLs**: Secure, time-limited access to files (60-second expiry)
+- **Metadata Tracking**: File metadata stored in MongoDB for fast queries
+- **Candidate CV Management**: CV upload, view, and download via backend
+- **Employee Documents**: Profile pictures and documents stored in S3
+- **Export Functionality**: Candidate export with CV metadata (CSV/JSON)
 
 ### ✅ Advanced Table Features (Global)
 - **Filtering**: Column-based filtering with dialog
@@ -327,7 +336,7 @@ module-name/
 | **users** | ✅ Complete | User management |
 | **employees** | ✅ Complete | Employee master, 360 profile, job advancement |
 | **departments** | ✅ Complete | Department management with auto-codes |
-| **recruitment** | ✅ Complete | Job requisitions, candidates, approvals, public portal |
+| **recruitment** | ✅ Complete | Job requisitions, candidates, approvals, public portal, CV management, candidate export |
 | **payroll** | ✅ Complete | Enterprise payroll with EPF/ETF/APIT |
 | **leave** | ✅ Complete | Leave management with centralized balance service |
 | **documents** | ✅ Complete | Document generation & management |
@@ -422,6 +431,10 @@ module-name/
 - `POST /api/v1/recruitment/requisitions/:id/publish` - HR publish
 - `GET /api/v1/recruitment/public/requisitions/:id` - Public job posting
 - `GET /api/v1/recruitment/generate-budget-code` - Generate budget code
+- `GET /api/v1/recruitment/candidates` - List candidates (includes position, CV metadata)
+- `GET /api/v1/recruitment/candidates/:id` - Get candidate details
+- `GET /api/v1/recruitment/candidates/:id/cv-url` - Get pre-signed CV URL
+- `GET /api/v1/recruitment/candidates/export` - Export candidates with CV metadata (CSV/JSON)
 
 ### Payroll
 - `GET /api/v1/payroll/runs` - List payroll runs
@@ -523,8 +536,97 @@ Comprehensive deployment guides available:
 - **Frontend**: AWS Amplify (auto-deploys from Git)
 - **Backend**: EC2 (Ubuntu) or ECS Fargate (containerized)
 - **Database**: MongoDB Atlas (managed)
-- **File Storage**: AWS S3
+- **File Storage**: AWS S3 (private bucket with IAM role-based access)
 - **Caching**: ElastiCache (Redis) for BullMQ
+
+### File Storage Architecture (S3)
+
+The platform uses **AWS S3** for all file storage (CVs, photos, documents) with the following architecture:
+
+#### Storage Strategy
+
+1. **All Files Stored in S3**:
+   - Candidate CVs/Resumes
+   - Employee profile pictures
+   - Employee documents (NIC, contracts, certificates, etc.)
+   - Generated documents (payslips, letters, etc.)
+
+2. **Metadata in MongoDB**:
+   - File metadata (filename, size, mimeType, storage key)
+   - Owner information (employeeId, candidateId, etc.)
+   - Upload timestamps and audit trail
+
+3. **Access Pattern**:
+   - **Upload**: Frontend → Backend → S3 (backend handles upload)
+   - **View/Download**: Frontend → Backend → Pre-signed S3 URL (60-second expiry)
+   - **No Direct S3 Access**: Frontend never talks to S3 directly
+
+#### S3 Configuration
+
+**Environment Variables** (Backend `.env`):
+```bash
+S3_BUCKET=zyberhr-prod-documents
+AWS_REGION=us-east-1
+# Optional (for S3-compatible storage like MinIO):
+# S3_ENDPOINT=https://s3.amazonaws.com
+# S3_FORCE_PATH_STYLE=false
+```
+
+**IAM Permissions** (EC2 Instance Role):
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:HeadObject"
+      ],
+      "Resource": "arn:aws:s3:::zyberhr-prod-documents/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::zyberhr-prod-documents"
+    }
+  ]
+}
+```
+
+**S3 Bucket Settings**:
+- **Block Public Access**: ON (all files private)
+- **Encryption**: SSE-S3 (server-side encryption)
+- **Versioning**: Optional (recommended for compliance)
+- **Lifecycle Rules**: Optional (e.g., delete temp files after 90 days)
+
+#### File Path Structure
+
+Files are stored with organized prefixes:
+```
+prod/
+├── candidates/
+│   └── {candidateId}/
+│       └── cv/
+│           └── {timestamp}-{filename}
+├── employees/
+│   └── {employeeId}/
+│       ├── photos/
+│       │   └── {timestamp}-{filename}
+│       └── documents/
+│           └── {documentType}/
+│               └── {timestamp}-{filename}
+└── documents/
+    └── {documentId}/
+        └── {artefactKind}.pdf
+```
+
+#### Fallback Behavior
+
+- **Development**: If `S3_BUCKET` is not configured, files are stored locally in `backend/uploads/`
+- **Production**: Always uses S3 (configured via environment variables)
 
 ### Quick Deploy Commands
 

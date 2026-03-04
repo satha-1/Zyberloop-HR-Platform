@@ -600,32 +600,44 @@ export const getCandidates = async (
     }
 
     const applications = await CandidateApplication.find(query)
-      .populate('candidateId')
-      .populate('requisitionId', 'title departmentId')
+      .populate({
+        path: 'candidateId',
+        strictPopulate: false,
+      })
+      .populate({
+        path: 'requisitionId',
+        select: 'title departmentId',
+        strictPopulate: false,
+      })
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: applications.map((app) => ({
-        id: app._id.toString(),
-        _id: app._id.toString(),
-        name: (app.candidateId as any)?.fullName || 'N/A',
-        email: (app.candidateId as any)?.email || 'N/A',
-        phone: (app.candidateId as any)?.phone || 'N/A',
-        requisition_id: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
-        requisitionId: (app.requisitionId as any)?._id?.toString() || app.requisitionId?.toString() || '',
-        position: (app.requisitionId as any)?.title || 'N/A',
-        status: app.status,
-        skill_match: app.skillMatch || 0,
-        skillMatch: app.skillMatch || 0,
-        experience_match: app.experienceMatch || 0,
-        experienceMatch: app.experienceMatch || 0,
-        candidateId: (app.candidateId as any)?._id?.toString() || '',
-        hasResume: Boolean((app.candidateId as any)?.resumeStorageKey || (app.candidateId as any)?.resumeUrl),
-        applied_date: app.createdAt?.toISOString() || new Date().toISOString(),
-        appliedDate: app.createdAt?.toISOString() || new Date().toISOString(),
-        createdAt: app.createdAt?.toISOString() || new Date().toISOString(),
-      })),
+      data: applications.map((app) => {
+        const candidate = app.candidateId as any;
+        const requisition = app.requisitionId as any;
+        
+        return {
+          id: app._id.toString(),
+          _id: app._id.toString(),
+          name: candidate?.fullName || 'N/A',
+          email: candidate?.email || 'N/A',
+          phone: candidate?.phone || 'N/A',
+          requisition_id: requisition?._id?.toString() || (typeof app.requisitionId === 'string' ? app.requisitionId : '') || '',
+          requisitionId: requisition?._id?.toString() || (typeof app.requisitionId === 'string' ? app.requisitionId : '') || '',
+          position: requisition?.title || 'N/A',
+          status: app.status,
+          skill_match: app.skillMatch || 0,
+          skillMatch: app.skillMatch || 0,
+          experience_match: app.experienceMatch || 0,
+          experienceMatch: app.experienceMatch || 0,
+          candidateId: candidate?._id?.toString() || '',
+          hasResume: Boolean(candidate?.resumeStorageKey || candidate?.resumeUrl),
+          applied_date: app.createdAt?.toISOString() || new Date().toISOString(),
+          appliedDate: app.createdAt?.toISOString() || new Date().toISOString(),
+          createdAt: app.createdAt?.toISOString() || new Date().toISOString(),
+        };
+      }),
     });
   } catch (error) {
     next(error);
@@ -966,6 +978,119 @@ export const getHiringManagers = async (
       success: true,
       data: Array.from(managerMap.values()),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/recruitment/candidates/export
+export const exportCandidates = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { requisitionId, format = 'csv' } = req.query;
+    const query: any = {};
+
+    if (requisitionId) {
+      query.requisitionId = requisitionId;
+    }
+
+    const applications = await CandidateApplication.find(query)
+      .populate('candidateId')
+      .populate('requisitionId', 'title departmentId')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (format === 'csv') {
+      // Generate CSV
+      const csvRows: string[] = [];
+      
+      // CSV Header
+      csvRows.push([
+        'Application ID',
+        'Candidate Name',
+        'Email',
+        'Phone',
+        'Applied Position',
+        'Department',
+        'Status',
+        'Skill Match %',
+        'Experience Match %',
+        'Applied Date',
+        'Resume File Name',
+        'Resume File Size (bytes)',
+        'Resume Uploaded',
+        'Current Company',
+        'Experience Years',
+        'Cover Letter',
+      ].join(','));
+
+      // CSV Data Rows
+      applications.forEach((app: any) => {
+        const candidate = app.candidateId as any;
+        const requisition = app.requisitionId as any;
+        
+        const row = [
+          app._id?.toString() || '',
+          candidate?.fullName || 'N/A',
+          candidate?.email || 'N/A',
+          candidate?.phone || 'N/A',
+          requisition?.title || 'N/A',
+          requisition?.departmentId?.name || requisition?.departmentId || 'N/A',
+          app.status || 'N/A',
+          (app.skillMatch || 0).toString(),
+          (app.experienceMatch || 0).toString(),
+          app.createdAt ? new Date(app.createdAt).toISOString() : '',
+          candidate?.resumeFileName || (candidate?.resumeUrl ? 'Legacy Upload' : 'No Resume'),
+          candidate?.resumeFileSize?.toString() || '',
+          candidate?.resumeStorageKey ? 'Yes' : (candidate?.resumeUrl ? 'Yes (Legacy)' : 'No'),
+          candidate?.currentCompany || '',
+          (candidate?.experienceYears || 0).toString(),
+          candidate?.notes ? `"${candidate.notes.replace(/"/g, '""')}"` : '',
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `candidates_${req.user!.id}_${timestamp}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csvContent);
+    } else {
+      // JSON format (for API consumption)
+      res.json({
+        success: true,
+        data: applications.map((app: any) => {
+          const candidate = app.candidateId as any;
+          const requisition = app.requisitionId as any;
+          return {
+            applicationId: app._id?.toString(),
+            candidateName: candidate?.fullName || 'N/A',
+            email: candidate?.email || 'N/A',
+            phone: candidate?.phone || 'N/A',
+            appliedPosition: requisition?.title || 'N/A',
+            department: requisition?.departmentId?.name || requisition?.departmentId || 'N/A',
+            status: app.status,
+            skillMatch: app.skillMatch || 0,
+            experienceMatch: app.experienceMatch || 0,
+            appliedDate: app.createdAt,
+            resume: {
+              fileName: candidate?.resumeFileName || null,
+              fileSize: candidate?.resumeFileSize || null,
+              uploaded: !!(candidate?.resumeStorageKey || candidate?.resumeUrl),
+              storageType: candidate?.resumeStorageKey ? 'S3' : (candidate?.resumeUrl ? 'Legacy' : 'None'),
+            },
+            currentCompany: candidate?.currentCompany || null,
+            experienceYears: candidate?.experienceYears || 0,
+            coverLetter: candidate?.notes || null,
+          };
+        }),
+      });
+    }
   } catch (error) {
     next(error);
   }
