@@ -25,6 +25,7 @@ import {
   Home,
   Search,
   Printer,
+  ClipboardCheck,
 } from "lucide-react";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { TaskDropdown } from "./TaskDropdown";
@@ -86,6 +87,7 @@ const navigationSections: NavSection[] = [
     items: [
       { name: "Compensation & Payroll", href: "/payroll", icon: DollarSign },
       { name: "Leave", href: "/leave", icon: Calendar },
+      { name: "Approve Leave", href: "/leave/approve", icon: ClipboardCheck },
       { name: "Attendance", href: "/attendance", icon: Calendar },
     ],
   },

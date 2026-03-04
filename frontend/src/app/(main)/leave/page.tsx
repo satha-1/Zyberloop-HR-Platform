@@ -25,14 +25,14 @@ import {
 import { useState } from "react";
 import { useLeaveRequests } from "../../lib/hooks";
 import { api } from "../../lib/api";
-import { Plus, CheckCircle, XCircle } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ApplyLeaveDialog } from "../../components/ApplyLeaveDialog";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 
 // Force dynamic rendering to prevent static generation errors
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 function LeaveContent() {
   const searchParams = useSearchParams();
@@ -50,30 +50,6 @@ function LeaveContent() {
   };
   const { data: leaveRequests = [], loading, refetch } = useLeaveRequests();
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
-
-  const handleApprove = async (id: string) => {
-    try {
-      await api.approveLeaveRequest(id);
-      toast.success("Leave request approved");
-      refetch();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to approve leave request",
-      );
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    try {
-      await api.rejectLeaveRequest(id);
-      toast.error("Leave request rejected");
-      refetch();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to reject leave request",
-      );
-    }
-  };
 
   const getStatusColor = (status: string) => {
     if (
@@ -110,7 +86,11 @@ function LeaveContent() {
         onSuccess={refetch}
       />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="requests">Leave Requests</TabsTrigger>
           <TabsTrigger value="balance">Leave Balances</TabsTrigger>
@@ -120,7 +100,7 @@ function LeaveContent() {
         <TabsContent value="requests" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Leave Requests</CardTitle>
+              <CardTitle>Leave History</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border overflow-x-auto">
@@ -134,98 +114,107 @@ function LeaveContent() {
                       <TableHead>Days</TableHead>
                       <TableHead>Balance</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={7}
                           className="text-center py-8 text-gray-500"
                         >
                           Loading...
                         </TableCell>
                       </TableRow>
-                    ) : leaveRequests.length === 0 ? (
+                    ) : leaveRequests.filter(
+                        (r: any) =>
+                          [
+                            "pending",
+                            "approved",
+                            "hr_approved",
+                            "manager_approved",
+                            "APPROVED",
+                            "PENDING",
+                          ].includes(r.status) ||
+                          [
+                            "pending",
+                            "approved",
+                            "hr_approved",
+                            "manager_approved",
+                          ].includes(r.status?.toLowerCase()),
+                      ).length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={7}
                           className="text-center py-8 text-gray-500"
                         >
-                          No leave requests found
+                          No leave history found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      leaveRequests.map((request: any) => (
-                        <TableRow key={request._id || request.id}>
-                          <TableCell className="font-medium">
-                            {request.employeeId?.firstName ||
-                              request.employee_name ||
-                              "N/A"}{" "}
-                            {request.employeeId?.lastName || ""}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              {request.leaveTypeId?.name ||
-                                request.leave_type ||
-                                "N/A"}
-                              {request.casual_type &&
-                                request.casual_type !== "PAID" && (
-                                  <span className="block text-xs text-muted-foreground mt-0.5">
-                                    {request.casual_type.replace("_", " ")}
-                                  </span>
-                                )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(
-                              request.startDate || request.start_date,
-                            ).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(
-                              request.endDate || request.end_date,
-                            ).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>{request.days || 0}</TableCell>
-                          <TableCell>{request.balance || 0} days</TableCell>
-                          <TableCell>
-                            <Badge
-                              className={getStatusColor(
-                                request.status?.toLowerCase() || request.status,
-                              )}
-                            >
-                              {request.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {(request.status?.toLowerCase() === "pending" ||
-                              request.status === "PENDING") && (
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleApprove(request._id || request.id)
-                                  }
-                                >
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleReject(request._id || request.id)
-                                  }
-                                >
-                                  <XCircle className="h-4 w-4 text-red-600" />
-                                </Button>
+                      leaveRequests
+                        .filter(
+                          (r: any) =>
+                            [
+                              "pending",
+                              "approved",
+                              "hr_approved",
+                              "manager_approved",
+                              "APPROVED",
+                              "PENDING",
+                            ].includes(r.status) ||
+                            [
+                              "pending",
+                              "approved",
+                              "hr_approved",
+                              "manager_approved",
+                            ].includes(r.status?.toLowerCase()),
+                        )
+                        .map((request: any) => (
+                          <TableRow key={request._id || request.id}>
+                            <TableCell className="font-medium">
+                              {request.employeeId?.firstName ||
+                                request.employee_name ||
+                                "N/A"}{" "}
+                              {request.employeeId?.lastName || ""}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                {request.leaveTypeId?.name ||
+                                  request.leave_type ||
+                                  "N/A"}
+                                {request.casual_type &&
+                                  request.casual_type !== "PAID" && (
+                                    <span className="block text-xs text-muted-foreground mt-0.5">
+                                      {request.casual_type.replace("_", " ")}
+                                    </span>
+                                  )}
                               </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>
+                              {new Date(
+                                request.startDate || request.start_date,
+                              ).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(
+                                request.endDate || request.end_date,
+                              ).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>{request.days || 0}</TableCell>
+                            <TableCell>{request.balance || 0} days</TableCell>
+                            <TableCell>
+                              <Badge
+                                className={getStatusColor(
+                                  request.status?.toLowerCase() ||
+                                    request.status,
+                                )}
+                              >
+                                {request.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
                     )}
                   </TableBody>
                 </Table>
@@ -367,16 +356,20 @@ function LeaveContent() {
 
 export default function Leave() {
   return (
-    <Suspense fallback={
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Leave & Attendance</h2>
-            <p className="text-gray-600 mt-1">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Leave & Attendance
+              </h2>
+              <p className="text-gray-600 mt-1">Loading...</p>
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <LeaveContent />
     </Suspense>
   );
