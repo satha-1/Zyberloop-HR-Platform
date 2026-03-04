@@ -26,6 +26,7 @@ import {
   Search,
   Printer,
   ClipboardCheck,
+  CheckSquare,
 } from "lucide-react";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { TaskDropdown } from "./TaskDropdown";
@@ -61,6 +62,7 @@ const navigationSections: NavSection[] = [
     items: [
       { name: "Employees", href: "/employees", icon: Users },
       { name: "Departments", href: "/departments", icon: Building2 },
+      { name: "Tasks", href: "/tasks", icon: CheckSquare },
     ],
   },
   {
