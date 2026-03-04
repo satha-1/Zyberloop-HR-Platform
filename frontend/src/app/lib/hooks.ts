@@ -1,9 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { api } from './api';
+import { useState, useEffect } from "react";
+import { api } from "./api";
 
-export function useEmployees(params?: { search?: string; department?: string; status?: string }) {
+export function useEmployees(params?: {
+  search?: string;
+  department?: string;
+  status?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -17,7 +21,7 @@ export function useEmployees(params?: { search?: string; department?: string; st
         // Ensure result is an array
         setData(Array.isArray(result) ? result : []);
       } catch (err: any) {
-        console.error('Error fetching employees:', err);
+        console.error("Error fetching employees:", err);
         setError(err as Error);
         setData([]);
       } finally {
@@ -27,10 +31,21 @@ export function useEmployees(params?: { search?: string; department?: string; st
     fetchData();
   }, [params?.search, params?.department, params?.status]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getEmployees(params).then((data: any) => setData(Array.isArray(data) ? data : (data?.data || []))).catch(setError).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getEmployees(params)
+        .then((data: any) =>
+          setData(Array.isArray(data) ? data : data?.data || []),
+        )
+        .catch(setError)
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function usePayrollRuns() {
@@ -42,8 +57,8 @@ export function usePayrollRuns() {
     async function fetchData() {
       try {
         setLoading(true);
-        const result = await api.getPayrollRuns({}) as any;
-        setData(Array.isArray(result) ? result : (result?.data || []));
+        const result = (await api.getPayrollRuns({})) as any;
+        setData(Array.isArray(result) ? result : result?.data || []);
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -53,10 +68,21 @@ export function usePayrollRuns() {
     fetchData();
   }, []);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getPayrollRuns({}).then((data: any) => setData(Array.isArray(data) ? data : (data?.data || []))).catch(setError).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getPayrollRuns({})
+        .then((data: any) =>
+          setData(Array.isArray(data) ? data : data?.data || []),
+        )
+        .catch(setError)
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function useLeaveRequests(params?: { status?: string }) {
@@ -80,16 +106,28 @@ export function useLeaveRequests(params?: { status?: string }) {
     fetchData();
   }, [params?.status]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getLeaveRequests(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getLeaveRequests(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
-export function useRequisitions(params?: { status?: string; department?: string }) {
+export function useRequisitions(params?: {
+  status?: string;
+  department?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -110,16 +148,29 @@ export function useRequisitions(params?: { status?: string; department?: string 
     fetchData();
   }, [params?.status, params?.department]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getRequisitions(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getRequisitions(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
-export function useLogs(params?: { search?: string; module?: string; action?: string }) {
+export function useLogs(params?: {
+  search?: string;
+  module?: string;
+  action?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -140,13 +191,22 @@ export function useLogs(params?: { search?: string; module?: string; action?: st
     fetchData();
   }, [params?.search, params?.module, params?.action]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getLogs(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getLogs(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function useEmployee(id: string) {
@@ -167,7 +227,7 @@ export function useEmployee(id: string) {
         const result = await api.getEmployeeById(id);
         setData(result);
       } catch (err) {
-        console.error('Error fetching employee:', err);
+        console.error("Error fetching employee:", err);
         setError(err as Error);
         setData(null);
       } finally {
@@ -177,16 +237,25 @@ export function useEmployee(id: string) {
     fetchData();
   }, [id]);
 
-  return { data, loading, error, refetch: () => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    api.getEmployeeById(id).then(setData).catch((err) => {
-      console.error('Error refetching employee:', err);
-      setError(err as Error);
-      setData(null);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      api
+        .getEmployeeById(id)
+        .then(setData)
+        .catch((err) => {
+          console.error("Error refetching employee:", err);
+          setError(err as Error);
+          setData(null);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function usePayrollRun(id: string) {
@@ -210,10 +279,19 @@ export function usePayrollRun(id: string) {
     fetchData();
   }, [id]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getPayrollRunById(id).then(setData).catch(setError).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getPayrollRunById(id)
+        .then(setData)
+        .catch(setError)
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function useAuditLogs() {
@@ -234,7 +312,7 @@ export function useDepartments() {
         // Ensure result is an array
         setData(Array.isArray(result) ? result : []);
       } catch (err: any) {
-        console.error('Error fetching departments:', err);
+        console.error("Error fetching departments:", err);
         setError(err as Error);
         setData([]);
       } finally {
@@ -244,13 +322,22 @@ export function useDepartments() {
     fetchData();
   }, []);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getDepartments().then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getDepartments()
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
@@ -278,14 +365,23 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
     fetchData();
   }, [employeeId, cycleId]);
 
-  return { data, loading, error, refetch: () => {
-    if (!employeeId) return;
-    setLoading(true);
-    api.getGoals({ employeeId, cycleId }).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      if (!employeeId) return;
+      setLoading(true);
+      api
+        .getGoals({ employeeId, cycleId })
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function usePerformanceCycles() {
@@ -309,16 +405,30 @@ export function usePerformanceCycles() {
     fetchData();
   }, []);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getPerformanceCycles().then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getPerformanceCycles()
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
-export function useTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
+export function useTemplates(params?: {
+  docType?: string;
+  status?: string;
+  locale?: string;
+  search?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -339,16 +449,30 @@ export function useTemplates(params?: { docType?: string; status?: string; local
     fetchData();
   }, [params?.docType, params?.status, params?.locale, params?.search]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getDocumentTemplates(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getDocumentTemplates(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
-export function useDocuments(params?: { docType?: string; status?: string; subjectType?: string; subjectId?: string }) {
+export function useDocuments(params?: {
+  docType?: string;
+  status?: string;
+  subjectType?: string;
+  subjectId?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -369,13 +493,22 @@ export function useDocuments(params?: { docType?: string; status?: string; subje
     fetchData();
   }, [params?.docType, params?.status, params?.subjectType, params?.subjectId]);
 
-  return { data, loading, error, refetch: () => {
-    setLoading(true);
-    api.getDocuments(params).then((result: any) => setData(Array.isArray(result) ? result : [])).catch((err) => {
-      setError(err as Error);
-      setData([]);
-    }).finally(() => setLoading(false));
-  }};
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getDocuments(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
 
 export function useAttendanceRecords(params?: {
@@ -436,4 +569,71 @@ export function useDebounce<T>(value: T, delay: number): T {
   }, [value, delay]);
 
   return debouncedValue;
+}
+
+export function useTasks(params?: {
+  status?: string;
+  priority?: string;
+  overdue?: boolean;
+  limit?: number;
+  offset?: number;
+  userId?: string;
+  filterType?: string;
+}) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result: any = await api.getTasks(params);
+        setData(
+          Array.isArray(result.data)
+            ? result.data
+            : Array.isArray(result)
+              ? result
+              : [],
+        );
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [
+    params?.status,
+    params?.priority,
+    params?.overdue,
+    params?.userId,
+    params?.filterType,
+  ]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getTasks(params)
+        .then((result: any) =>
+          setData(
+            Array.isArray(result.data)
+              ? result.data
+              : Array.isArray(result)
+                ? result
+                : [],
+          ),
+        )
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }

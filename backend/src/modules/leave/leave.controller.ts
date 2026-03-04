@@ -16,7 +16,7 @@ export const getLeaveRequests = async (
     const query: any = {};
 
     if (status && status !== "all") {
-      query.status = status;
+      query.status = status.toString().toUpperCase();
     }
 
     if (employeeId) {
@@ -88,15 +88,20 @@ export const createLeaveRequest = async (
     if (!leaveType) throw new AppError(404, "Leave type not found");
 
     const casualType = req.body.casualType || "PAID";
-    const balanceResult = await calculateLeaveBalanceForType(employee as any, leaveType as any, {
-      asOfDate: new Date(startDate || Date.now()),
-      casualType,
-    });
+    const balanceResult = await calculateLeaveBalanceForType(
+      employee as any,
+      leaveType as any,
+      {
+        asOfDate: new Date(startDate || Date.now()),
+        casualType,
+      },
+    );
     const currentBalance = balanceResult.currentBalance;
 
     const isUnpaidCasual =
       leaveType.code?.toUpperCase() === "CASUAL" &&
-      (casualType === "UNPAID_AUTHORIZED" || casualType === "UNPAID_UNAUTHORIZED");
+      (casualType === "UNPAID_AUTHORIZED" ||
+        casualType === "UNPAID_UNAUTHORIZED");
 
     if (!isUnpaidCasual && days > currentBalance) {
       throw new AppError(

@@ -1,10 +1,16 @@
 // API Base URL - must be set in environment variables
 // For local development: http://localhost:3001/api/v1
 // For production: https://your-api-domain.com/api/v1
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
 
-if (!process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️  NEXT_PUBLIC_API_BASE_URL is not set. Using default localhost URL.');
+if (
+  !process.env.NEXT_PUBLIC_API_BASE_URL &&
+  process.env.NODE_ENV === "production"
+) {
+  console.warn(
+    "⚠️  NEXT_PUBLIC_API_BASE_URL is not set. Using default localhost URL.",
+  );
 }
 
 class ApiClient {
@@ -13,39 +19,39 @@ class ApiClient {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
     }
   }
 
   setToken(token: string | null) {
     this.token = token;
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       if (token) {
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem("auth_token", token);
       } else {
-        localStorage.removeItem('auth_token');
+        localStorage.removeItem("auth_token");
       }
     }
   }
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      "Content-Type": "application/json",
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     // Refresh token from localStorage on each request
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
     }
 
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     try {
@@ -58,18 +64,18 @@ class ApiClient {
         // Handle 401 Unauthorized
         if (response.status === 401) {
           this.setToken(null);
-          if (typeof window !== 'undefined') {
+          if (typeof window !== "undefined") {
             // Try to auto-login with default admin credentials
-            const defaultEmail = 'sathsarasoysa2089@gmail.com';
-            const defaultPassword = 'Sath@Admin';
-            
+            const defaultEmail = "sathsarasoysa2089@gmail.com";
+            const defaultPassword = "Sath@Admin";
+
             try {
               await this.login(defaultEmail, defaultPassword);
               // Retry the original request with new token
               if (this.token) {
                 const newHeaders = {
                   ...headers,
-                  'Authorization': `Bearer ${this.token}`,
+                  Authorization: `Bearer ${this.token}`,
                 };
                 const retryResponse = await fetch(url, {
                   ...options,
@@ -81,26 +87,37 @@ class ApiClient {
                 }
               }
             } catch (loginError) {
-              console.error('Auto-login failed:', loginError);
+              console.error("Auto-login failed:", loginError);
             }
           }
-          throw new Error('Authentication required. Please login.');
+          throw new Error("Authentication required. Please login.");
         }
 
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.error?.message || error.message || 'Request failed');
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Request failed" }));
+        throw new Error(
+          error.error?.message || error.message || "Request failed",
+        );
       }
 
       const data = await response.json();
       // Handle both { success: true, data: [...] } and direct array/object responses
-      if (data && typeof data === 'object' && 'data' in data && !Array.isArray(data)) {
+      if (
+        data &&
+        typeof data === "object" &&
+        "data" in data &&
+        !Array.isArray(data)
+      ) {
         return data.data;
       }
       return data;
     } catch (error: any) {
       // Handle network errors (backend not running, CORS, etc.)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error(
+          "Unable to connect to the server. Please ensure the backend server is running.",
+        );
       }
       // Re-throw other errors
       throw error;
@@ -111,25 +128,27 @@ class ApiClient {
   async login(email: string, password: string) {
     const url = `${this.baseUrl}/auth/login`;
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Login failed' }));
-      throw new Error(error.error?.message || error.message || 'Login failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Login failed" }));
+      throw new Error(error.error?.message || error.message || "Login failed");
     }
 
     const result = await response.json();
     const data = result.data || result;
-    
+
     if (data && data.token) {
       this.setToken(data.token);
     }
-    
+
     return data;
   }
 
@@ -138,20 +157,32 @@ class ApiClient {
   }
 
   // Employees
-  async getEmployees(params?: { search?: string; department?: string; status?: string }) {
+  async getEmployees(params?: {
+    search?: string;
+    department?: string;
+    status?: string;
+  }) {
     // Only include non-empty parameters in the query
     const queryParams: Record<string, string> = {};
-    if (params?.search && params.search.trim() !== '') {
+    if (params?.search && params.search.trim() !== "") {
       queryParams.search = params.search;
     }
-    if (params?.department && params.department.trim() !== '' && params.department !== 'all') {
+    if (
+      params?.department &&
+      params.department.trim() !== "" &&
+      params.department !== "all"
+    ) {
       queryParams.department = params.department;
     }
-    if (params?.status && params.status.trim() !== '' && params.status !== 'all') {
+    if (
+      params?.status &&
+      params.status.trim() !== "" &&
+      params.status !== "all"
+    ) {
       queryParams.status = params.status;
     }
     const query = new URLSearchParams(queryParams).toString();
-    return this.request(`/employees${query ? `?${query}` : ''}`);
+    return this.request(`/employees${query ? `?${query}` : ""}`);
   }
 
   async getEmployeeById(id: string) {
@@ -159,16 +190,18 @@ class ApiClient {
   }
 
   async generateEmployeeCode() {
-    return this.request('/employees/generate-code');
+    return this.request("/employees/generate-code");
   }
 
   async generateEmployeeNumber(departmentId: string) {
-    return this.request(`/employees/generate-number?departmentId=${encodeURIComponent(departmentId)}`);
+    return this.request(
+      `/employees/generate-number?departmentId=${encodeURIComponent(departmentId)}`,
+    );
   }
 
   async createEmployee(data: any) {
-    return this.request('/employees', {
-      method: 'POST',
+    return this.request("/employees", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -176,20 +209,24 @@ class ApiClient {
   async createEmployeeWithFiles(formData: FormData) {
     const url = `${this.baseUrl}/employees`;
     const headers: Record<string, string> = {};
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: formData,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const data = await response.json();
@@ -198,7 +235,7 @@ class ApiClient {
 
   async updateEmployee(id: string, data: any) {
     return this.request(`/employees/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
@@ -206,20 +243,24 @@ class ApiClient {
   async updateEmployeeWithFiles(id: string, formData: FormData) {
     const url = `${this.baseUrl}/employees/${id}`;
     const headers: Record<string, string> = {};
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     const response = await fetch(url, {
-      method: 'PATCH',
+      method: "PATCH",
       headers,
       body: formData,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const data = await response.json();
@@ -227,46 +268,51 @@ class ApiClient {
   }
 
   async getEmployeeCompensationComponents(employeeId: string, asOf?: string) {
-    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
-    return this.request(`/employees/${employeeId}/compensation/components${query}`);
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : "";
+    return this.request(
+      `/employees/${employeeId}/compensation/components${query}`,
+    );
   }
 
   async assignEmployeeCompensationComponent(employeeId: string, payload: any) {
     return this.request(`/employees/${employeeId}/compensation/components`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(payload),
     });
   }
 
-  async updateEmployeeCompensationComponent(assignmentId: string, payload: any) {
+  async updateEmployeeCompensationComponent(
+    assignmentId: string,
+    payload: any,
+  ) {
     return this.request(`/employees/compensation/components/${assignmentId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(payload),
     });
   }
 
   async getEmployeeBankAccounts(employeeId: string, asOf?: string) {
-    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : "";
     return this.request(`/employees/${employeeId}/bank-accounts${query}`);
   }
 
   async createEmployeeBankAccount(employeeId: string, payload: any) {
     return this.request(`/employees/${employeeId}/bank-accounts`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(payload),
     });
   }
 
   async updateEmployeeBankAccount(bankAccountId: string, payload: any) {
     return this.request(`/employees/bank-accounts/${bankAccountId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(payload),
     });
   }
 
   async deleteEmployee(id: string) {
     return this.request(`/employees/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
@@ -309,35 +355,45 @@ class ApiClient {
 
   async updateEmployeeProfilePersonal(employeeId: string, payload: any) {
     return this.request(`/employees/${employeeId}/profile/personal`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(payload),
     });
   }
 
   async createEmployeeProfileJobHistory(employeeId: string, payload: any) {
     return this.request(`/employees/${employeeId}/profile/job-history`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(payload),
     });
   }
 
-  async updateEmployeeProfileJobHistory(employeeId: string, historyId: string, payload: any) {
-    return this.request(`/employees/${employeeId}/profile/job-history/${historyId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+  async updateEmployeeProfileJobHistory(
+    employeeId: string,
+    historyId: string,
+    payload: any,
+  ) {
+    return this.request(
+      `/employees/${employeeId}/profile/job-history/${historyId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+    );
   }
 
   async deleteEmployeeProfileJobHistory(employeeId: string, historyId: string) {
-    return this.request(`/employees/${employeeId}/profile/job-history/${historyId}`, {
-      method: 'DELETE',
-    });
+    return this.request(
+      `/employees/${employeeId}/profile/job-history/${historyId}`,
+      {
+        method: "DELETE",
+      },
+    );
   }
 
   // Job Advancement APIs
   async createJobAdvancement(employeeId: string, payload: any) {
     return this.request(`/employees/${employeeId}/job-advancement`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(payload),
     });
   }
@@ -375,7 +431,9 @@ class ApiClient {
   }
 
   async getEmployeeProfileExternalInteractions(employeeId: string) {
-    return this.request(`/employees/${employeeId}/profile/external-interactions`);
+    return this.request(
+      `/employees/${employeeId}/profile/external-interactions`,
+    );
   }
 
   async getEmployeeProfileAdditionalData(employeeId: string) {
@@ -394,27 +452,35 @@ class ApiClient {
     return this.request(`/employees/${employeeId}/documents`);
   }
 
-  async uploadEmployeeDocument(employeeId: string, file: File, documentType: string) {
+  async uploadEmployeeDocument(
+    employeeId: string,
+    file: File,
+    documentType: string,
+  ) {
     const formData = new FormData();
-    formData.append('document', file);
-    formData.append('documentType', documentType);
+    formData.append("document", file);
+    formData.append("documentType", documentType);
 
     const url = `${this.baseUrl}/employees/${employeeId}/documents`;
     const headers: Record<string, string> = {};
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: formData,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const data = await response.json();
@@ -423,37 +489,66 @@ class ApiClient {
 
   // Template Management
   async getEmployeeTemplates() {
-    return this.request<{ success: boolean; data: any[] }>('/employees/templates');
+    return this.request<{ success: boolean; data: any[] }>(
+      "/employees/templates",
+    );
   }
 
   async getTemplateById(id: string) {
-    return this.request<{ success: boolean; data: any }>(`/employees/templates/${id}`);
+    return this.request<{ success: boolean; data: any }>(
+      `/employees/templates/${id}`,
+    );
   }
 
-  async createTemplate(data: { name: string; type: string; content: string; placeholders?: string[] }) {
-    return this.request<{ success: boolean; data: any }>('/employees/templates', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  async createTemplate(data: {
+    name: string;
+    type: string;
+    content: string;
+    placeholders?: string[];
+  }) {
+    return this.request<{ success: boolean; data: any }>(
+      "/employees/templates",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    );
   }
 
-  async updateTemplate(id: string, data: { content?: string; name?: string; isActive?: boolean }) {
-    return this.request<{ success: boolean; data: any }>(`/employees/templates/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
+  async updateTemplate(
+    id: string,
+    data: { content?: string; name?: string; isActive?: boolean },
+  ) {
+    return this.request<{ success: boolean; data: any }>(
+      `/employees/templates/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      },
+    );
   }
 
-  async previewEmployeeDocument(employeeId: string, templateType: string, data?: any) {
-    return this.request<{ success: boolean; data: { content: string; templateName: string; placeholders: string[] } }>('/employees/documents/preview', {
-      method: 'POST',
+  async previewEmployeeDocument(
+    employeeId: string,
+    templateType: string,
+    data?: any,
+  ) {
+    return this.request<{
+      success: boolean;
+      data: { content: string; templateName: string; placeholders: string[] };
+    }>("/employees/documents/preview", {
+      method: "POST",
       body: JSON.stringify({ employeeId, templateType, data }),
     });
   }
 
-  async generateEmployeeDocument(employeeId: string, templateType: string, data?: any) {
-    return this.request('/employees/documents/generate', {
-      method: 'POST',
+  async generateEmployeeDocument(
+    employeeId: string,
+    templateType: string,
+    data?: any,
+  ) {
+    return this.request("/employees/documents/generate", {
+      method: "POST",
       body: JSON.stringify({ employeeId, templateType, data }),
     });
   }
@@ -464,36 +559,39 @@ class ApiClient {
 
   // Payroll (legacy - use getPayrollRunsWithParams instead)
   async getPayrollRunsLegacy() {
-    return this.request('/payroll/runs');
+    return this.request("/payroll/runs");
   }
 
   async getPayrollRunByIdLegacy(id: string) {
     return this.request(`/payroll/runs/${id}`);
   }
 
-  async createPayrollRunLegacy(data: { periodStart: string; periodEnd: string }) {
-    return this.request('/payroll/runs', {
-      method: 'POST',
+  async createPayrollRunLegacy(data: {
+    periodStart: string;
+    periodEnd: string;
+  }) {
+    return this.request("/payroll/runs", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async calculatePayrollRun(id: string) {
     return this.request(`/payroll/runs/${id}/calculate`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
-  async approvePayrollRun(id: string, type: 'hr' | 'finance') {
+  async approvePayrollRun(id: string, type: "hr" | "finance") {
     return this.request(`/payroll/runs/${id}/approve/${type}`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ type }),
     });
   }
 
   async finalizePayrollRun(id: string) {
     return this.request(`/payroll/runs/${id}/finalize`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
@@ -504,7 +602,7 @@ class ApiClient {
   // Leave
   async getLeaveRequests(params?: { status?: string; employeeId?: string }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/leave/requests${query ? `?${query}` : ''}`);
+    return this.request(`/leave/requests${query ? `?${query}` : ""}`);
   }
 
   async getLeaveTypes() {
@@ -512,21 +610,21 @@ class ApiClient {
   }
 
   async createLeaveRequest(data: any) {
-    return this.request('/leave/requests', {
-      method: 'POST',
+    return this.request("/leave/requests", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async approveLeaveRequest(id: string) {
     return this.request(`/leave/requests/${id}/approve`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async rejectLeaveRequest(id: string) {
     return this.request(`/leave/requests/${id}/reject`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
@@ -539,92 +637,112 @@ class ApiClient {
     const query = new URLSearchParams(params as any).toString();
     return this.request(`/attendance${query ? `?${query}` : ""}`);
   }
-  
+
   // Performance
   async getGoals(params?: { employeeId?: string; cycleId?: string }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/performance/goals${query ? `?${query}` : ''}`);
+    return this.request(`/performance/goals${query ? `?${query}` : ""}`);
   }
 
   async getAppraisals(params?: { employeeId?: string; cycleId?: string }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/performance/appraisals${query ? `?${query}` : ''}`);
+    return this.request(`/performance/appraisals${query ? `?${query}` : ""}`);
   }
 
   async getPerformanceCycles() {
-    return this.request('/performance/cycles');
+    return this.request("/performance/cycles");
   }
 
   // Recruitment
-  async getRequisitions(params?: { 
-    status?: string; 
-    department?: string; 
-    view?: 'showAll' | 'byHiringManager' | 'byLocation';
+  async getRequisitions(params?: {
+    status?: string;
+    department?: string;
+    view?: "showAll" | "byHiringManager" | "byLocation";
     location?: string;
     hiringManagerId?: string;
     page?: number;
     pageSize?: number;
   }) {
     const query = new URLSearchParams();
-    if (params?.status) query.append('status', params.status);
-    if (params?.department) query.append('department', params.department);
-    if (params?.view) query.append('view', params.view);
-    if (params?.location) query.append('location', params.location);
-    if (params?.hiringManagerId) query.append('hiringManagerId', params.hiringManagerId);
-    if (params?.page) query.append('page', params.page.toString());
-    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
-    return this.request(`/recruitment/requisitions${query.toString() ? `?${query}` : ''}`);
+    if (params?.status) query.append("status", params.status);
+    if (params?.department) query.append("department", params.department);
+    if (params?.view) query.append("view", params.view);
+    if (params?.location) query.append("location", params.location);
+    if (params?.hiringManagerId)
+      query.append("hiringManagerId", params.hiringManagerId);
+    if (params?.page) query.append("page", params.page.toString());
+    if (params?.pageSize) query.append("pageSize", params.pageSize.toString());
+    return this.request(
+      `/recruitment/requisitions${query.toString() ? `?${query}` : ""}`,
+    );
   }
 
   async getHiringManagers() {
-    return this.request('/recruitment/hiring-managers');
+    return this.request("/recruitment/hiring-managers");
   }
 
   async getLocations() {
-    return this.request('/recruitment/locations');
+    return this.request("/recruitment/locations");
   }
 
-  async getRequisitionCandidates(requisitionId: string, params?: { page?: number; pageSize?: number }) {
+  async getRequisitionCandidates(
+    requisitionId: string,
+    params?: { page?: number; pageSize?: number },
+  ) {
     const query = new URLSearchParams();
-    if (params?.page) query.append('page', params.page.toString());
-    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
-    return this.request(`/recruitment/requisitions/${requisitionId}/candidates${query.toString() ? `?${query}` : ''}`);
+    if (params?.page) query.append("page", params.page.toString());
+    if (params?.pageSize) query.append("pageSize", params.pageSize.toString());
+    return this.request(
+      `/recruitment/requisitions/${requisitionId}/candidates${query.toString() ? `?${query}` : ""}`,
+    );
   }
 
   // Notifications
-  async getNotifications(params?: { onlyUnread?: boolean; limit?: number; offset?: number }) {
+  async getNotifications(params?: {
+    onlyUnread?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
     const query = new URLSearchParams();
-    if (params?.onlyUnread) query.append('onlyUnread', 'true');
-    if (params?.limit) query.append('limit', params.limit.toString());
-    if (params?.offset) query.append('offset', params.offset.toString());
-    return this.request(`/notifications${query.toString() ? `?${query}` : ''}`);
+    if (params?.onlyUnread) query.append("onlyUnread", "true");
+    if (params?.limit) query.append("limit", params.limit.toString());
+    if (params?.offset) query.append("offset", params.offset.toString());
+    return this.request(`/notifications${query.toString() ? `?${query}` : ""}`);
   }
 
   async getUnreadNotificationCount() {
-    return this.request('/notifications/unread-count');
+    return this.request("/notifications/unread-count");
   }
 
   async markNotificationAsRead(notificationId: string) {
     return this.request(`/notifications/${notificationId}/read`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async markAllNotificationsAsRead() {
-    return this.request('/notifications/read-all', {
-      method: 'POST',
+    return this.request("/notifications/read-all", {
+      method: "POST",
     });
   }
 
   // Tasks
-  async getTasks(params?: { status?: string; priority?: string; overdue?: boolean; limit?: number; offset?: number }) {
+  async getTasks(params?: {
+    status?: string;
+    priority?: string;
+    overdue?: boolean;
+    limit?: number;
+    offset?: number;
+    filterType?: string;
+  }) {
     const query = new URLSearchParams();
-    if (params?.status) query.append('status', params.status);
-    if (params?.priority) query.append('priority', params.priority);
-    if (params?.overdue) query.append('overdue', 'true');
-    if (params?.limit) query.append('limit', params.limit.toString());
-    if (params?.offset) query.append('offset', params.offset.toString());
-    return this.request(`/tasks${query.toString() ? `?${query}` : ''}`);
+    if (params?.status) query.append("status", params.status);
+    if (params?.priority) query.append("priority", params.priority);
+    if (params?.filterType) query.append("filterType", params.filterType);
+    if (params?.overdue) query.append("overdue", "true");
+    if (params?.limit) query.append("limit", params.limit.toString());
+    if (params?.offset) query.append("offset", params.offset.toString());
+    return this.request(`/tasks${query.toString() ? `?${query}` : ""}`);
   }
 
   async getTaskById(taskId: string) {
@@ -632,21 +750,21 @@ class ApiClient {
   }
 
   async createTask(data: any) {
-    return this.request('/tasks', {
-      method: 'POST',
+    return this.request("/tasks", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updateTask(taskId: string, data: any) {
     return this.request(`/tasks/${taskId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
   async getActiveTaskCount() {
-    return this.request('/tasks/active-count');
+    return this.request("/tasks/active-count");
   }
 
   async getRequisitionById(id: string) {
@@ -657,15 +775,19 @@ class ApiClient {
     // Public endpoint - don't send auth token
     const url = `${this.baseUrl}/recruitment/public/requisitions/${id}`;
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const data = await response.json();
@@ -673,42 +795,42 @@ class ApiClient {
   }
 
   async generateBudgetCode() {
-    return this.request('/recruitment/generate-budget-code');
+    return this.request("/recruitment/generate-budget-code");
   }
 
   async getPendingApprovals() {
-    return this.request('/recruitment/approvals/pending');
+    return this.request("/recruitment/approvals/pending");
   }
 
   async approveRequisition(requisitionId: string) {
     return this.request(`/recruitment/requisitions/${requisitionId}/approve`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async publishRequisition(requisitionId: string) {
     return this.request(`/recruitment/requisitions/${requisitionId}/publish`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async createRequisition(data: any) {
-    return this.request('/recruitment/requisitions', {
-      method: 'POST',
+    return this.request("/recruitment/requisitions", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updateRequisition(id: string, data: any) {
     return this.request(`/recruitment/requisitions/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
   async getCandidates(params?: { requisitionId?: string }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/recruitment/candidates${query ? `?${query}` : ''}`);
+    return this.request(`/recruitment/candidates${query ? `?${query}` : ""}`);
   }
 
   async exportCandidates(params?: { requisitionId?: string; format?: 'csv' | 'json' }) {
@@ -757,7 +879,9 @@ class ApiClient {
     return this.request(`/recruitment/candidates/${applicationId}`);
   }
 
-  async getCandidateCvUrl(applicationId: string): Promise<{ url: string; fileName?: string; mimeType?: string }> {
+  async getCandidateCvUrl(
+    applicationId: string,
+  ): Promise<{ url: string; fileName?: string; mimeType?: string }> {
     return this.request(`/recruitment/candidates/${applicationId}/cv-url`);
   }
 
@@ -765,15 +889,19 @@ class ApiClient {
     // Public endpoint - don't send auth token
     const url = `${this.baseUrl}/recruitment/public/check-application?requisitionId=${requisitionId}&email=${encodeURIComponent(email)}`;
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const result = await response.json();
@@ -784,35 +912,50 @@ class ApiClient {
     // Public endpoint - don't send auth token
     const url = `${this.baseUrl}/recruitment/public/applications`;
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       body: data, // FormData includes file
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(error.error?.message || error.message || 'Request failed');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
+      throw new Error(
+        error.error?.message || error.message || "Request failed",
+      );
     }
 
     const result = await response.json();
     return result.data || result;
   }
 
-  async updateCandidateApplicationStatus(applicationId: string, status: string, interviewNotes?: string, rating?: number) {
+  async updateCandidateApplicationStatus(
+    applicationId: string,
+    status: string,
+    interviewNotes?: string,
+    rating?: number,
+  ) {
     return this.request(`/recruitment/applications/${applicationId}/status`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ status, interviewNotes, rating }),
     });
   }
 
   // Logs
-  async getLogs(params?: { search?: string; module?: string; action?: string; page?: number; limit?: number }) {
+  async getLogs(params?: {
+    search?: string;
+    module?: string;
+    action?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/logs${query ? `?${query}` : ''}`);
+    return this.request(`/logs${query ? `?${query}` : ""}`);
   }
 
   // Departments
   async getDepartments() {
-    return this.request('/departments');
+    return this.request("/departments");
   }
 
   async getDepartmentById(id: string) {
@@ -832,45 +975,53 @@ class ApiClient {
     headId?: string;
     location?: string;
     costCenter?: string;
-    status?: 'ACTIVE' | 'INACTIVE';
+    status?: "ACTIVE" | "INACTIVE";
     effectiveFrom?: string;
     email?: string;
     phoneExt?: string;
   }) {
-    return this.request('/departments', {
-      method: 'POST',
+    return this.request("/departments", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async updateDepartment(id: string, data: {
-    name?: string;
-    description?: string;
-    parentDepartmentId?: string;
-    headId?: string;
-    location?: string;
-    costCenter?: string;
-    status?: 'ACTIVE' | 'INACTIVE';
-    effectiveFrom?: string;
-    email?: string;
-    phoneExt?: string;
-  }) {
+  async updateDepartment(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      parentDepartmentId?: string;
+      headId?: string;
+      location?: string;
+      costCenter?: string;
+      status?: "ACTIVE" | "INACTIVE";
+      effectiveFrom?: string;
+      email?: string;
+      phoneExt?: string;
+    },
+  ) {
     return this.request(`/departments/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
   async deleteDepartment(id: string) {
     return this.request(`/departments/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
   // Documents & Templates
-  async getDocumentTemplates(params?: { docType?: string; status?: string; locale?: string; search?: string }) {
+  async getDocumentTemplates(params?: {
+    docType?: string;
+    status?: string;
+    locale?: string;
+    search?: string;
+  }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/documents/templates${query ? `?${query}` : ''}`);
+    return this.request(`/documents/templates${query ? `?${query}` : ""}`);
   }
 
   async getDocumentTemplateById(id: string) {
@@ -878,42 +1029,46 @@ class ApiClient {
   }
 
   async createDocumentTemplate(data: any) {
-    return this.request('/documents/templates', {
-      method: 'POST',
+    return this.request("/documents/templates", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updateDocumentTemplate(id: string, data: any) {
     return this.request(`/documents/templates/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
   async submitTemplateForReview(id: string) {
     return this.request(`/documents/templates/${id}/submit-review`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async approveTemplate(id: string, notes?: string) {
     return this.request(`/documents/templates/${id}/approve`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ notes }),
     });
   }
 
-  async publishTemplate(id: string, effectiveFrom?: string, effectiveTo?: string) {
+  async publishTemplate(
+    id: string,
+    effectiveFrom?: string,
+    effectiveTo?: string,
+  ) {
     return this.request(`/documents/templates/${id}/publish`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ effectiveFrom, effectiveTo }),
     });
   }
 
   async deprecateTemplate(id: string) {
     return this.request(`/documents/templates/${id}/deprecate`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
@@ -925,8 +1080,8 @@ class ApiClient {
     subjectId: string;
     effectiveOn?: string;
   }) {
-    return this.request('/documents/documents/preview', {
-      method: 'POST',
+    return this.request("/documents/documents/preview", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -938,8 +1093,8 @@ class ApiClient {
     subjectId: string;
     effectiveOn?: string;
   }) {
-    return this.request('/documents/documents', {
-      method: 'POST',
+    return this.request("/documents/documents", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -953,7 +1108,7 @@ class ApiClient {
     dateTo?: string;
   }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/documents/documents${query ? `?${query}` : ''}`);
+    return this.request(`/documents/documents${query ? `?${query}` : ""}`);
   }
 
   async getDocumentById(id: string) {
@@ -962,14 +1117,14 @@ class ApiClient {
 
   async downloadDocument(id: string, artefactKind?: string) {
     return this.request(`/documents/documents/${id}/download`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ artefactKind }),
     });
   }
 
   async bulkGenerateDocuments(payrollRunId: string, docType: string) {
-    return this.request('/documents/documents/bulk', {
-      method: 'POST',
+    return this.request("/documents/documents/bulk", {
+      method: "POST",
       body: JSON.stringify({ payrollRunId, docType }),
     });
   }
@@ -978,9 +1133,13 @@ class ApiClient {
     return this.request(`/documents/document-jobs/${jobId}`);
   }
 
-  async requestDocumentSigning(documentId: string, provider: string, signers: any[]) {
+  async requestDocumentSigning(
+    documentId: string,
+    provider: string,
+    signers: any[],
+  ) {
     return this.request(`/documents/documents/${documentId}/sign-request`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ provider, signers }),
     });
   }
@@ -994,7 +1153,7 @@ class ApiClient {
     limit?: number;
   }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/payroll/templates${query ? `?${query}` : ''}`);
+    return this.request(`/payroll/templates${query ? `?${query}` : ""}`);
   }
 
   async getPayrollTemplateById(id: string) {
@@ -1002,51 +1161,53 @@ class ApiClient {
   }
 
   async createPayrollTemplate(data: any) {
-    return this.request('/payroll/templates', {
-      method: 'POST',
+    return this.request("/payroll/templates", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updatePayrollTemplate(id: string, data: any) {
     return this.request(`/payroll/templates/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deletePayrollTemplate(id: string) {
     return this.request(`/payroll/templates/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
   async duplicatePayrollTemplate(id: string) {
     return this.request(`/payroll/templates/${id}/duplicate`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async getPayrollComponents(params?: { kind?: string; isActive?: boolean }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/payroll/components${query ? `?${query}` : ''}`);
+    return this.request(`/payroll/components${query ? `?${query}` : ""}`);
   }
 
   async createPayrollComponent(data: any) {
-    return this.request('/payroll/components', {
-      method: 'POST',
+    return this.request("/payroll/components", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async getApitTable(tableCode = 'TABLE_01', asOf?: string) {
-    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
-    return this.request(`/payroll/apit/${encodeURIComponent(tableCode)}${query}`);
+  async getApitTable(tableCode = "TABLE_01", asOf?: string) {
+    const query = asOf ? `?asOf=${encodeURIComponent(asOf)}` : "";
+    return this.request(
+      `/payroll/apit/${encodeURIComponent(tableCode)}${query}`,
+    );
   }
 
   async calculateEnterprisePayslip(data: any) {
-    return this.request('/payroll/enterprise/calculate-payslip', {
-      method: 'POST',
+    return this.request("/payroll/enterprise/calculate-payslip", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -1062,7 +1223,7 @@ class ApiClient {
     limit?: number;
   }) {
     const query = new URLSearchParams(params as any).toString();
-    return this.request(`/payroll/runs${query ? `?${query}` : ''}`);
+    return this.request(`/payroll/runs${query ? `?${query}` : ""}`);
   }
 
   async getPayrollRunById(id: string) {
@@ -1070,34 +1231,34 @@ class ApiClient {
   }
 
   async createPayrollRun(data: any) {
-    return this.request('/payroll/runs', {
-      method: 'POST',
+    return this.request("/payroll/runs", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updatePayrollRun(id: string, data: any) {
     return this.request(`/payroll/runs/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deletePayrollRun(id: string) {
     return this.request(`/payroll/runs/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
   async lockPayrollRun(id: string) {
     return this.request(`/payroll/runs/${id}/lock`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async recalculatePayrollRun(id: string) {
     return this.request(`/payroll/runs/${id}/recalculate`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
@@ -1107,29 +1268,36 @@ class ApiClient {
     periodEnd: string;
     employeeIds?: string[];
   }) {
-    return this.request('/payroll/runs/preview', {
-      method: 'POST',
+    return this.request("/payroll/runs/preview", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async exportPayrollRun(id: string, format: 'pdf' | 'csv' = 'pdf') {
+  async exportPayrollRun(id: string, format: "pdf" | "csv" = "pdf") {
     try {
-      const response = await fetch(`${this.baseUrl}/payroll/runs/${id}/export?format=${format}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.token || localStorage.getItem('auth_token')}`,
+      const response = await fetch(
+        `${this.baseUrl}/payroll/runs/${id}/export?format=${format}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.token || localStorage.getItem("auth_token")}`,
+          },
         },
-      });
-      
+      );
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Export failed' }));
-        throw new Error(error.error?.message || error.message || 'Export failed');
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Export failed" }));
+        throw new Error(
+          error.error?.message || error.message || "Export failed",
+        );
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `payroll-run-${id}.${format}`;
       document.body.appendChild(a);
@@ -1138,8 +1306,10 @@ class ApiClient {
       document.body.removeChild(a);
     } catch (error: any) {
       // Handle network errors (backend not running, CORS, etc.)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error(
+          "Unable to connect to the server. Please ensure the backend server is running.",
+        );
       }
       // Re-throw other errors
       throw error;
@@ -1148,30 +1318,40 @@ class ApiClient {
 
   // Payroll Dashboard Stats
   async getPayrollStats() {
-    return this.request('/payroll/stats');
+    return this.request("/payroll/stats");
   }
 
   // Generate and download individual employee payslip
-  async downloadEmployeePayslip(runId: string, employeeId: string): Promise<void> {
+  async downloadEmployeePayslip(
+    runId: string,
+    employeeId: string,
+  ): Promise<void> {
     try {
       const url = `${this.baseUrl}/payroll/runs/${runId}/employees/${employeeId}/payslip`;
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token")
+          : null;
+
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
+          Authorization: token ? `Bearer ${token}` : "",
         },
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to generate payslip' }));
-        throw new Error(error.error?.message || error.message || 'Failed to generate payslip');
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to generate payslip" }));
+        throw new Error(
+          error.error?.message || error.message || "Failed to generate payslip",
+        );
       }
 
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = `payslip-${employeeId}-${runId}.pdf`;
       document.body.appendChild(link);
@@ -1180,8 +1360,10 @@ class ApiClient {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error: any) {
       // Handle network errors (backend not running, CORS, etc.)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Unable to connect to the server. Please ensure the backend server is running.');
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw new Error(
+          "Unable to connect to the server. Please ensure the backend server is running.",
+        );
       }
       // Re-throw other errors
       throw error;
@@ -1190,15 +1372,15 @@ class ApiClient {
 
   // Payslip Calculator
   async calculatePayslip(data: any) {
-    return this.request('/payroll/calculate-payslip', {
-      method: 'POST',
+    return this.request("/payroll/calculate-payslip", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async calculatePayslipFromJSON(jsonInput: string) {
-    return this.request('/payroll/calculate-payslip-from-json', {
-      method: 'POST',
+    return this.request("/payroll/calculate-payslip-from-json", {
+      method: "POST",
       body: JSON.stringify({ json_input: jsonInput }),
     });
   }
