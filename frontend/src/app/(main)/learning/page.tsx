@@ -313,10 +313,14 @@ export default function Learning() {
       const formData = new FormData();
       formData.append("title", materialForm.title);
       formData.append("type", materialForm.type);
-      if (materialForm.file) {
+      if (materialForm.type === 'LINK') {
+        let url = materialForm.url;
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
+        }
+        formData.append("url", url);
+      } else if (materialForm.file) {
         formData.append("file", materialForm.file);
-      } else if (materialForm.url) {
-        formData.append("url", materialForm.url);
       } else {
         toast.error("File or URL is required");
         return;
@@ -962,6 +966,7 @@ export default function Learning() {
                       id="m-file"
                       type="file"
                       className="hidden"
+                      accept={materialForm.type === 'VIDEO' ? "video/*" : ".pdf,.doc,.docx,.jpg,.jpeg,.png"}
                       onChange={e => setMaterialForm({ ...materialForm, file: e.target.files?.[0] || null })}
                     />
                     <label htmlFor="m-file" className="cursor-pointer">
@@ -1059,9 +1064,9 @@ export default function Learning() {
                             <source src={selectedCourse.activeMaterial.url} />
                             Your browser does not support the video tag.
                           </video>
-                        ) : selectedCourse.activeMaterial.type === 'DOCUMENT' ? (
+                        ) : (selectedCourse.activeMaterial.type === 'DOCUMENT' || selectedCourse.activeMaterial.type === 'LINK') ? (
                           <iframe
-                            src={`${selectedCourse.activeMaterial.url}#toolbar=0`}
+                            src={selectedCourse.activeMaterial.url || 'about:blank'}
                             className="w-full h-full bg-white border-none"
                             title={selectedCourse.activeMaterial.title}
                           />
@@ -1072,13 +1077,7 @@ export default function Learning() {
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 space-y-4 p-8 text-center">
                             <LinkIcon className="h-16 w-16 text-blue-500" />
-                            <h4 className="text-white text-lg font-medium">External Reference</h4>
-                            <p className="text-gray-400 text-sm max-w-xs mx-auto">
-                              This resource is hosted on an external platform. Click the button above to visit the resource.
-                            </p>
-                            <Button className="bg-blue-600" onClick={() => window.open(selectedCourse.activeMaterial.url, '_blank')}>
-                              Follow Link
-                            </Button>
+                            <h4 className="text-white text-lg font-medium">Unknown material type</h4>
                           </div>
                         )}
                       </div>
