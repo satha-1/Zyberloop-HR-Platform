@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
 import { LearningCourse, LearningAssignment } from './learning.model';
 import { AppError } from '../../middlewares/errorHandler';
 import { createAuditLog } from '../logs/log.service';
+import { storageService } from '../documents/services/storage.service';
 
 // Courses
 export const getCourses = async (req: Request, res: Response, next: NextFunction) => {
@@ -140,6 +142,55 @@ export const updateAssignment = async (req: Request, res: Response, next: NextFu
       ipAddress: req.ip || 'unknown',
     });
     res.json({ success: true, data: assignment });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadCourseMaterial = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { title, type } = req.body;
+    const file = req.file;
+
+    if (!file && type !== 'LINK') {
+      throw new AppError(400, 'File is required for non-link materials');
+    }
+
+    const course = await LearningCourse.findById(id);
+    if (!course) throw new AppError(404, 'Course not found');
+
+    let materialUrl = req.body.url;
+    let materialKey = undefined;
+
+    if (file) {
+      const extension = path.extname(file.originalname).substring(1);
+      const key = `learning/courses/${id}/${Date.now()}-${file.originalname}`;
+      materialUrl = await storageService.putObject(key, file.buffer, file.mimetype);
+      materialKey = key;
+    }
+
+    course.materials.push({
+      type,
+      title,
+      url: materialUrl,
+      key: materialKey,
+    });
+
+    await course.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name,
+      actorRoles: req.user!.roles,
+      action: 'UPDATE',
+      module: 'Learning',
+      resourceType: 'course',
+      resourceId: id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    res.json({ success: true, data: course });
   } catch (error) {
     next(error);
   }

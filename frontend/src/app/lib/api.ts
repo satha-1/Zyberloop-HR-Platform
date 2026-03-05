@@ -849,7 +849,7 @@ class ApiClient {
     const query = new URLSearchParams(params as any).toString();
     const url = `${this.baseUrl}/recruitment/candidates/export${query ? `?${query}` : ''}`;
     const headers: Record<string, string> = {};
-    
+
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
@@ -1576,6 +1576,73 @@ class ApiClient {
     return this.request("/payroll/calculate-payslip-from-json", {
       method: "POST",
       body: JSON.stringify({ json_input: jsonInput }),
+    });
+  }
+
+  // Learning & Development
+  async getLearningCourses(params?: { category?: string; status?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/learning/courses${query ? `?${query}` : ""}`);
+  }
+
+  async createLearningCourse(data: any) {
+    return this.request("/learning/courses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLearningCourse(id: string, data: any) {
+    return this.request(`/learning/courses/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLearningCourse(id: string) {
+    return this.request(`/learning/courses/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async uploadLearningMaterial(courseId: string, formData: FormData) {
+    const url = `${this.baseUrl}/learning/courses/${courseId}/materials`;
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Upload failed" }));
+      throw new Error(error.message || "Upload failed");
+    }
+    return response.json();
+  }
+
+  async getLearningAssignments(params?: {
+    employeeId?: string;
+    courseId?: string;
+    status?: string;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/learning/assignments${query ? `?${query}` : ""}`);
+  }
+
+  async createLearningAssignment(data: any) {
+    return this.request("/learning/assignments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLearningAssignment(id: string, data: any) {
+    return this.request(`/learning/assignments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     });
   }
 }

@@ -27,6 +27,25 @@ export const errorHandler = (
     });
   }
 
+  // Mongoose errors
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: Object.values((err as any).errors).map((val: any) => val.message).join(', '),
+      },
+    });
+  }
+
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: `Invalid ${(err as any).path}: ${(err as any).value}`,
+      },
+    });
+  }
+
   // Unknown errors
   console.error('Unhandled error:', err);
   return res.status(500).json({

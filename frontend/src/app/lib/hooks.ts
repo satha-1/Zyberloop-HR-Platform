@@ -717,3 +717,57 @@ export function useTasks(params?: {
     },
   };
 }
+
+export function useLearningCourses(params?: { category?: string; status?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const result: any = await api.getLearningCourses(params);
+      setData(Array.isArray(result) ? result : result?.data || []);
+    } catch (err) {
+      setError(err as Error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [params?.category, params?.status]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+export function useLearningAssignments(params?: {
+  employeeId?: string;
+  courseId?: string;
+  status?: string;
+}) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const result: any = await api.getLearningAssignments(params);
+      setData(Array.isArray(result) ? result : result?.data || []);
+    } catch (err) {
+      setError(err as Error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [params?.employeeId, params?.courseId, params?.status]);
+
+  return { data, loading, error, refetch: fetchData };
+}
