@@ -20,6 +20,7 @@ import { logsRouter } from './modules/logs/logs.routes';
 import { documentsRouter } from './modules/documents/documents.routes';
 import { notificationRouter } from './modules/notifications/notification.routes';
 import { taskRouter } from './modules/tasks/task.routes';
+import { esignRouter } from './modules/esign/esign.routes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api/v1/logs', logsRouter);
 app.use('/api/v1/documents', documentsRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/tasks', taskRouter);
+app.use('/api/v1/esign', esignRouter);
 
 // Error handler
 app.use(errorHandler);

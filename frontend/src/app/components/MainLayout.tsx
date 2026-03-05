@@ -27,6 +27,8 @@ import {
   Printer,
   ClipboardCheck,
   CheckSquare,
+  FileSignature,
+  PenTool,
 } from "lucide-react";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { TaskDropdown } from "./TaskDropdown";
@@ -114,6 +116,16 @@ const navigationSections: NavSection[] = [
         name: "Documents & Letters",
         href: "/admin/documents",
         icon: FolderOpen,
+      },
+      {
+        name: "eSign Templates",
+        href: "/admin/esign/templates",
+        icon: FileSignature,
+      },
+      {
+        name: "eSign Documents",
+        href: "/admin/esign/documents",
+        icon: PenTool,
       },
       { name: "System Audit Logs", href: "/admin/logs", icon: Settings },
     ],

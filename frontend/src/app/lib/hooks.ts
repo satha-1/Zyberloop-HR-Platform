@@ -555,6 +555,86 @@ export function useAttendanceRecords(params?: {
   };
 }
 
+// ─── eSign Hooks ──────────────────────────────────────────
+
+export function useEsignTemplates(params?: { status?: string }) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getEsignTemplates(params);
+        setData(Array.isArray(result) ? result : []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.status]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getEsignTemplates(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => { setError(err as Error); setData([]); })
+        .finally(() => setLoading(false));
+    },
+  };
+}
+
+export function useEsignEnvelopes(params?: {
+  status?: string;
+  employeeId?: string;
+  templateId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const result = await api.getEnvelopes(params);
+        setData(Array.isArray(result) ? result : []);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [params?.status, params?.employeeId, params?.templateId, params?.dateFrom, params?.dateTo]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      api
+        .getEnvelopes(params)
+        .then((result: any) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => { setError(err as Error); setData([]); })
+        .finally(() => setLoading(false));
+    },
+  };
+}
+
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 

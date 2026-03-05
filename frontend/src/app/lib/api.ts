@@ -1370,6 +1370,164 @@ class ApiClient {
     }
   }
 
+  // ─── eSign Module ────────────────────────────────────────
+
+  // Signature Assets
+  async createSignatureAsset(formData: FormData) {
+    const url = `${this.baseUrl}/esign/signature-assets`;
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const response = await fetch(url, { method: "POST", headers, body: formData });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async getSignatureAssets(type?: string) {
+    const query = type ? `?type=${encodeURIComponent(type)}` : "";
+    return this.request(`/esign/signature-assets${query}`);
+  }
+
+  async updateSignatureAsset(id: string, data: any) {
+    return this.request(`/esign/signature-assets/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
+  async deleteSignatureAssetApi(id: string) {
+    return this.request(`/esign/signature-assets/${id}`, { method: "DELETE" });
+  }
+
+  // PDF Templates (eSign)
+  async createEsignTemplate(formData: FormData) {
+    const url = `${this.baseUrl}/esign/templates`;
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const response = await fetch(url, { method: "POST", headers, body: formData });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async getEsignTemplates(params?: { status?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/esign/templates${query ? `?${query}` : ""}`);
+  }
+
+  async getEsignTemplateById(id: string) {
+    return this.request(`/esign/templates/${id}`);
+  }
+
+  async createEsignTemplateVersion(templateId: string) {
+    return this.request(`/esign/templates/${templateId}/versions`, { method: "POST" });
+  }
+
+  async getEsignTemplateVersion(templateId: string, versionId: string) {
+    return this.request(`/esign/templates/${templateId}/versions/${versionId}`);
+  }
+
+  async updateEsignTemplateVersion(templateId: string, versionId: string, data: any) {
+    return this.request(`/esign/templates/${templateId}/versions/${versionId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async publishEsignTemplateVersion(templateId: string, versionId: string) {
+    return this.request(`/esign/templates/${templateId}/versions/${versionId}/publish`, { method: "POST" });
+  }
+
+  async duplicateEsignTemplate(templateId: string) {
+    return this.request(`/esign/templates/${templateId}/duplicate`, { method: "POST" });
+  }
+
+  // Sign Request Envelopes
+  async createEnvelope(data: any) {
+    return this.request("/esign/envelopes", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  async sendEsignEnvelope(envelopeId: string) {
+    return this.request(`/esign/envelopes/${envelopeId}/send`, { method: "POST" });
+  }
+
+  async getEnvelopes(params?: { status?: string; employeeId?: string; templateId?: string; dateFrom?: string; dateTo?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request(`/esign/envelopes${query ? `?${query}` : ""}`);
+  }
+
+  async getEnvelopeById(envelopeId: string) {
+    return this.request(`/esign/envelopes/${envelopeId}`);
+  }
+
+  async updateEnvelopeApi(envelopeId: string, data: any) {
+    return this.request(`/esign/envelopes/${envelopeId}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
+  async voidEnvelope(envelopeId: string) {
+    return this.request(`/esign/envelopes/${envelopeId}/void`, { method: "POST" });
+  }
+
+  async downloadSignedPdf(envelopeId: string) {
+    return this.request(`/esign/envelopes/${envelopeId}/download`);
+  }
+
+  async getEnvelopeAudit(envelopeId: string) {
+    return this.request(`/esign/envelopes/${envelopeId}/audit`);
+  }
+
+  // Signing session (public, no auth required)
+  async getSigningSession(token: string) {
+    const url = `${this.baseUrl}/esign/sign/${token}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async markSigningViewed(token: string) {
+    const url = `${this.baseUrl}/esign/sign/${token}/viewed`;
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async submitSigningField(token: string, fieldData: { fieldId: string; value?: string; signatureImageBase64?: string; signatureAssetId?: string }) {
+    const url = `${this.baseUrl}/esign/sign/${token}/field`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fieldData),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
+  async completeSigning(token: string) {
+    const url = `${this.baseUrl}/esign/sign/${token}/complete`;
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+    const data = await response.json();
+    return data.data || data;
+  }
+
   // Payslip Calculator
   async calculatePayslip(data: any) {
     return this.request("/payroll/calculate-payslip", {
