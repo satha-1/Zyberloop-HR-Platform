@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "tsx src/database/seed.ts",
+    "seed:performance": "tsx src/modules/performance/performance.seed.ts",
     "migrate:enterprise-payroll": "tsx src/database/migrations/20260303-enterprise-payroll.ts",
     "test": "tsx --test src/modules/employees/employeeCode.service.test.ts src/modules/payroll/statutoryCalculator.service.test.ts"
   },

@@ -650,19 +650,119 @@ class ApiClient {
     return this.request(`/attendance${query ? `?${query}` : ""}`);
   }
 
-  // Performance
-  async getGoals(params?: { employeeId?: string; cycleId?: string }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request(`/performance/goals${query ? `?${query}` : ""}`);
-  }
+  // ─── Performance Management ──────────────────────────────────────────────────
 
-  async getAppraisals(params?: { employeeId?: string; cycleId?: string }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request(`/performance/appraisals${query ? `?${query}` : ""}`);
-  }
-
+  // Cycles
   async getPerformanceCycles() {
-    return this.request("/performance/cycles");
+    return this.request<any[]>("/performance/cycles");
+  }
+  async createPerformanceCycle(data: any) {
+    return this.request("/performance/cycles", { method: "POST", body: JSON.stringify(data) });
+  }
+  async getPerformanceCycle(id: string) {
+    return this.request(`/performance/cycles/${id}`);
+  }
+  async updatePerformanceCycle(id: string, data: any) {
+    return this.request(`/performance/cycles/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
+  // Goals
+  async getGoals(cycleId: string, params?: { ownerType?: string; ownerId?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<any[]>(`/performance/cycles/${cycleId}/goals${query ? `?${query}` : ""}`);
+  }
+  async createGoal(cycleId: string, data: any) {
+    return this.request(`/performance/cycles/${cycleId}/goals`, { method: "POST", body: JSON.stringify(data) });
+  }
+  async updateGoal(id: string, data: any) {
+    return this.request(`/performance/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+  async deleteGoal(id: string) {
+    return this.request(`/performance/goals/${id}`, { method: "DELETE" });
+  }
+  async updateGoalProgress(id: string, progress: number, status?: string) {
+    return this.request(`/performance/goals/${id}/progress`, { method: "POST", body: JSON.stringify({ progress, status }) });
+  }
+  async cascadeGoals(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/goals/cascade`, { method: "POST" });
+  }
+  async acceptGoalSuggestion(id: string) {
+    return this.request(`/performance/goals/${id}/accept-suggestion`, { method: "POST" });
+  }
+  async rejectGoalSuggestion(id: string) {
+    return this.request(`/performance/goals/${id}/reject-suggestion`, { method: "POST" });
+  }
+
+  // Appraisals
+  async generateAppraisals(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/appraisals/generate`, { method: "POST" });
+  }
+  async getAppraisals(cycleId: string) {
+    return this.request<any[]>(`/performance/cycles/${cycleId}/appraisals`);
+  }
+  async getAppraisal(id: string) {
+    return this.request(`/performance/appraisals/${id}`);
+  }
+  async updateAppraisal(id: string, data: any) {
+    return this.request(`/performance/appraisals/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+  async submitAppraisalByManager(id: string) {
+    return this.request(`/performance/appraisals/${id}/submit-manager`, { method: "POST" });
+  }
+  async approveAppraisalStep(id: string, note?: string) {
+    return this.request(`/performance/appraisals/${id}/approve`, { method: "POST", body: JSON.stringify({ note }) });
+  }
+  async getRatingFormula(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/rating-formula`);
+  }
+  async upsertRatingFormula(cycleId: string, data: any) {
+    return this.request(`/performance/cycles/${cycleId}/rating-formula`, { method: "PUT", body: JSON.stringify(data) });
+  }
+  async getMeritMatrix(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/merit-matrix`);
+  }
+  async upsertMeritMatrix(cycleId: string, data: any) {
+    return this.request(`/performance/cycles/${cycleId}/merit-matrix`, { method: "PUT", body: JSON.stringify(data) });
+  }
+
+  // 360 Feedback
+  async get360Templates(cycleId: string) {
+    return this.request<any[]>(`/performance/cycles/${cycleId}/360/templates`);
+  }
+  async create360Template(cycleId: string, data: any) {
+    return this.request(`/performance/cycles/${cycleId}/360/templates`, { method: "POST", body: JSON.stringify(data) });
+  }
+  async generate360Assignments(cycleId: string, data: any) {
+    return this.request(`/performance/cycles/${cycleId}/360/assignments/generate`, { method: "POST", body: JSON.stringify(data) });
+  }
+  async get360Assignments(cycleId: string) {
+    return this.request<any[]>(`/performance/cycles/${cycleId}/360/assignments`);
+  }
+  async get360Assignment(id: string) {
+    return this.request(`/performance/360/assignments/${id}`);
+  }
+  async send360Invites(assignmentId: string) {
+    return this.request(`/performance/360/assignments/${assignmentId}/send`, { method: "POST" });
+  }
+  async get360Aggregate(assignmentId: string) {
+    return this.request(`/performance/360/assignments/${assignmentId}/aggregate`);
+  }
+  async sync360ToAppraisals(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/360/sync-to-appraisals`, { method: "POST" });
+  }
+
+  // Bias Detection
+  async getBiasSummary(cycleId: string) {
+    return this.request(`/performance/cycles/${cycleId}/bias/summary`);
+  }
+  async getBiasFlags(cycleId: string) {
+    return this.request<any[]>(`/performance/cycles/${cycleId}/bias/flags`);
+  }
+  async runBiasDetection(cycleId: string, threshold?: number) {
+    return this.request(`/performance/cycles/${cycleId}/bias/run`, { method: "POST", body: JSON.stringify({ threshold }) });
+  }
+  async updateBiasFlag(id: string, data: any) {
+    return this.request(`/performance/bias/flags/${id}`, { method: "PATCH", body: JSON.stringify(data) });
   }
 
   // Recruitment

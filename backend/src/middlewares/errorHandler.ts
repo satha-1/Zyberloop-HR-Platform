@@ -12,11 +12,12 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (
-  err: Error | AppError,
+  err: Error | AppError | any,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  // Operational errors (AppError)
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
@@ -27,7 +28,7 @@ export const errorHandler = (
     });
   }
 
-  // Mongoose errors
+  // Mongoose ValidationError → 400
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -37,12 +38,22 @@ export const errorHandler = (
     });
   }
 
+  // Mongoose CastError (bad ObjectId) → 400
   if (err.name === 'CastError') {
     return res.status(400).json({
       success: false,
       error: {
         message: `Invalid ${(err as any).path}: ${(err as any).value}`,
       },
+    });
+  }
+
+  // Mongoose duplicate key → 409
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {}).join(', ');
+    return res.status(409).json({
+      success: false,
+      error: { message: `Duplicate value for: ${field || 'unknown field'}` },
     });
   }
 

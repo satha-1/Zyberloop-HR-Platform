@@ -346,14 +346,14 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!employeeId) {
+    if (!cycleId) {
       setLoading(false);
       return;
     }
     async function fetchData() {
       try {
         setLoading(true);
-        const result = await api.getGoals({ employeeId, cycleId });
+        const result = await api.getGoals(cycleId!, employeeId ? { ownerId: employeeId } : undefined);
         setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
@@ -370,10 +370,10 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
     loading,
     error,
     refetch: () => {
-      if (!employeeId) return;
+      if (!cycleId) return;
       setLoading(true);
       api
-        .getGoals({ employeeId, cycleId })
+        .getGoals(cycleId, employeeId ? { ownerId: employeeId } : undefined)
         .then((result: any) => setData(Array.isArray(result) ? result : []))
         .catch((err) => {
           setError(err as Error);
