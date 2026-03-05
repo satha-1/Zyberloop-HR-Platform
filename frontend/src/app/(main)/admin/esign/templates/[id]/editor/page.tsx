@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Button } from "../../../../../../components/ui/button";
 import { Input } from "../../../../../../components/ui/input";
 import { Badge } from "../../../../../../components/ui/badge";
@@ -17,33 +18,23 @@ import {
   Layers,
 } from "lucide-react";
 import Link from "next/link";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
-import { Rnd } from "react-rnd";
+import type { PdfCanvasProps, OverlayField as PdfOverlayField } from "./PdfCanvas";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// ── Dynamically import PdfCanvas with SSR disabled ──────────────────────────
+// pdfjs-dist calls Object.defineProperty on browser globals → crashes on server
+const PdfCanvas = dynamic<PdfCanvasProps>(() => import("./PdfCanvas"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-64 text-gray-500 py-12">
+      Loading PDF viewer...
+    </div>
+  ),
+});
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface OverlayField {
-  fieldId: string;
-  type: string;
-  pageIndex: number;
-  x: number;        // pixels from left of page
-  y: number;        // pixels from top of page
-  width: number;    // pixels
-  height: number;   // pixels
-  required: boolean;
-  assignedRole: string;
-  label: string;
-  placeholder?: string;
-  defaultValue?: string;
-  staticText?: string;
-  fontSize?: number;
-  fontColor?: string;
-  useCompanySeal?: boolean;
-}
+// Re-export the type from PdfCanvas so both files stay in sync
+type OverlayField = PdfOverlayField;
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -114,128 +105,6 @@ function SidebarFieldItem({
   );
 }
 
-// ─── Field Overlay on PDF ───────────────────────────────────────────────────
-
-function FieldOverlay({
-  field,
-  selected,
-  disabled,
-  onSelect,
-  onUpdate,
-  onDelete,
-}: {
-  field: OverlayField;
-  selected: boolean;
-  disabled: boolean;
-  onSelect: () => void;
-  onUpdate: (updates: Partial<OverlayField>) => void;
-  onDelete: () => void;
-}) {
-  const color = getFieldColor(field.type);
-  const Icon = FIELD_TYPES.find((f) => f.value === field.type)?.icon || Type;
-
-  return (
-    <Rnd
-      size={{ width: field.width, height: field.height }}
-      position={{ x: field.x, y: field.y }}
-      onDragStop={(_e, d) => {
-        if (!disabled) onUpdate({ x: d.x, y: d.y });
-      }}
-      onResizeStop={(_e, _dir, ref, _delta, pos) => {
-        if (!disabled)
-          onUpdate({
-            width: ref.offsetWidth,
-            height: ref.offsetHeight,
-            x: pos.x,
-            y: pos.y,
-          });
-      }}
-      disableDragging={disabled}
-      enableResizing={!disabled}
-      minWidth={24}
-      minHeight={20}
-      bounds="parent"
-      style={{ zIndex: selected ? 30 : 20 }}
-      onMouseDown={(e) => {
-        (e as any).stopPropagation?.();
-        onSelect();
-      }}
-    >
-      <div
-        className="relative w-full h-full rounded cursor-pointer select-none"
-        style={{
-          border: `2px ${selected ? "solid" : "dashed"} ${color}`,
-          backgroundColor: color + "18",
-          boxShadow: selected ? `0 0 0 3px ${color}44` : undefined,
-        }}
-      >
-        {/* Label tag */}
-        <div
-          className="absolute -top-5 left-0 flex items-center gap-1 text-[9px] text-white px-1.5 py-0.5 rounded-sm whitespace-nowrap z-10 leading-none"
-          style={{ backgroundColor: color }}
-        >
-          <Icon className="h-2.5 w-2.5 inline" />
-          {field.label || field.type}
-          {field.required && " *"}
-        </div>
-
-        {/* Field content preview */}
-        <div className="w-full h-full flex items-center justify-center overflow-hidden">
-          {field.type === "signature" && (
-            <div className="flex flex-col items-center gap-0.5">
-              <PenTool className="h-4 w-4" style={{ color }} />
-              <span className="text-[9px]" style={{ color }}>Sign here</span>
-            </div>
-          )}
-          {field.type === "initials" && (
-            <div className="flex flex-col items-center gap-0.5">
-              <FileSignature className="h-3 w-3" style={{ color }} />
-              <span className="text-[9px]" style={{ color }}>Initials</span>
-            </div>
-          )}
-          {field.type === "stamp" && (
-            <div className="flex flex-col items-center gap-0.5">
-              <Stamp className="h-4 w-4" style={{ color }} />
-              <span className="text-[9px]" style={{ color }}>Seal</span>
-            </div>
-          )}
-          {field.type === "date" && (
-            <span className="text-[10px] font-medium" style={{ color }}>
-              {field.placeholder || "MM/DD/YYYY"}
-            </span>
-          )}
-          {field.type === "checkbox" && (
-            <div className="w-4 h-4 border-2 rounded-sm flex items-center justify-center" style={{ borderColor: color }}>
-              <span className="text-[10px]" style={{ color }}>✓</span>
-            </div>
-          )}
-          {field.type === "text" && (
-            <span className="text-[10px] px-1 text-gray-500 truncate">
-              {field.placeholder || field.label}
-            </span>
-          )}
-          {field.type === "static_text" && (
-            <span className="text-[10px] px-1 text-gray-700 truncate font-medium">
-              {field.staticText || "Static text"}
-            </span>
-          )}
-        </div>
-
-        {/* Delete button (only when selected and not disabled) */}
-        {selected && !disabled && (
-          <button
-            className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] hover:bg-red-600 shadow-sm z-20"
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            title="Delete field"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-    </Rnd>
-  );
-}
-
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function TemplateEditorPage() {
@@ -254,6 +123,7 @@ function TemplateEditorInner() {
   const versionId = searchParams.get("version") || "";
 
   const [version, setVersion] = useState<any>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [fields, setFields] = useState<OverlayField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -268,13 +138,12 @@ function TemplateEditorInner() {
     if (templateId && versionId) {
       api
         .getEsignTemplateVersion(templateId, versionId)
-        .then((data: any) => {
+        .then(async (data: any) => {
           setVersion(data);
           // Convert stored fractional coords to pixels if they look fractional
           const loaded = (data.overlayDefinition || []).map((f: any) => {
-            // If stored as fraction (0-1 range), convert to pixels based on PAGE_WIDTH
             if (f.x <= 1 && f.y <= 1 && f.width <= 1 && f.height <= 1) {
-              const ph = PAGE_WIDTH * (11 / 8.5); // A4 height estimate
+              const ph = PAGE_WIDTH * (11 / 8.5);
               return {
                 ...f,
                 x: Math.round(f.x * PAGE_WIDTH),
@@ -286,11 +155,34 @@ function TemplateEditorInner() {
             return f;
           });
           setFields(loaded);
+
+          // Fetch PDF as a local blob URL to avoid S3 CORS issues
+          try {
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+            const url = `${apiBase}/esign/templates/${templateId}/versions/${versionId}/pdf`;
+            const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+            const response = await fetch(url, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!response.ok) throw new Error("Failed to fetch PDF for preview");
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            setPdfBlobUrl(blobUrl);
+          } catch (e: any) {
+            toast.error("Could not load PDF preview: " + (e.message || "unknown error"));
+          }
         })
         .catch((err: any) => toast.error(err.message))
         .finally(() => setLoading(false));
     }
   }, [templateId, versionId]);
+
+  // Revoke blob URL on unmount to free memory
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
 
   const selectedField = fields.find((f) => f.fieldId === selectedFieldId) ?? null;
 
@@ -521,99 +413,22 @@ function TemplateEditorInner() {
           className="flex-1 overflow-auto bg-gray-300 p-6"
           onClick={() => setSelectedFieldId(null)}
         >
-          {version.sourcePdfUrl ? (
-            <Document
-              file={version.sourcePdfUrl}
-              onLoadSuccess={handleDocumentLoadSuccess}
-              loading={
-                <div className="text-center text-gray-500 py-12">
-                  Loading PDF...
-                </div>
-              }
-              error={
-                <div className="text-center text-red-500 py-12">
-                  Failed to load PDF.
-                </div>
-              }
-              className="flex flex-col items-center gap-6"
-            >
-              {Array.from({ length: numPages }, (_, pageIndex) => (
-                <div
-                  key={pageIndex}
-                  className="relative bg-white shadow-xl"
-                  style={{ width: scaledPageWidth }}
-                  ref={(el) => {
-                    pageContainerRefs.current[pageIndex] = el;
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Page label */}
-                  <div className="absolute -top-6 left-0 text-[11px] text-gray-500 font-medium">
-                    Page {pageIndex + 1}
-                  </div>
-
-                  {/* PDF page */}
-                  <Page
-                    pageNumber={pageIndex + 1}
-                    width={scaledPageWidth}
-                    onLoadSuccess={(page) => handlePageLoadSuccess(page, pageIndex)}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                  />
-
-                  {/* Field overlays for this page */}
-                  <div
-                    className="absolute inset-0"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {fields
-                      .filter((f) => f.pageIndex === pageIndex)
-                      .map((field) => (
-                        <div key={field.fieldId} style={{ pointerEvents: "all" }}>
-                          <FieldOverlay
-                            field={{
-                              ...field,
-                              x: field.x * zoom,
-                              y: field.y * zoom,
-                              width: field.width * zoom,
-                              height: field.height * zoom,
-                            }}
-                            selected={field.fieldId === selectedFieldId}
-                            disabled={isPublished}
-                            onSelect={() => setSelectedFieldId(field.fieldId)}
-                            onUpdate={(updates) => {
-                              // Convert zoomed coords back to base coords
-                              const baseUpdates: Partial<OverlayField> = {};
-                              if (updates.x !== undefined) baseUpdates.x = updates.x / zoom;
-                              if (updates.y !== undefined) baseUpdates.y = updates.y / zoom;
-                              if (updates.width !== undefined) baseUpdates.width = updates.width / zoom;
-                              if (updates.height !== undefined) baseUpdates.height = updates.height / zoom;
-                              updateField(field.fieldId, baseUpdates);
-                            }}
-                            onDelete={() => removeField(field.fieldId)}
-                          />
-                        </div>
-                      ))}
-                  </div>
-
-                  {/* Drop zone for adding fields — click shows Add button on hover */}
-                  {!isPublished && (
-                    <div
-                      className="absolute inset-0 flex flex-col items-end justify-end p-3 gap-1 pointer-events-none"
-                      style={{ zIndex: 5 }}
-                    />
-                  )}
-                </div>
-              ))}
-            </Document>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              <div className="text-center">
-                <p className="text-lg font-medium mb-1">PDF not available</p>
-                <p className="text-sm">The source PDF could not be loaded.</p>
-              </div>
-            </div>
-          )}
+          <PdfCanvas
+            pdfBlobUrl={pdfBlobUrl}
+            scaledPageWidth={scaledPageWidth}
+            zoom={zoom}
+            numPages={numPages}
+            fields={fields}
+            selectedFieldId={selectedFieldId}
+            isPublished={isPublished}
+            pageContainerRefs={pageContainerRefs}
+            onDocumentLoadSuccess={handleDocumentLoadSuccess}
+            onPageLoadSuccess={handlePageLoadSuccess}
+            onFieldSelect={(id) => setSelectedFieldId(id)}
+            onFieldDeselect={() => setSelectedFieldId(null)}
+            onFieldUpdate={updateField}
+            onFieldDelete={removeField}
+          />
         </div>
 
         {/* ── Right: Properties Panel ─────────────────────────── */}
