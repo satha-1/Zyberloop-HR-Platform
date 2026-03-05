@@ -7,6 +7,36 @@ export interface ILearningCourse extends Document {
   duration: number; // in hours
   instructor: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  sections: {
+    title: string;
+    description?: string;
+    materials: {
+      type: 'VIDEO' | 'DOCUMENT' | 'LINK' | 'QUIZ';
+      title: string;
+      url?: string;
+      key?: string; // S3 key
+      quizData?: {
+        questions: {
+          question: string;
+          options: string[];
+          correctAnswer: number; // Index of correct option
+        }[];
+      };
+    }[];
+  }[];
+  materials: {
+    type: 'VIDEO' | 'DOCUMENT' | 'LINK' | 'QUIZ';
+    title: string;
+    url?: string;
+    key?: string; // S3 key
+    quizData?: {
+      questions: {
+        question: string;
+        options: string[];
+        correctAnswer: number;
+      }[];
+    };
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +65,46 @@ const learningCourseSchema = new Schema<ILearningCourse>(
       enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'],
       default: 'DRAFT',
     },
+    sections: [
+      {
+        title: { type: String, required: true },
+        description: String,
+        materials: [
+          {
+            type: { type: String, enum: ['VIDEO', 'DOCUMENT', 'LINK', 'QUIZ'], required: true },
+            title: { type: String, required: true },
+            url: { type: String },
+            key: String,
+            quizData: {
+              questions: [
+                {
+                  question: { type: String, required: true },
+                  options: [{ type: String, required: true }],
+                  correctAnswer: { type: Number, required: true },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+    materials: [
+      {
+        type: { type: String, enum: ['VIDEO', 'DOCUMENT', 'LINK', 'QUIZ'], required: true },
+        title: { type: String, required: true },
+        url: { type: String },
+        key: String,
+        quizData: {
+          questions: [
+            {
+              question: { type: String, required: true },
+              options: [{ type: String, required: true }],
+              correctAnswer: { type: Number, required: true },
+            },
+          ],
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
