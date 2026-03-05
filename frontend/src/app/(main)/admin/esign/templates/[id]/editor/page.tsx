@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../../../components/ui/card";
 import { Button } from "../../../../../../components/ui/button";
 import { Input } from "../../../../../../components/ui/input";
 import { Badge } from "../../../../../../components/ui/badge";
@@ -14,18 +13,27 @@ import { api } from "../../../../../../lib/api";
 import { toast } from "sonner";
 import {
   ArrowLeft, Save, CheckCircle, Type, PenTool, Calendar,
-  Square, Stamp, FileSignature, Trash2, Plus, GripVertical,
+  Square, Stamp, FileSignature, Trash2, GripVertical, ZoomIn, ZoomOut,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+import { Rnd } from "react-rnd";
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface OverlayField {
   fieldId: string;
   type: string;
   pageIndex: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number;        // pixels from left of page
+  y: number;        // pixels from top of page
+  width: number;    // pixels
+  height: number;   // pixels
   required: boolean;
   assignedRole: string;
   label: string;
@@ -37,29 +45,208 @@ interface OverlayField {
   useCompanySeal?: boolean;
 }
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const PAGE_WIDTH = 794; // px — A4-ish reference width
+
 const FIELD_TYPES = [
-  { value: "text", label: "Text Field", icon: Type, desc: "Employee fills text" },
-  { value: "signature", label: "Signature", icon: PenTool, desc: "Signature placeholder" },
-  { value: "initials", label: "Initials", icon: FileSignature, desc: "Initials placeholder" },
-  { value: "date", label: "Date", icon: Calendar, desc: "Date field" },
-  { value: "checkbox", label: "Checkbox", icon: Square, desc: "Checkbox field" },
-  { value: "stamp", label: "Seal/Stamp", icon: Stamp, desc: "Company seal" },
-  { value: "static_text", label: "Static Text", icon: Type, desc: "Fixed text by HR" },
+  { value: "text", label: "Text Field", icon: Type, color: "#3b82f6" },
+  { value: "signature", label: "Signature", icon: PenTool, color: "#8b5cf6" },
+  { value: "initials", label: "Initials", icon: FileSignature, color: "#ec4899" },
+  { value: "date", label: "Date", icon: Calendar, color: "#f59e0b" },
+  { value: "checkbox", label: "Checkbox", icon: Square, color: "#10b981" },
+  { value: "stamp", label: "Seal/Stamp", icon: Stamp, color: "#ef4444" },
+  { value: "static_text", label: "Static Text", icon: Type, color: "#6b7280" },
+];
+
+const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
+  text: { w: 200, h: 32 },
+  signature: { w: 180, h: 60 },
+  initials: { w: 80, h: 40 },
+  date: { w: 140, h: 32 },
+  checkbox: { w: 24, h: 24 },
+  stamp: { w: 120, h: 60 },
+  static_text: { w: 200, h: 32 },
+};
+
+const RECIPIENT_ROLES = [
+  { value: "employee", label: "Employee" },
+  { value: "hr", label: "HR Staff" },
+  { value: "hr_admin", label: "HR Admin" },
+  { value: "manager", label: "Manager" },
+  { value: "witness", label: "Witness" },
 ];
 
 function generateId() {
   return "field_" + Math.random().toString(36).substring(2, 10);
 }
 
+function getFieldColor(type: string) {
+  return FIELD_TYPES.find((f) => f.value === type)?.color || "#3b82f6";
+}
+
+// ─── Draggable Sidebar Item ──────────────────────────────────────────────────
+
+function SidebarFieldItem({
+  ft, disabled, onAdd,
+}: {
+  ft: (typeof FIELD_TYPES)[0];
+  disabled: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <button
+      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 group"
+      onClick={onAdd}
+      disabled={disabled}
+      title={`Add ${ft.label}`}
+    >
+      <div
+        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: ft.color + "22", color: ft.color }}
+      >
+        <ft.icon className="h-4 w-4" />
+      </div>
+      <div>
+        <div className="font-medium text-gray-800 text-xs">{ft.label}</div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Field Overlay on PDF ───────────────────────────────────────────────────
+
+function FieldOverlay({
+  field,
+  selected,
+  disabled,
+  onSelect,
+  onUpdate,
+  onDelete,
+}: {
+  field: OverlayField;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  onUpdate: (updates: Partial<OverlayField>) => void;
+  onDelete: () => void;
+}) {
+  const color = getFieldColor(field.type);
+  const Icon = FIELD_TYPES.find((f) => f.value === field.type)?.icon || Type;
+
+  return (
+    <Rnd
+      size={{ width: field.width, height: field.height }}
+      position={{ x: field.x, y: field.y }}
+      onDragStop={(_e, d) => {
+        if (!disabled) onUpdate({ x: d.x, y: d.y });
+      }}
+      onResizeStop={(_e, _dir, ref, _delta, pos) => {
+        if (!disabled)
+          onUpdate({
+            width: ref.offsetWidth,
+            height: ref.offsetHeight,
+            x: pos.x,
+            y: pos.y,
+          });
+      }}
+      disableDragging={disabled}
+      enableResizing={!disabled}
+      minWidth={24}
+      minHeight={20}
+      bounds="parent"
+      style={{ zIndex: selected ? 30 : 20 }}
+      onMouseDown={(e) => {
+        (e as any).stopPropagation?.();
+        onSelect();
+      }}
+    >
+      <div
+        className="relative w-full h-full rounded cursor-pointer select-none"
+        style={{
+          border: `2px ${selected ? "solid" : "dashed"} ${color}`,
+          backgroundColor: color + "18",
+          boxShadow: selected ? `0 0 0 3px ${color}44` : undefined,
+        }}
+      >
+        {/* Label tag */}
+        <div
+          className="absolute -top-5 left-0 flex items-center gap-1 text-[9px] text-white px-1.5 py-0.5 rounded-sm whitespace-nowrap z-10 leading-none"
+          style={{ backgroundColor: color }}
+        >
+          <Icon className="h-2.5 w-2.5 inline" />
+          {field.label || field.type}
+          {field.required && " *"}
+        </div>
+
+        {/* Field content preview */}
+        <div className="w-full h-full flex items-center justify-center overflow-hidden">
+          {field.type === "signature" && (
+            <div className="flex flex-col items-center gap-0.5">
+              <PenTool className="h-4 w-4" style={{ color }} />
+              <span className="text-[9px]" style={{ color }}>Sign here</span>
+            </div>
+          )}
+          {field.type === "initials" && (
+            <div className="flex flex-col items-center gap-0.5">
+              <FileSignature className="h-3 w-3" style={{ color }} />
+              <span className="text-[9px]" style={{ color }}>Initials</span>
+            </div>
+          )}
+          {field.type === "stamp" && (
+            <div className="flex flex-col items-center gap-0.5">
+              <Stamp className="h-4 w-4" style={{ color }} />
+              <span className="text-[9px]" style={{ color }}>Seal</span>
+            </div>
+          )}
+          {field.type === "date" && (
+            <span className="text-[10px] font-medium" style={{ color }}>
+              {field.placeholder || "MM/DD/YYYY"}
+            </span>
+          )}
+          {field.type === "checkbox" && (
+            <div className="w-4 h-4 border-2 rounded-sm flex items-center justify-center" style={{ borderColor: color }}>
+              <span className="text-[10px]" style={{ color }}>✓</span>
+            </div>
+          )}
+          {field.type === "text" && (
+            <span className="text-[10px] px-1 text-gray-500 truncate">
+              {field.placeholder || field.label}
+            </span>
+          )}
+          {field.type === "static_text" && (
+            <span className="text-[10px] px-1 text-gray-700 truncate font-medium">
+              {field.staticText || "Static text"}
+            </span>
+          )}
+        </div>
+
+        {/* Delete button (only when selected and not disabled) */}
+        {selected && !disabled && (
+          <button
+            className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] hover:bg-red-600 shadow-sm z-20"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            title="Delete field"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </Rnd>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function TemplateEditorPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading editor...</div>}>
-      <TemplateEditorPageInner />
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-gray-500">Loading editor...</div>}>
+      <TemplateEditorInner />
     </Suspense>
   );
 }
 
-function TemplateEditorPageInner() {
+function TemplateEditorInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -71,57 +258,99 @@ function TemplateEditorPageInner() {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [zoom, setZoom] = useState(1);
+  const [pageSizes, setPageSizes] = useState<Array<{ width: number; height: number }>>([]);
+
+  const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     if (templateId && versionId) {
-      api.getEsignTemplateVersion(templateId, versionId)
+      api
+        .getEsignTemplateVersion(templateId, versionId)
         .then((data: any) => {
           setVersion(data);
-          setFields(data.overlayDefinition || []);
+          // Convert stored fractional coords to pixels if they look fractional
+          const loaded = (data.overlayDefinition || []).map((f: any) => {
+            // If stored as fraction (0-1 range), convert to pixels based on PAGE_WIDTH
+            if (f.x <= 1 && f.y <= 1 && f.width <= 1 && f.height <= 1) {
+              const ph = PAGE_WIDTH * (11 / 8.5); // A4 height estimate
+              return {
+                ...f,
+                x: Math.round(f.x * PAGE_WIDTH),
+                y: Math.round(f.y * ph),
+                width: Math.round(f.width * PAGE_WIDTH),
+                height: Math.round(f.height * ph),
+              };
+            }
+            return f;
+          });
+          setFields(loaded);
         })
         .catch((err: any) => toast.error(err.message))
         .finally(() => setLoading(false));
     }
   }, [templateId, versionId]);
 
-  const selectedField = fields.find((f) => f.fieldId === selectedFieldId) || null;
+  const selectedField = fields.find((f) => f.fieldId === selectedFieldId) ?? null;
 
-  const addField = (type: string) => {
-    const newField: OverlayField = {
-      fieldId: generateId(),
-      type,
-      pageIndex: currentPage,
-      x: 0.1,
-      y: 0.1,
-      width: type === "checkbox" ? 0.03 : type === "signature" || type === "stamp" ? 0.2 : 0.3,
-      height: type === "checkbox" ? 0.03 : type === "signature" || type === "stamp" ? 0.08 : 0.04,
-      required: type !== "static_text" && type !== "checkbox",
-      assignedRole: type === "stamp" ? "hr_admin" : "employee",
-      label: `${type.charAt(0).toUpperCase() + type.slice(1).replace("_", " ")} ${fields.length + 1}`,
-      placeholder: "",
-      staticText: type === "static_text" ? "Enter text here" : undefined,
-      fontSize: 12,
-      useCompanySeal: type === "stamp",
-    };
-    setFields([...fields, newField]);
-    setSelectedFieldId(newField.fieldId);
-  };
+  const addField = useCallback(
+    (type: string, pageIndex = 0) => {
+      const size = DEFAULT_SIZES[type] || { w: 160, h: 36 };
+      const newField: OverlayField = {
+        fieldId: generateId(),
+        type,
+        pageIndex,
+        x: 60,
+        y: 60,
+        width: size.w,
+        height: size.h,
+        required: type !== "static_text" && type !== "checkbox",
+        assignedRole: type === "stamp" ? "hr_admin" : "employee",
+        label: `${FIELD_TYPES.find((f) => f.value === type)?.label ?? type} ${fields.length + 1}`,
+        placeholder: "",
+        staticText: type === "static_text" ? "Enter text here" : undefined,
+        fontSize: 12,
+        useCompanySeal: type === "stamp",
+      };
+      setFields((prev) => [...prev, newField]);
+      setSelectedFieldId(newField.fieldId);
+    },
+    [fields.length]
+  );
 
-  const updateField = (fieldId: string, updates: Partial<OverlayField>) => {
-    setFields(fields.map((f) => (f.fieldId === fieldId ? { ...f, ...updates } : f)));
-  };
+  const updateField = useCallback((fieldId: string, updates: Partial<OverlayField>) => {
+    setFields((prev) =>
+      prev.map((f) => (f.fieldId === fieldId ? { ...f, ...updates } : f))
+    );
+  }, []);
 
-  const removeField = (fieldId: string) => {
-    setFields(fields.filter((f) => f.fieldId !== fieldId));
-    if (selectedFieldId === fieldId) setSelectedFieldId(null);
+  const removeField = useCallback((fieldId: string) => {
+    setFields((prev) => prev.filter((f) => f.fieldId !== fieldId));
+    setSelectedFieldId((cur) => (cur === fieldId ? null : cur));
+  }, []);
+
+  const serializeFields = () => {
+    // Persist in fractional coords relative to PAGE_WIDTH (for rendering independence)
+    return fields.map((f) => {
+      const pageH = pageSizes[f.pageIndex]?.height
+        ? (pageSizes[f.pageIndex].height / pageSizes[f.pageIndex].width) * PAGE_WIDTH
+        : PAGE_WIDTH * (11 / 8.5);
+      return {
+        ...f,
+        x: f.x / PAGE_WIDTH,
+        y: f.y / pageH,
+        width: f.width / PAGE_WIDTH,
+        height: f.height / pageH,
+      };
+    });
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
       await api.updateEsignTemplateVersion(templateId, versionId, {
-        overlayDefinition: fields,
+        overlayDefinition: serializeFields(),
       });
       toast.success("Template saved");
     } catch (error: any) {
@@ -134,7 +363,7 @@ function TemplateEditorPageInner() {
   const handlePublish = async () => {
     try {
       await api.updateEsignTemplateVersion(templateId, versionId, {
-        overlayDefinition: fields,
+        overlayDefinition: serializeFields(),
       });
       await api.publishEsignTemplateVersion(templateId, versionId);
       toast.success("Template published!");
@@ -144,183 +373,268 @@ function TemplateEditorPageInner() {
     }
   };
 
-  // Mouse handling for field positioning on the PDF canvas
-  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Deselect when clicking canvas background
-    if ((e.target as HTMLElement).dataset.canvas === "true") {
-      setSelectedFieldId(null);
-    }
+  const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    pageContainerRefs.current = new Array(numPages).fill(null);
+  };
+
+  const handlePageLoadSuccess = (page: any, pageIndex: number) => {
+    setPageSizes((prev) => {
+      const next = [...prev];
+      next[pageIndex] = { width: page.width, height: page.height };
+      return next;
+    });
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-500">Loading editor...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-500">
+        Loading editor...
+      </div>
+    );
   }
 
   if (!version) {
-    return <div className="p-6 text-center text-gray-500">Template version not found</div>;
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-500">
+        Template version not found
+      </div>
+    );
   }
 
   const isPublished = version.status === "published";
-  const pageCount = version.pageCount || 1;
+  const scaledPageWidth = Math.round(PAGE_WIDTH * zoom);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-white z-10">
+    <div className="h-screen flex flex-col bg-gray-100">
+      {/* ── Top Bar ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-white shadow-sm z-20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Link href={`/admin/esign/templates/${templateId}`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <span className="font-semibold">Template Editor</span>
-          <Badge className={isPublished ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}>
+          <span className="font-semibold text-gray-800">Template Editor</span>
+          <Badge
+            className={
+              isPublished
+                ? "bg-green-100 text-green-800"
+                : "bg-amber-100 text-amber-800"
+            }
+          >
             {version.status}
           </Badge>
-          <span className="text-sm text-gray-500">v{version.versionNumber} · {fields.length} fields</span>
+          <span className="text-xs text-gray-500">
+            v{version.versionNumber} · {fields.length} fields
+          </span>
         </div>
+
         <div className="flex items-center gap-2">
+          {/* Zoom controls */}
+          <div className="flex items-center gap-1 border rounded-lg px-2 py-1 bg-gray-50">
+            <button
+              className="p-1 hover:bg-gray-200 rounded"
+              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+            >
+              <ZoomOut className="h-4 w-4 text-gray-600" />
+            </button>
+            <span className="text-xs font-medium text-gray-600 w-12 text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              className="p-1 hover:bg-gray-200 rounded"
+              onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
+            >
+              <ZoomIn className="h-4 w-4 text-gray-600" />
+            </button>
+          </div>
+
           {!isPublished && (
             <>
               <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-1" /> {saving ? "Saving..." : "Save"}
+                <Save className="h-4 w-4 mr-1" />
+                {saving ? "Saving..." : "Save Draft"}
               </Button>
-              <Button size="sm" onClick={handlePublish}>
-                <CheckCircle className="h-4 w-4 mr-1" /> Save & Publish
+              <Button size="sm" onClick={handlePublish} disabled={saving}>
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Save & Publish
               </Button>
             </>
           )}
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Toolbox */}
-        <div className="w-56 border-r bg-gray-50 overflow-y-auto p-3 space-y-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Add Field</h3>
-          {FIELD_TYPES.map((ft) => (
-            <button
-              key={ft.value}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm hover:bg-blue-50 hover:text-blue-700 transition-colors disabled:opacity-40"
-              onClick={() => addField(ft.value)}
-              disabled={isPublished}
-            >
-              <ft.icon className="h-4 w-4 flex-shrink-0" />
-              <div>
-                <div className="font-medium">{ft.label}</div>
-                <div className="text-xs text-gray-400">{ft.desc}</div>
-              </div>
-            </button>
-          ))}
+      <div className="flex flex-1 min-h-0">
+        {/* ── Left Toolbox ──────────────────────────────────── */}
+        <div className="w-52 border-r bg-gray-50 overflow-y-auto flex-shrink-0">
+          <div className="p-3">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">
+              Add Field
+            </p>
+            <div className="space-y-0.5">
+              {FIELD_TYPES.map((ft) => (
+                <SidebarFieldItem
+                  key={ft.value}
+                  ft={ft}
+                  disabled={isPublished}
+                  onAdd={() => addField(ft.value, 0)}
+                />
+              ))}
+            </div>
+          </div>
 
-          {/* Page selector */}
-          {pageCount > 1 && (
-            <div className="pt-4 border-t">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Page</h3>
-              <Select value={currentPage.toString()} onValueChange={(v) => setCurrentPage(parseInt(v))}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: pageCount }, (_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      Page {i + 1}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Field list at bottom */}
+          {fields.length > 0 && (
+            <div className="border-t p-3 mt-2">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1 flex items-center gap-1">
+                <Layers className="h-3 w-3" /> Fields ({fields.length})
+              </p>
+              <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                {fields.map((f) => {
+                  const color = getFieldColor(f.type);
+                  const FtIcon = FIELD_TYPES.find((ft) => ft.value === f.type)?.icon || Type;
+                  return (
+                    <button
+                      key={f.fieldId}
+                      className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-left text-xs ${
+                        f.fieldId === selectedFieldId
+                          ? "bg-blue-50 text-blue-700"
+                          : "hover:bg-gray-100 text-gray-700"
+                      }`}
+                      onClick={() => setSelectedFieldId(f.fieldId)}
+                    >
+                      <FtIcon className="h-3 w-3 flex-shrink-0" style={{ color }} />
+                      <span className="truncate flex-1">{f.label}</span>
+                      <span className="text-gray-400 flex-shrink-0">p{f.pageIndex + 1}</span>
+                      {f.required && <span className="text-red-400">*</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Center: PDF + Overlay */}
-        <div className="flex-1 overflow-auto bg-gray-200 p-6">
-          <div
-            className="relative mx-auto bg-white shadow-lg"
-            style={{
-              width: 612, // Standard letter width in points
-              minHeight: 792,
-              aspectRatio: "8.5 / 11",
-            }}
-            data-canvas="true"
-            onClick={handleCanvasClick}
-          >
-            {/* PDF Background */}
-            {version.sourcePdfUrl && (
-              <iframe
-                src={`${version.sourcePdfUrl}#page=${currentPage + 1}`}
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                style={{ border: "none" }}
-                title="PDF Background"
-              />
-            )}
-
-            {/* Field overlays for current page */}
-            {fields
-              .filter((f) => f.pageIndex === currentPage)
-              .map((field) => {
-                const isSelected = field.fieldId === selectedFieldId;
-                return (
-                  <div
-                    key={field.fieldId}
-                    className={`absolute cursor-pointer border-2 rounded transition-colors ${
-                      isSelected
-                        ? "border-blue-500 bg-blue-100/40 ring-2 ring-blue-300"
-                        : "border-dashed border-blue-300 bg-blue-50/30 hover:border-blue-400"
-                    }`}
-                    style={{
-                      left: `${field.x * 100}%`,
-                      top: `${field.y * 100}%`,
-                      width: `${field.width * 100}%`,
-                      height: `${field.height * 100}%`,
-                      minWidth: 24,
-                      minHeight: 20,
-                      zIndex: isSelected ? 20 : 10,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedFieldId(field.fieldId);
-                    }}
-                  >
-                    <div className="absolute -top-5 left-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
-                      {field.label || field.type}
-                      {field.required && " *"}
-                    </div>
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-blue-600 font-medium">
-                      {field.type === "signature" && <PenTool className="h-3 w-3" />}
-                      {field.type === "initials" && <FileSignature className="h-3 w-3" />}
-                      {field.type === "stamp" && <Stamp className="h-3 w-3" />}
-                      {field.type === "date" && <Calendar className="h-3 w-3" />}
-                      {field.type === "checkbox" && <Square className="h-3 w-3" />}
-                      {field.type === "text" && <span className="truncate px-1">{field.placeholder || "Text"}</span>}
-                      {field.type === "static_text" && (
-                        <span className="truncate px-1 text-gray-700">{field.staticText}</span>
-                      )}
-                    </div>
+        {/* ── Center: PDF Canvas ─────────────────────────────── */}
+        <div
+          className="flex-1 overflow-auto bg-gray-300 p-6"
+          onClick={() => setSelectedFieldId(null)}
+        >
+          {version.sourcePdfUrl ? (
+            <Document
+              file={version.sourcePdfUrl}
+              onLoadSuccess={handleDocumentLoadSuccess}
+              loading={
+                <div className="text-center text-gray-500 py-12">
+                  Loading PDF...
+                </div>
+              }
+              error={
+                <div className="text-center text-red-500 py-12">
+                  Failed to load PDF.
+                </div>
+              }
+              className="flex flex-col items-center gap-6"
+            >
+              {Array.from({ length: numPages }, (_, pageIndex) => (
+                <div
+                  key={pageIndex}
+                  className="relative bg-white shadow-xl"
+                  style={{ width: scaledPageWidth }}
+                  ref={(el) => {
+                    pageContainerRefs.current[pageIndex] = el;
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Page label */}
+                  <div className="absolute -top-6 left-0 text-[11px] text-gray-500 font-medium">
+                    Page {pageIndex + 1}
                   </div>
-                );
-              })}
-          </div>
+
+                  {/* PDF page */}
+                  <Page
+                    pageNumber={pageIndex + 1}
+                    width={scaledPageWidth}
+                    onLoadSuccess={(page) => handlePageLoadSuccess(page, pageIndex)}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                  />
+
+                  {/* Field overlays for this page */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {fields
+                      .filter((f) => f.pageIndex === pageIndex)
+                      .map((field) => (
+                        <div key={field.fieldId} style={{ pointerEvents: "all" }}>
+                          <FieldOverlay
+                            field={{
+                              ...field,
+                              x: field.x * zoom,
+                              y: field.y * zoom,
+                              width: field.width * zoom,
+                              height: field.height * zoom,
+                            }}
+                            selected={field.fieldId === selectedFieldId}
+                            disabled={isPublished}
+                            onSelect={() => setSelectedFieldId(field.fieldId)}
+                            onUpdate={(updates) => {
+                              // Convert zoomed coords back to base coords
+                              const baseUpdates: Partial<OverlayField> = {};
+                              if (updates.x !== undefined) baseUpdates.x = updates.x / zoom;
+                              if (updates.y !== undefined) baseUpdates.y = updates.y / zoom;
+                              if (updates.width !== undefined) baseUpdates.width = updates.width / zoom;
+                              if (updates.height !== undefined) baseUpdates.height = updates.height / zoom;
+                              updateField(field.fieldId, baseUpdates);
+                            }}
+                            onDelete={() => removeField(field.fieldId)}
+                          />
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* Drop zone for adding fields — click shows Add button on hover */}
+                  {!isPublished && (
+                    <div
+                      className="absolute inset-0 flex flex-col items-end justify-end p-3 gap-1 pointer-events-none"
+                      style={{ zIndex: 5 }}
+                    />
+                  )}
+                </div>
+              ))}
+            </Document>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <p className="text-lg font-medium mb-1">PDF not available</p>
+                <p className="text-sm">The source PDF could not be loaded.</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right: Properties Panel */}
-        <div className="w-72 border-l bg-white overflow-y-auto">
+        {/* ── Right: Properties Panel ─────────────────────────── */}
+        <div className="w-72 border-l bg-white overflow-y-auto flex-shrink-0">
           {selectedField ? (
             <div className="p-4 space-y-4">
+              {/* Header */}
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">Field Properties</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500 hover:text-red-700"
+                <h3 className="font-semibold text-sm text-gray-800">Field Properties</h3>
+                <button
+                  className="p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-700"
                   onClick={() => removeField(selectedField.fieldId)}
                   disabled={isPublished}
+                  title="Delete field"
                 >
                   <Trash2 className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Label</label>
                 <Input
                   value={selectedField.label}
                   onChange={(e) => updateField(selectedField.fieldId, { label: e.target.value })}
@@ -329,81 +643,43 @@ function TemplateEditorPageInner() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                <Input value={selectedField.type.replace("_", " ")} disabled className="bg-gray-50" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">X (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={selectedField.x}
-                    onChange={(e) => updateField(selectedField.fieldId, { x: parseFloat(e.target.value) || 0 })}
-                    disabled={isPublished}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Y (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={selectedField.y}
-                    onChange={(e) => updateField(selectedField.fieldId, { y: parseFloat(e.target.value) || 0 })}
-                    disabled={isPublished}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Width (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.02"
-                    max="1"
-                    value={selectedField.width}
-                    onChange={(e) => updateField(selectedField.fieldId, { width: parseFloat(e.target.value) || 0.1 })}
-                    disabled={isPublished}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Height (%)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.02"
-                    max="1"
-                    value={selectedField.height}
-                    onChange={(e) => updateField(selectedField.fieldId, { height: parseFloat(e.target.value) || 0.04 })}
-                    disabled={isPublished}
-                  />
+                <label className="block text-xs font-medium text-gray-500 mb-1">Field Type</label>
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border text-sm"
+                  style={{ color: getFieldColor(selectedField.type) }}
+                >
+                  {(() => {
+                    const ft = FIELD_TYPES.find((f) => f.value === selectedField.type);
+                    return ft ? <ft.icon className="h-4 w-4" /> : null;
+                  })()}
+                  {FIELD_TYPES.find((f) => f.value === selectedField.type)?.label ?? selectedField.type}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Page</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Page</label>
                 <Select
                   value={selectedField.pageIndex.toString()}
-                  onValueChange={(v) => updateField(selectedField.fieldId, { pageIndex: parseInt(v) })}
-                  disabled={isPublished}
+                  onValueChange={(v) =>
+                    updateField(selectedField.fieldId, { pageIndex: parseInt(v) })
+                  }
+                  disabled={isPublished || numPages <= 1}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: pageCount }, (_, i) => (
-                      <SelectItem key={i} value={i.toString()}>Page {i + 1}</SelectItem>
+                    {Array.from({ length: numPages }, (_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        Page {i + 1}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Assigned Role</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Assigned To</label>
                 <Select
                   value={selectedField.assignedRole}
                   onValueChange={(v) => updateField(selectedField.fieldId, { assignedRole: v })}
@@ -413,28 +689,34 @@ function TemplateEditorPageInner() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Employee</SelectItem>
-                    <SelectItem value="hr">HR Staff</SelectItem>
-                    <SelectItem value="hr_admin">HR Admin</SelectItem>
+                    {RECIPIENT_ROLES.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-gray-600">Required</label>
+              <div className="flex items-center justify-between py-1">
+                <label className="text-xs font-medium text-gray-500">Required</label>
                 <Switch
                   checked={selectedField.required}
-                  onCheckedChange={(v) => updateField(selectedField.fieldId, { required: v })}
+                  onCheckedChange={(v) =>
+                    updateField(selectedField.fieldId, { required: v })
+                  }
                   disabled={isPublished}
                 />
               </div>
 
               {selectedField.type === "text" && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Placeholder</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Placeholder</label>
                   <Input
                     value={selectedField.placeholder || ""}
-                    onChange={(e) => updateField(selectedField.fieldId, { placeholder: e.target.value })}
+                    onChange={(e) =>
+                      updateField(selectedField.fieldId, { placeholder: e.target.value })
+                    }
                     disabled={isPublished}
                   />
                 </div>
@@ -442,62 +724,71 @@ function TemplateEditorPageInner() {
 
               {selectedField.type === "static_text" && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Static Text</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Static Text Content</label>
                   <Input
                     value={selectedField.staticText || ""}
-                    onChange={(e) => updateField(selectedField.fieldId, { staticText: e.target.value })}
+                    onChange={(e) =>
+                      updateField(selectedField.fieldId, { staticText: e.target.value })
+                    }
                     disabled={isPublished}
                   />
                 </div>
               )}
 
-              {(selectedField.type === "text" || selectedField.type === "date" || selectedField.type === "static_text") && (
+              {["text", "date", "static_text"].includes(selectedField.type) && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Font Size</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Font Size</label>
                   <Input
                     type="number"
-                    min="6"
-                    max="72"
+                    min={6}
+                    max={72}
                     value={selectedField.fontSize || 12}
-                    onChange={(e) => updateField(selectedField.fieldId, { fontSize: parseInt(e.target.value) || 12 })}
+                    onChange={(e) =>
+                      updateField(selectedField.fieldId, {
+                        fontSize: parseInt(e.target.value) || 12,
+                      })
+                    }
                     disabled={isPublished}
                   />
                 </div>
               )}
+
+              {/* Position / Size readout */}
+              <div className="border-t pt-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Position (px)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["x", "y", "width", "height"] as const).map((prop) => (
+                    <div key={prop}>
+                      <label className="block text-[10px] text-gray-400 mb-0.5 capitalize">
+                        {prop}
+                      </label>
+                      <Input
+                        type="number"
+                        value={Math.round(selectedField[prop] as number)}
+                        onChange={(e) =>
+                          updateField(selectedField.fieldId, {
+                            [prop]: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        disabled={isPublished}
+                        className="text-xs h-7"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="p-6 text-center text-gray-400">
-              <GripVertical className="h-8 w-8 mx-auto mb-2" />
-              <p className="text-sm">Select a field to edit its properties</p>
-              <p className="text-xs mt-1">or add a new field from the toolbox</p>
+            <div className="p-6 text-center text-gray-400 mt-8">
+              <GripVertical className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium">No field selected</p>
+              <p className="text-xs mt-1">
+                Click a field on the PDF to edit its properties, or add a new field from the left panel.
+              </p>
             </div>
           )}
-
-          {/* Field list */}
-          <div className="border-t p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              All Fields ({fields.length})
-            </h3>
-            <div className="space-y-1 max-h-60 overflow-y-auto">
-              {fields.map((f) => (
-                <button
-                  key={f.fieldId}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs text-left ${
-                    f.fieldId === selectedFieldId ? "bg-blue-50 text-blue-700" : "hover:bg-gray-50"
-                  }`}
-                  onClick={() => {
-                    setSelectedFieldId(f.fieldId);
-                    setCurrentPage(f.pageIndex);
-                  }}
-                >
-                  <span className="truncate">
-                    {f.label} <span className="text-gray-400">(p{f.pageIndex + 1})</span>
-                  </span>
-                  {f.required && <span className="text-red-400 ml-1">*</span>}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
