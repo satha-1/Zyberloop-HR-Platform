@@ -52,12 +52,16 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
     'image/png',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'video/mp4',
+    'video/mpeg',
+    'video/webm',
+    'video/ogg',
   ];
 
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new AppError(400, `Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX`));
+    cb(new AppError(400, `Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX, MP4, MPEG, WEBM, OGG`));
   }
 };
 
