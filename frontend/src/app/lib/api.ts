@@ -1442,6 +1442,30 @@ class ApiClient {
     return this.request(`/esign/templates/${templateId}/versions/${versionId}`);
   }
 
+  /** Fetch template source PDF as a local blob URL (avoids S3 CORS in browser). */
+  async getEsignTemplatePdfBlobUrl(
+    templateId: string,
+    versionId: string
+  ): Promise<string> {
+    const url = `${this.baseUrl}/esign/templates/${templateId}/versions/${versionId}/pdf`;
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error("Failed to fetch PDF for preview");
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  /** Fetch signing-page source PDF as a local blob URL using the public signing token. */
+  async getSigningPdfBlobUrl(token: string): Promise<string> {
+    const url = `${this.baseUrl}/esign/sign/${token}/pdf`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch document PDF");
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+
   async updateEsignTemplateVersion(templateId: string, versionId: string, data: any) {
     return this.request(`/esign/templates/${templateId}/versions/${versionId}`, {
       method: "PUT",

@@ -3,16 +3,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { api } from "../../lib/api";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 import {
   CheckCircle2, PenTool, Calendar, Type, Square, Stamp,
   FileSignature, Download, Loader2, Shield, AlertTriangle, X,
   ZoomIn, ZoomOut, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// CSS-only imports are safe (no pdfjs JS runs at module init time)
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 
 // ─── Minimal UI Components (no auth deps) ────────────────────────────────────
 
@@ -501,9 +500,20 @@ export default function SigningPage() {
   const params = useParams();
   const token = params.token as string;
 
+  // Lazily load react-pdf inside useEffect — pdfjs crashes if its module
+  // initialises at bundle-load time due to Object.defineProperty on browser globals.
+  const [pdfLib, setPdfLib] = useState<{ Document: any; Page: any } | null>(null);
+  useEffect(() => {
+    import("react-pdf").then(({ Document, Page, pdfjs }) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      setPdfLib({ Document, Page });
+    });
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<any>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState<Map<string, FieldValue>>(new Map());
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [activeSignatureFieldId, setActiveSignatureFieldId] = useState<string | null>(null);
@@ -522,7 +532,7 @@ export default function SigningPage() {
     if (!token) return;
     api
       .getSigningSession(token)
-      .then((data: any) => {
+      .then(async (data: any) => {
         setSession(data);
         api.markSigningViewed(token).catch(() => {});
         if (data.fieldValues) {
@@ -532,10 +542,29 @@ export default function SigningPage() {
           });
           setFieldValues(map);
         }
+        // Fetch PDF as a local blob URL to avoid S3 CORS issues
+        try {
+          const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+          const url = `${apiBase}/esign/sign/${token}/pdf`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Failed to fetch document PDF");
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setPdfBlobUrl(blobUrl);
+        } catch (e: any) {
+          setError("Could not load document PDF: " + (e.message || "unknown error"));
+        }
       })
       .catch((err: any) => setError(err.message))
       .finally(() => setLoading(false));
   }, [token]);
+
+  // Revoke blob URL on unmount to free memory
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
 
   const handleFieldInteract = useCallback((fieldId: string) => {
     const field = session?.templateVersion?.overlayDefinition?.find(
@@ -650,7 +679,7 @@ export default function SigningPage() {
 
   if (!session) return null;
 
-  const { envelope, templateVersion, sourcePdfUrl } = session;
+  const { envelope, templateVersion } = session;
   const allFields: OverlayField[] = templateVersion?.overlayDefinition || [];
   const myFields = allFields.filter(
     (f: OverlayField) => f.type !== "static_text" && f.assignedRole === "employee"
@@ -726,10 +755,10 @@ export default function SigningPage() {
             </div>
           </div>
 
-          {sourcePdfUrl ? (
-            <Document
-              file={sourcePdfUrl}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          {pdfBlobUrl && pdfLib ? (
+            <pdfLib.Document
+              file={pdfBlobUrl}
+              onLoadSuccess={({ numPages }: { numPages: number }) => setNumPages(numPages)}
               loading={
                 <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
@@ -759,10 +788,10 @@ export default function SigningPage() {
                       {pageIndex + 1} / {numPages}
                     </div>
 
-                    <Page
+                    <pdfLib.Page
                       pageNumber={pageIndex + 1}
                       width={scaledWidth}
-                      onLoadSuccess={(page) => {
+                      onLoadSuccess={(page: any) => {
                         setPageSizes((prev) => ({
                           ...prev,
                           [pageIndex]: { width: page.width, height: page.height },
@@ -812,10 +841,14 @@ export default function SigningPage() {
                   </div>
                 );
               })}
-            </Document>
+            </pdfLib.Document>
           ) : (
             <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow text-gray-400">
-              Document not available
+              {!pdfLib ? (
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+              ) : (
+                "Document not available"
+              )}
             </div>
           )}
         </div>

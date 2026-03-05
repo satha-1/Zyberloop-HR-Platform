@@ -220,6 +220,24 @@ export const getTemplateVersion = async (req: Request, res: Response, next: Next
   }
 };
 
+/** Proxy-stream the template source PDF through the backend (avoids S3 CORS in browser). */
+export const streamTemplateVersionPdf = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const version = await esignService.getTemplateVersion(req.params.versionId);
+    const presignedUrl = await esignStorageService.getPresignedUrl(version.sourcePdfS3Key, 120);
+    const s3Resp = await fetch(presignedUrl);
+    if (!s3Resp.ok) throw new AppError(502, 'Failed to fetch PDF from storage');
+    const buffer = Buffer.from(await s3Resp.arrayBuffer());
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="template.pdf"');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'private, max-age=120');
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ─── SIGN REQUEST ENVELOPES ──────────────────────────────
 
 export const createEnvelope = async (req: Request, res: Response, next: NextFunction) => {
@@ -381,6 +399,25 @@ export const getEnvelopeAudit = async (req: Request, res: Response, next: NextFu
 };
 
 // ─── SIGNING (Recipient side - public/token-based) ───────
+
+/** Proxy-stream the signing source PDF through the backend using the signing token (no auth required). */
+export const streamSigningPdf = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const envelope = await esignService.validateSigningToken(req.params.token);
+    const version = await esignService.getTemplateVersion(envelope.templateVersionId.toString());
+    const presignedUrl = await esignStorageService.getPresignedUrl(version.sourcePdfS3Key, 120);
+    const s3Resp = await fetch(presignedUrl);
+    if (!s3Resp.ok) throw new AppError(502, 'Failed to fetch PDF from storage');
+    const buffer = Buffer.from(await s3Resp.arrayBuffer());
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'private, max-age=120');
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getSigningSession = async (req: Request, res: Response, next: NextFunction) => {
   try {

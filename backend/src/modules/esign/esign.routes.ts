@@ -30,6 +30,9 @@ import {
   markSigningViewed,
   submitSigningField,
   completeSigning,
+  // PDF proxy streams (browser-safe, no S3 CORS needed)
+  streamTemplateVersionPdf,
+  streamSigningPdf,
 } from './esign.controller';
 
 const upload = multer({
@@ -67,6 +70,7 @@ esignRouter.get('/templates', authenticate, getPdfTemplates);
 esignRouter.get('/templates/:id', authenticate, getPdfTemplateById);
 esignRouter.post('/templates/:id/versions', authenticate, createTemplateVersion);
 esignRouter.get('/templates/:id/versions/:versionId', authenticate, getTemplateVersion);
+esignRouter.get('/templates/:id/versions/:versionId/pdf', authenticate, streamTemplateVersionPdf);
 esignRouter.put('/templates/:id/versions/:versionId', authenticate, updateTemplateVersion);
 esignRouter.post('/templates/:id/versions/:versionId/publish', authenticate, publishTemplateVersion);
 esignRouter.post('/templates/:id/duplicate', authenticate, duplicateTemplate);
@@ -84,6 +88,7 @@ esignRouter.get('/envelopes/:id/audit', authenticate, getEnvelopeAudit);
 // ─── Public signing routes (token-based, no JWT auth) ─────
 
 esignRouter.get('/sign/:token', getSigningSession);
+esignRouter.get('/sign/:token/pdf', streamSigningPdf);
 esignRouter.post('/sign/:token/viewed', markSigningViewed);
 esignRouter.post('/sign/:token/field', upload.single('signatureImage'), submitSigningField);
 esignRouter.post('/sign/:token/complete', completeSigning);
