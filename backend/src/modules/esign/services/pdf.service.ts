@@ -2,9 +2,6 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import crypto from 'crypto';
 import { IOverlayField } from '../pdfTemplateVersion.model';
 import { ISignRequestFieldValue } from '../signRequestFieldValue.model';
-import { esignStorageService } from './esignStorage.service';
-import fs from 'fs';
-import path from 'path';
 
 /**
  * PDF service for:
@@ -165,6 +162,42 @@ class PdfService {
       null,
       2
     );
+  }
+
+  async generateAuditCertificatePdf(
+    auditTrail: any[],
+    envelopeId: string,
+    signedPdfHash: string
+  ): Promise<Buffer> {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage([595, 842]); // A4 portrait
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    let y = 810;
+    page.drawText('ZyberHR eSignature Audit Certificate', { x: 40, y, size: 16, font: bold, color: rgb(0, 0, 0) });
+    y -= 26;
+    page.drawText(`Envelope ID: ${envelopeId}`, { x: 40, y, size: 10, font });
+    y -= 14;
+    page.drawText(`Generated At: ${new Date().toISOString()}`, { x: 40, y, size: 10, font });
+    y -= 14;
+    page.drawText(`Final PDF SHA-256: ${signedPdfHash}`, { x: 40, y, size: 10, font });
+    y -= 22;
+    page.drawText('Events', { x: 40, y, size: 12, font: bold });
+    y -= 16;
+
+    for (const event of auditTrail) {
+      const eventTime = event?.timestamp ? new Date(event.timestamp).toISOString() : 'n/a';
+      const line = `[${eventTime}] ${event?.eventType || 'event'} | actor=${event?.actorEmail || event?.actorUserId || 'system'} | ip=${event?.ip || 'n/a'}`;
+      page.drawText(line.slice(0, 120), { x: 40, y, size: 9, font });
+      y -= 12;
+      if (y < 50) {
+        page = pdfDoc.addPage([595, 842]);
+        y = 810;
+      }
+    }
+
+    return Buffer.from(await pdfDoc.save());
   }
 
   private parseColor(hex: string) {

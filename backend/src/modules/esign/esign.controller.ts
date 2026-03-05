@@ -360,14 +360,19 @@ export const getEnvelopeAudit = async (req: Request, res: Response, next: NextFu
   try {
     const envelope = await esignService.getEnvelopeById(req.params.id);
     let auditUrl: string | undefined;
+    let auditPdfUrl: string | undefined;
     if (envelope.auditTrailS3Key) {
       auditUrl = await esignStorageService.getPresignedUrl(envelope.auditTrailS3Key, 60);
+    }
+    if (envelope.auditTrailPdfS3Key) {
+      auditPdfUrl = await esignStorageService.getPresignedUrl(envelope.auditTrailPdfS3Key, 60);
     }
     res.json({
       success: true,
       data: {
         auditTrail: envelope.auditTrail,
         auditFileUrl: auditUrl,
+        auditPdfUrl,
       },
     });
   } catch (error) {

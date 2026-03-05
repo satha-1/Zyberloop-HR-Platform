@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document as MongooseDocument } from 'mongoose';
 
-export type DocType = 'OFFER_LETTER' | 'APPOINTMENT_LETTER' | 'PAYSLIP' | 'FINAL_SETTLEMENT' | 'EXPERIENCE_CERT';
+export type DocType = 'OFFER_LETTER' | 'APPOINTMENT_LETTER' | 'PAYSLIP' | 'FINAL_SETTLEMENT' | 'EXPERIENCE_CERT' | 'ESIGN';
 export type SubjectType = 'EMPLOYEE' | 'CANDIDATE' | 'PAYROLL_RUN' | 'TERMINATION_CASE';
 export type DocumentStatus = 'GENERATED' | 'SIGNING_PENDING' | 'SIGNED' | 'VOIDED' | 'REVOKED' | 'ARCHIVED' | 'EXPIRED';
 export type ArtefactKind = 'PDF_MASTER' | 'PDF_DELIVERABLE' | 'DOCX_SOURCE' | 'SIGNED_PDF' | 'AUDIT_CERTIFICATE' | 'ZIP_BUNDLE';
@@ -50,7 +50,7 @@ const documentSchema = new Schema<IDocument>(
     },
     docType: {
       type: String,
-      enum: ['OFFER_LETTER', 'APPOINTMENT_LETTER', 'PAYSLIP', 'FINAL_SETTLEMENT', 'EXPERIENCE_CERT'],
+      enum: ['OFFER_LETTER', 'APPOINTMENT_LETTER', 'PAYSLIP', 'FINAL_SETTLEMENT', 'EXPERIENCE_CERT', 'ESIGN'],
       required: true,
       index: true,
     },

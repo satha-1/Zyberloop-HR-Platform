@@ -11,8 +11,28 @@ import { pdfService } from './pdf.service';
 import { esignEmailService } from './esignEmail.service';
 import { AppError } from '../../../middlewares/errorHandler';
 import { config } from '../../../config';
+import { Document as DocumentHub } from '../../documents/document.model';
 
 class EsignService {
+  private generateSigningToken() {
+    const tokenRaw = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(tokenRaw).digest('hex');
+    return { tokenRaw, tokenHash };
+  }
+
+  private getCurrentRecipient(envelope: ISignRequestEnvelope) {
+    return envelope.recipients
+      .filter((r) => ['sent', 'viewed'].includes(r.status))
+      .sort((a, b) => a.signingOrder - b.signingOrder)[0];
+  }
+
+  private getPendingRecipientsByNextOrder(envelope: ISignRequestEnvelope) {
+    const pending = envelope.recipients.filter((r) => r.status === 'pending');
+    if (pending.length === 0) return [];
+    const nextOrder = Math.min(...pending.map((r) => r.signingOrder));
+    return pending.filter((r) => r.signingOrder === nextOrder);
+  }
+
   // ─── SIGNATURE ASSETS ───────────────────────────────────
 
   async createSignatureAsset(data: {
@@ -315,17 +335,15 @@ class EsignService {
     if (!envelope) throw new AppError(404, 'Envelope not found');
     if (envelope.status !== 'draft') throw new AppError(400, 'Envelope can only be sent from draft status');
 
-    // Generate signing token
-    const tokenRaw = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenRaw).digest('hex');
-
+    const { tokenRaw, tokenHash } = this.generateSigningToken();
     envelope.signingLinkTokenHash = tokenHash;
     envelope.status = 'sent';
     envelope.sentAt = new Date();
 
-    // Update all recipients to sent
+    // Only send to first signing order recipients.
+    const firstOrder = Math.min(...envelope.recipients.map((r) => r.signingOrder));
     envelope.recipients.forEach((r) => {
-      r.status = 'sent';
+      r.status = r.signingOrder === firstOrder ? 'sent' : 'pending';
     });
 
     // Add audit event
@@ -340,11 +358,11 @@ class EsignService {
 
     await envelope.save();
 
-    // Send emails to each recipient
+    // Send emails only to current order recipients.
     const frontendUrl = config.cors.frontendUrl || 'http://localhost:3000';
     const signingLink = `${frontendUrl}/sign/${tokenRaw}`;
 
-    for (const recipient of envelope.recipients) {
+    for (const recipient of envelope.recipients.filter((r) => r.status === 'sent')) {
       await esignEmailService.sendSignRequestEmail({
         recipientName: recipient.name,
         recipientEmail: recipient.email,
@@ -442,8 +460,7 @@ class EsignService {
       envelope.status = 'viewed';
     }
 
-    // Mark first pending/sent recipient as viewed
-    const recipient = envelope.recipients.find((r) => r.status === 'sent' || r.status === 'pending');
+    const recipient = this.getCurrentRecipient(envelope);
     if (recipient) {
       recipient.status = 'viewed';
       recipient.viewedAt = new Date();
@@ -481,7 +498,7 @@ class EsignService {
       await envelope.save();
     }
 
-    const recipient = envelope.recipients.find((r) => r.status === 'viewed' || r.status === 'sent');
+    const recipient = this.getCurrentRecipient(envelope);
     if (!recipient) throw new AppError(400, 'No active recipient');
 
     // Store signature image if provided
@@ -553,21 +570,13 @@ class EsignService {
       }
     }
 
-    // Load the source PDF
+    // Load source PDF from S3 presigned URL only (strict S3-backed eSign flow).
     const sourcePdfUrl = await esignStorageService.getPresignedUrl(version.sourcePdfS3Key, 300);
-    let sourcePdfBuffer: Buffer;
-
-    // Fetch the PDF (handle both presigned URL and local path)
-    if (sourcePdfUrl.startsWith('http')) {
-      const resp = await fetch(sourcePdfUrl);
-      sourcePdfBuffer = Buffer.from(await resp.arrayBuffer());
-    } else {
-      // Local storage fallback
-      const fs = await import('fs');
-      const path = await import('path');
-      const localPath = path.join(process.cwd(), sourcePdfUrl);
-      sourcePdfBuffer = fs.readFileSync(localPath);
+    if (!sourcePdfUrl.startsWith('http')) {
+      throw new AppError(500, 'Invalid source PDF URL. eSign requires S3-backed storage.');
     }
+    const sourceResp = await fetch(sourcePdfUrl);
+    const sourcePdfBuffer = Buffer.from(await sourceResp.arrayBuffer());
 
     // Build signature image buffers map
     const signatureImageBuffers = new Map<string, Buffer>();
@@ -575,15 +584,11 @@ class EsignService {
       if (fv.signatureS3KeySnapshot) {
         try {
           const sigUrl = await esignStorageService.getPresignedUrl(fv.signatureS3KeySnapshot, 300);
-          let sigBuffer: Buffer;
-          if (sigUrl.startsWith('http')) {
-            const resp = await fetch(sigUrl);
-            sigBuffer = Buffer.from(await resp.arrayBuffer());
-          } else {
-            const fs = await import('fs');
-            const path = await import('path');
-            sigBuffer = fs.readFileSync(path.join(process.cwd(), sigUrl));
+          if (!sigUrl.startsWith('http')) {
+            throw new AppError(500, 'Invalid signature URL. eSign requires S3-backed storage.');
           }
+          const resp = await fetch(sigUrl);
+          const sigBuffer = Buffer.from(await resp.arrayBuffer());
           signatureImageBuffers.set(fv.fieldId, sigBuffer);
         } catch (e) {
           console.error(`Failed to load signature image for field ${fv.fieldId}:`, e);
@@ -599,14 +604,8 @@ class EsignService {
       signatureImageBuffers
     );
 
-    // Store signed PDF
-    const signedPdfKey = esignStorageService.envelopeSignedKey(envelope._id.toString());
-    await esignStorageService.putObject(signedPdfKey, signedPdfBuffer, 'application/pdf');
-
     // Update recipient status
-    const activeRecipient = envelope.recipients.find(
-      (r) => r.status === 'viewed' || r.status === 'sent'
-    );
+    const activeRecipient = this.getCurrentRecipient(envelope);
     if (activeRecipient) {
       activeRecipient.status = 'signed';
       activeRecipient.signedAt = new Date();
@@ -622,11 +621,40 @@ class EsignService {
       userAgent,
     });
 
-    envelope.auditTrail.push({
-      eventType: 'finalised',
-      timestamp: new Date(),
-      metadata: { signedPdfSha256: signedPdfHash },
-    });
+    // If there are remaining recipients, send the next order and wait for completion.
+    const nextRecipients = this.getPendingRecipientsByNextOrder(envelope);
+    if (nextRecipients.length > 0) {
+      const { tokenRaw, tokenHash } = this.generateSigningToken();
+      envelope.signingLinkTokenHash = tokenHash;
+      envelope.status = 'sent';
+      nextRecipients.forEach((r) => {
+        r.status = 'sent';
+      });
+      await envelope.save();
+
+      const frontendUrl = config.cors.frontendUrl || 'http://localhost:3000';
+      const signingLink = `${frontendUrl}/sign/${tokenRaw}`;
+      for (const recipient of nextRecipients) {
+        await esignEmailService.sendSignRequestEmail({
+          recipientName: recipient.name,
+          recipientEmail: recipient.email,
+          documentName: envelope.displayName,
+          senderName: 'ZyberHR',
+          signingLink,
+          expiryDate: envelope.expiryAt,
+          customSubject: envelope.emailSubject,
+          customBody: envelope.emailBody,
+        });
+      }
+      return envelope;
+    }
+
+    // Status transition explicitly tracks completed before finalisation.
+    envelope.status = 'completed';
+
+    // Store signed PDF
+    const signedPdfKey = esignStorageService.envelopeSignedKey(envelope._id.toString());
+    await esignStorageService.putObject(signedPdfKey, signedPdfBuffer, 'application/pdf');
 
     // Generate and store audit certificate
     const auditJson = pdfService.generateAuditCertificate(
@@ -634,17 +662,32 @@ class EsignService {
       envelope._id.toString(),
       signedPdfHash
     );
-    const auditKey = esignStorageService.envelopeAuditKey(envelope._id.toString());
-    await esignStorageService.putObject(auditKey, Buffer.from(auditJson), 'application/json');
+    const auditJsonKey = esignStorageService.envelopeAuditKey(envelope._id.toString());
+    await esignStorageService.putObject(auditJsonKey, Buffer.from(auditJson), 'application/json');
+    const auditPdfBuffer = await pdfService.generateAuditCertificatePdf(
+      envelope.auditTrail as any[],
+      envelope._id.toString(),
+      signedPdfHash
+    );
+    const auditPdfKey = `esign/envelopes/${envelope._id.toString()}/audit.pdf`;
+    await esignStorageService.putObject(auditPdfKey, auditPdfBuffer, 'application/pdf');
 
     // Update envelope
     envelope.status = 'finalised';
     envelope.finalisedAt = new Date();
     envelope.signedPdfS3Key = signedPdfKey;
     envelope.signedPdfHashSha256 = signedPdfHash;
-    envelope.auditTrailS3Key = auditKey;
+    envelope.auditTrailS3Key = auditJsonKey;
+    (envelope as any).auditTrailPdfS3Key = auditPdfKey;
 
     await envelope.save();
+    await this.syncFinalisedEnvelopeToDocumentHub(
+      envelope,
+      version.versionNumber,
+      signedPdfBuffer.length,
+      auditPdfKey,
+      auditPdfBuffer.length
+    );
 
     // Send completion emails (async, don't block)
     this.sendCompletionEmails(envelope).catch((e) =>
@@ -652,6 +695,111 @@ class EsignService {
     );
 
     return envelope;
+  }
+
+  async processDueReminders(): Promise<number> {
+    const now = new Date();
+    const active = await SignRequestEnvelope.find({
+      status: { $in: ['sent', 'viewed', 'in_progress'] },
+      'reminderConfig.enabled': true,
+      expiryAt: { $gt: now },
+    });
+
+    let sentCount = 0;
+    for (const envelope of active) {
+      const intervalDays = envelope.reminderConfig?.intervalDays || 3;
+      const fromDate = envelope.lastReminderAt || envelope.sentAt || envelope.createdAt;
+      const daysSince = (now.getTime() - new Date(fromDate).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince < intervalDays) continue;
+
+      const currentRecipients = envelope.recipients.filter((r) => ['sent', 'viewed'].includes(r.status));
+      if (currentRecipients.length === 0) continue;
+
+      const { tokenRaw, tokenHash } = this.generateSigningToken();
+      envelope.signingLinkTokenHash = tokenHash;
+      const signingLink = `${config.cors.frontendUrl || 'http://localhost:3000'}/sign/${tokenRaw}`;
+
+      for (const recipient of currentRecipients) {
+        await esignEmailService.sendReminderEmail({
+          recipientName: recipient.name,
+          recipientEmail: recipient.email,
+          documentName: envelope.displayName,
+          signingLink,
+          expiryDate: envelope.expiryAt,
+        });
+        sentCount += 1;
+      }
+
+      envelope.lastReminderAt = now;
+      envelope.reminderCount = (envelope.reminderCount || 0) + 1;
+      envelope.auditTrail.push({
+        eventType: 'reminder_sent',
+        actorRole: 'system',
+        timestamp: now,
+      });
+      await envelope.save();
+    }
+
+    return sentCount;
+  }
+
+  private async syncFinalisedEnvelopeToDocumentHub(
+    envelope: ISignRequestEnvelope,
+    templateVersion: number,
+    signedPdfSizeBytes: number,
+    auditPdfKey: string,
+    auditPdfSizeBytes: number
+  ) {
+    if (!envelope.signedPdfS3Key || !envelope.signedPdfHashSha256) return;
+
+    const existing = await DocumentHub.findOne({
+      'renderInputSnapshot.redactedPreview.esignEnvelopeId': envelope._id.toString(),
+    });
+    if (existing) return;
+
+    const firstRecipient = envelope.recipients[0];
+    const subjectId = firstRecipient?.employeeId || firstRecipient?.email || envelope._id;
+    const auditSha = esignStorageService.computeHash(Buffer.from(envelope.auditTrailS3Key || envelope._id.toString()));
+
+    await DocumentHub.create({
+      docType: 'ESIGN',
+      templateId: envelope.templateId,
+      templateVersion,
+      subjectType: firstRecipient?.employeeId ? 'EMPLOYEE' : 'CANDIDATE',
+      subjectId,
+      status: 'SIGNED',
+      renderInputSnapshot: {
+        sha256: envelope.signedPdfHashSha256,
+        redactedPreview: {
+          esignEnvelopeId: envelope._id.toString(),
+          displayName: envelope.displayName,
+        },
+      },
+      artefacts: [
+        {
+          kind: 'SIGNED_PDF',
+          objectKey: envelope.signedPdfS3Key,
+          contentType: 'application/pdf',
+          sha256: envelope.signedPdfHashSha256,
+          sizeBytes: signedPdfSizeBytes,
+          createdAt: new Date(),
+        },
+        {
+          kind: 'AUDIT_CERTIFICATE',
+          objectKey: auditPdfKey,
+          contentType: 'application/pdf',
+          sha256: auditSha,
+          sizeBytes: auditPdfSizeBytes,
+          createdAt: new Date(),
+        },
+      ],
+      accessPolicy: {
+        viewRoles: ['ADMIN', 'HR_ADMIN', 'HR'],
+        downloadRoles: ['ADMIN', 'HR_ADMIN', 'HR'],
+        subjectCanView: true,
+      },
+      createdBy: envelope.createdByUserId,
+    });
   }
 
   private async sendCompletionEmails(envelope: ISignRequestEnvelope) {

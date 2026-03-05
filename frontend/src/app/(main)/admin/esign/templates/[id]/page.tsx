@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../../../compone
 import { Button } from "../../../../../components/ui/button";
 import { Badge } from "../../../../../components/ui/badge";
 import { api } from "../../../../../lib/api";
+import { useEsignEnvelopes } from "../../../../../lib/hooks";
 import { toast } from "sonner";
 import { ArrowLeft, Edit, Send, Copy, FileText, Clock, CheckCircle } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +16,12 @@ export default function TemplateDetailPage() {
   const router = useRouter();
   const [template, setTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [executedStatusFilter, setExecutedStatusFilter] = useState("all");
+
+  const { data: executedCopies = [], refetch: refetchExecuted } = useEsignEnvelopes({
+    templateId: (params.id as string) || undefined,
+    status: executedStatusFilter !== "all" ? executedStatusFilter : undefined,
+  });
 
   useEffect(() => {
     if (params.id) {
@@ -31,6 +38,7 @@ export default function TemplateDetailPage() {
       toast.success("Template version published");
       const data = await api.getEsignTemplateById(params.id as string);
       setTemplate(data);
+      refetchExecuted();
     } catch (error: any) {
       toast.error(error.message || "Failed to publish");
     }
@@ -40,6 +48,7 @@ export default function TemplateDetailPage() {
     try {
       const result: any = await api.createEsignTemplateVersion(params.id as string);
       toast.success("New version created");
+      refetchExecuted();
       router.push(`/admin/esign/templates/${params.id}/editor?version=${result._id}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to create version");
@@ -50,6 +59,7 @@ export default function TemplateDetailPage() {
     try {
       await api.duplicateEsignTemplate(params.id as string);
       toast.success("Template duplicated");
+      refetchExecuted();
       router.push("/admin/esign/templates");
     } catch (error: any) {
       toast.error(error.message || "Failed to duplicate");
@@ -171,6 +181,45 @@ export default function TemplateDetailPage() {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Executed Copies</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={executedStatusFilter}
+                onChange={(e) => setExecutedStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="viewed">Viewed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="finalised">Finalised</option>
+                <option value="declined">Declined</option>
+                <option value="expired">Expired</option>
+                <option value="voided">Voided</option>
+              </select>
+
+              {executedCopies.length === 0 ? (
+                <p className="text-sm text-gray-500">No executed copies found.</p>
+              ) : (
+                executedCopies.map((env: any) => (
+                  <Link key={env._id} href={`/admin/esign/envelopes/${env._id}`} className="block">
+                    <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <p className="text-sm font-medium">{env.displayName}</p>
+                      <p className="text-xs text-gray-500">
+                        {env.status} · {new Date(env.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </Link>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

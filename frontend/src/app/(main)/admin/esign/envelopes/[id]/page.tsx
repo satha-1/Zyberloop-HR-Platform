@@ -54,6 +54,15 @@ export default function EnvelopeDetailPage() {
     }
   };
 
+  const handleAuditDownload = () => {
+    const url = audit?.auditPdfUrl || audit?.auditFileUrl;
+    if (url) {
+      window.open(url, "_blank");
+    } else {
+      toast.error("Audit file not available");
+    }
+  };
+
   const handleVoid = async () => {
     if (!confirm("Are you sure you want to void this document?")) return;
     try {
@@ -144,9 +153,14 @@ export default function EnvelopeDetailPage() {
                 </Button>
               )}
               {envelope.status === "finalised" && (
-                <Button className="w-full" variant="outline" onClick={handleDownload}>
-                  <Download className="h-4 w-4 mr-2" /> Download Signed PDF
-                </Button>
+                <>
+                  <Button className="w-full" variant="outline" onClick={handleDownload}>
+                    <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                  </Button>
+                  <Button className="w-full" variant="outline" onClick={handleAuditDownload}>
+                    <Shield className="h-4 w-4 mr-2" /> Download Audit Certificate
+                  </Button>
+                </>
               )}
               {!["finalised", "voided", "expired"].includes(envelope.status) && (
                 <Button className="w-full text-red-500 border-red-200" variant="outline" onClick={handleVoid}>

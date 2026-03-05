@@ -53,6 +53,8 @@ export interface ISignRequestEnvelope extends Document {
     enabled: boolean;
     intervalDays: number;
   };
+  lastReminderAt?: Date;
+  reminderCount?: number;
   emailSubject?: string;
   emailBody?: string;
   signingLinkTokenHash?: string;
@@ -63,6 +65,7 @@ export interface ISignRequestEnvelope extends Document {
   signedPdfHashSha256?: string;
   auditTrail: IAuditEvent[];
   auditTrailS3Key?: string;
+  auditTrailPdfS3Key?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -139,6 +142,8 @@ const signRequestEnvelopeSchema = new Schema<ISignRequestEnvelope>(
       enabled: { type: Boolean, default: false },
       intervalDays: { type: Number, default: 3 },
     },
+    lastReminderAt: Date,
+    reminderCount: { type: Number, default: 0 },
     emailSubject: String,
     emailBody: String,
     signingLinkTokenHash: String,
@@ -149,6 +154,7 @@ const signRequestEnvelopeSchema = new Schema<ISignRequestEnvelope>(
     signedPdfHashSha256: String,
     auditTrail: [auditEventSchema],
     auditTrailS3Key: String,
+    auditTrailPdfS3Key: String,
   },
   { timestamps: true }
 );

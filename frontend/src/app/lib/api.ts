@@ -35,6 +35,18 @@ class ApiClient {
     }
   }
 
+  private toQueryString(params?: Record<string, any>): string {
+    if (!params) return "";
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      const normalized = typeof value === "string" ? value.trim() : value;
+      if (normalized === "") return;
+      query.append(key, String(normalized));
+    });
+    return query.toString();
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -1414,7 +1426,7 @@ class ApiClient {
   }
 
   async getEsignTemplates(params?: { status?: string }) {
-    const query = new URLSearchParams(params as any).toString();
+    const query = this.toQueryString(params as Record<string, any>);
     return this.request(`/esign/templates${query ? `?${query}` : ""}`);
   }
 
@@ -1455,7 +1467,7 @@ class ApiClient {
   }
 
   async getEnvelopes(params?: { status?: string; employeeId?: string; templateId?: string; dateFrom?: string; dateTo?: string }) {
-    const query = new URLSearchParams(params as any).toString();
+    const query = this.toQueryString(params as Record<string, any>);
     return this.request(`/esign/envelopes${query ? `?${query}` : ""}`);
   }
 

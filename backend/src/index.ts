@@ -21,6 +21,7 @@ import { documentsRouter } from './modules/documents/documents.routes';
 import { notificationRouter } from './modules/notifications/notification.routes';
 import { taskRouter } from './modules/tasks/task.routes';
 import { esignRouter } from './modules/esign/esign.routes';
+import { esignReminderService } from './modules/esign/services/esignReminder.service';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -73,6 +74,7 @@ app.use(errorHandler);
 async function startServer() {
   try {
     await connectDatabase();
+    esignReminderService.start();
     app.listen(config.port, () => {
       console.log(`🚀 Server running on http://localhost:${config.port}`);
       console.log(`📝 Environment: ${config.nodeEnv}`);

@@ -36,8 +36,11 @@ export default function EsignDocumentsPage() {
 function EsignDocumentsPageInner() {
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [employeeFilter, setEmployeeFilter] = useState("all");
+  const [templateFilter, setTemplateFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [employees, setEmployees] = useState<any[]>([]);
 
   // Create envelope dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -58,7 +61,8 @@ function EsignDocumentsPageInner() {
 
   const { data: envelopes = [], loading, refetch } = useEsignEnvelopes({
     status: statusFilter !== "all" ? statusFilter : undefined,
-    templateId: templateIdFromUrl || undefined,
+    employeeId: employeeFilter !== "all" ? employeeFilter : undefined,
+    templateId: templateFilter !== "all" ? templateFilter : (templateIdFromUrl || undefined),
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   });
@@ -68,9 +72,16 @@ function EsignDocumentsPageInner() {
   useEffect(() => {
     if (templateIdFromUrl) {
       setSelectedTemplateId(templateIdFromUrl);
+      setTemplateFilter(templateIdFromUrl);
       setCreateOpen(true);
     }
   }, [templateIdFromUrl]);
+
+  useEffect(() => {
+    api.getEmployees({})
+      .then((result: any) => setEmployees(Array.isArray(result) ? result : []))
+      .catch(() => setEmployees([]));
+  }, []);
 
   // When template is selected, find its latest published version
   useEffect(() => {
@@ -218,7 +229,7 @@ function EsignDocumentsPageInner() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
@@ -233,6 +244,30 @@ function EsignDocumentsPageInner() {
                 <SelectItem value="declined">Declined</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
                 <SelectItem value="voided">Voided</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Employee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees.map((emp: any) => (
+                  <SelectItem key={emp._id} value={emp._id}>
+                    {emp.firstName} {emp.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={templateFilter} onValueChange={setTemplateFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Templates</SelectItem>
+                {templates.map((tpl: any) => (
+                  <SelectItem key={tpl._id} value={tpl._id}>{tpl.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Input

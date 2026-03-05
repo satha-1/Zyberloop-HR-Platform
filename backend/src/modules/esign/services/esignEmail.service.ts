@@ -111,6 +111,39 @@ class EsignEmailService {
       console.log(`[EsignEmail] (DEV) Signing complete notification to ${params.recipientEmail}`);
     }
   }
+
+  async sendReminderEmail(params: {
+    recipientName: string;
+    recipientEmail: string;
+    documentName: string;
+    signingLink: string;
+    expiryDate?: Date;
+  }): Promise<void> {
+    const subject = `Reminder: "${params.documentName}" is awaiting your signature`;
+    const expiryText = params.expiryDate
+      ? `<p style="color:#666;font-size:13px;">This signing request expires on <strong>${params.expiryDate.toLocaleDateString()}</strong>.</p>`
+      : '';
+    const bodyHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <h2 style="color:#1a1a1a;">Signature Reminder</h2>
+      <p>Hello ${params.recipientName},</p>
+      <p>This is a reminder that <strong>"${params.documentName}"</strong> is still pending your signature.</p>
+      ${expiryText}
+      <a href="${params.signingLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0;">Review & Sign</a>
+      <p style="color:#999;font-size:12px;">Powered by ZyberHR</p>
+    </div>`;
+
+    if (this.transporter) {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || `"ZyberHR" <noreply@zyberhr.com>`,
+        to: params.recipientEmail,
+        subject,
+        html: bodyHtml,
+      });
+    } else {
+      console.log(`[EsignEmail] (DEV) Reminder email to ${params.recipientEmail}`);
+      console.log(`[EsignEmail] Signing Link: ${params.signingLink}`);
+    }
+  }
 }
 
 export const esignEmailService = new EsignEmailService();
