@@ -261,7 +261,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-white font-bold text-sm">ZJ</span>
               </div>
               <span className="font-semibold text-gray-900 whitespace-nowrap">
-                ZyberJR
+                ZyberHR
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -500,7 +500,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-white font-bold text-sm">ZJ</span>
               </div>
               <span className="text-sm font-semibold text-gray-900">
-                ZyberJR
+                ZyberHR
               </span>
             </div>
 
