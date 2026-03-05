@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../../../components/ui/card";
 import { Button } from "../../../../../../components/ui/button";
@@ -52,6 +52,14 @@ function generateId() {
 }
 
 export default function TemplateEditorPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading editor...</div>}>
+      <TemplateEditorPageInner />
+    </Suspense>
+  );
+}
+
+function TemplateEditorPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();

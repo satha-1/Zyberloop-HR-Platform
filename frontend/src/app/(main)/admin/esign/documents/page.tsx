@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -26,6 +26,14 @@ import { useEsignEnvelopes, useEsignTemplates } from "../../../../lib/hooks";
 import Link from "next/link";
 
 export default function EsignDocumentsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading documents...</div>}>
+      <EsignDocumentsPageInner />
+    </Suspense>
+  );
+}
+
+function EsignDocumentsPageInner() {
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");

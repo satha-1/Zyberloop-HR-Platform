@@ -149,7 +149,7 @@ export default function EnvelopeDetailPage() {
                 </Button>
               )}
               {!["finalised", "voided", "expired"].includes(envelope.status) && (
-                <Button className="w-full" variant="outline" className="text-red-500 border-red-200" onClick={handleVoid}>
+                <Button className="w-full text-red-500 border-red-200" variant="outline" onClick={handleVoid}>
                   <XCircle className="h-4 w-4 mr-2" /> Void Document
                 </Button>
               )}
