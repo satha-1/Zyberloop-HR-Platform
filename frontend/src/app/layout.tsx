@@ -3,8 +3,8 @@ import "../styles/index.css";
 import { Toaster } from "./components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "ZyberJR - HR Management Platform",
-  description: "ZyberJR HR Management Platform",
+  title: "ZyberHR - HR Management Platform",
+  description: "ZyberHR HR Management Platform",
 };
 
 export default function RootLayout({
