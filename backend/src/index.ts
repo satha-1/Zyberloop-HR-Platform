@@ -23,6 +23,7 @@ import { taskRouter } from './modules/tasks/task.routes';
 import { esignRouter } from './modules/esign/esign.routes';
 import { esignReminderService } from './modules/esign/services/esignReminder.service';
 import { errorHandler } from './middlewares/errorHandler';
+import { zktecoRouter } from './modules/zkteco/zkteco.routes';
 
 const app = express();
 
@@ -31,6 +32,12 @@ app.use(cors({
   origin: config.cors.frontendUrl,
   credentials: true,
 }));
+
+// ZKTeco device routes need raw body parsing (before JSON middleware)
+// These routes must be registered before express.json() to handle raw text data
+app.use('/iclock/cdata', express.raw({ type: '*/*', limit: '10mb' }));
+
+// Standard JSON and URL-encoded parsing for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -46,6 +53,10 @@ app.get('/health', (req, res) => {
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({ ok: true, service: 'zyberhr-backend' });
 });
+
+// ZKTeco Device Integration Routes (must be at root level for device compatibility)
+// These routes handle communication with ZKTeco biometric devices in ADMS mode
+app.use('/iclock', zktecoRouter);
 
 // API Routes
 app.use('/api/v1/auth', authRouter);
