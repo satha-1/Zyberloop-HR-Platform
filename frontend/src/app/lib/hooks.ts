@@ -353,7 +353,10 @@ export function usePerformanceGoals(employeeId?: string, cycleId?: string) {
     async function fetchData() {
       try {
         setLoading(true);
-        const result = await api.getGoals(cycleId!, employeeId ? { ownerId: employeeId } : undefined);
+        const result = await api.getGoals(
+          cycleId!,
+          employeeId ? { ownerId: employeeId } : undefined,
+        );
         setData(Array.isArray(result) ? result : []);
       } catch (err) {
         setError(err as Error);
@@ -587,7 +590,10 @@ export function useEsignTemplates(params?: { status?: string }) {
       api
         .getEsignTemplates(params)
         .then((result: any) => setData(Array.isArray(result) ? result : []))
-        .catch((err) => { setError(err as Error); setData([]); })
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
         .finally(() => setLoading(false));
     },
   };
@@ -618,7 +624,13 @@ export function useEsignEnvelopes(params?: {
       }
     }
     fetchData();
-  }, [params?.status, params?.employeeId, params?.templateId, params?.dateFrom, params?.dateTo]);
+  }, [
+    params?.status,
+    params?.employeeId,
+    params?.templateId,
+    params?.dateFrom,
+    params?.dateTo,
+  ]);
 
   return {
     data,
@@ -629,7 +641,10 @@ export function useEsignEnvelopes(params?: {
       api
         .getEnvelopes(params)
         .then((result: any) => setData(Array.isArray(result) ? result : []))
-        .catch((err) => { setError(err as Error); setData([]); })
+        .catch((err) => {
+          setError(err as Error);
+          setData([]);
+        })
         .finally(() => setLoading(false));
     },
   };
@@ -718,7 +733,10 @@ export function useTasks(params?: {
   };
 }
 
-export function useLearningCourses(params?: { category?: string; status?: string }) {
+export function useLearningCourses(params?: {
+  category?: string;
+  status?: string;
+}) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -770,4 +788,52 @@ export function useLearningAssignments(params?: {
   }, [params?.employeeId, params?.courseId, params?.status]);
 
   return { data, loading, error, refetch: fetchData };
+}
+export function useEmployeeProfileAbsence(employeeId: string) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!employeeId) {
+      setLoading(false);
+      setData(null);
+      return;
+    }
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await api.getEmployeeProfileAbsence(employeeId);
+        setData(result);
+      } catch (err) {
+        console.error("Error fetching employee absence profile:", err);
+        setError(err as Error);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [employeeId]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: () => {
+      if (!employeeId) return;
+      setLoading(true);
+      setError(null);
+      api
+        .getEmployeeProfileAbsence(employeeId)
+        .then(setData)
+        .catch((err) => {
+          console.error("Error refetching employee absence profile:", err);
+          setError(err as Error);
+          setData(null);
+        })
+        .finally(() => setLoading(false));
+    },
+  };
 }
