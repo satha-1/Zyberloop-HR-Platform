@@ -150,7 +150,7 @@ export const updateAssignment = async (req: Request, res: Response, next: NextFu
 export const uploadCourseMaterial = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { title, type } = req.body;
+    const { title, type, sectionIndex } = req.body;
     const file = req.file;
 
     if (!file && type !== 'LINK') {
@@ -170,14 +170,26 @@ export const uploadCourseMaterial = async (req: Request, res: Response, next: Ne
       materialKey = key;
     }
 
-    course.materials.push({
+    const newMaterial = {
       type,
       title,
       url: materialUrl,
       key: materialKey,
-    });
+    };
+
+    if (sectionIndex !== undefined && sectionIndex >= 0) {
+      if (!course.sections[sectionIndex]) throw new AppError(400, 'Invalid section index');
+      course.sections[sectionIndex].materials.push(newMaterial);
+    } else {
+      course.materials.push(newMaterial);
+    }
 
     await course.save();
+
+    // Get the added material (it will have an _id now)
+    const savedMaterial = sectionIndex !== undefined && sectionIndex >= 0
+      ? course.sections[sectionIndex].materials[course.sections[sectionIndex].materials.length - 1]
+      : course.materials[course.materials.length - 1];
 
     await createAuditLog({
       actorId: req.user!.id,
@@ -190,7 +202,7 @@ export const uploadCourseMaterial = async (req: Request, res: Response, next: Ne
       ipAddress: req.ip || 'unknown',
     });
 
-    res.json({ success: true, data: course });
+    res.json({ success: true, data: savedMaterial });
   } catch (error) {
     next(error);
   }
