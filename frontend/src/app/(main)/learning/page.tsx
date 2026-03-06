@@ -28,6 +28,28 @@ import {
   ArrowRight,
   RotateCcw
 } from "lucide-react";
+
+// Helper to get the best viewer URL for different file types
+const getViewerUrl = (url: string | undefined): string => {
+  if (!url) return "about:blank";
+
+  const lowerUrl = url.toLowerCase();
+
+  // PDF handling - add toolbar=0 for cleaner internal view
+  if (lowerUrl.endsWith('.pdf')) {
+    return url.includes('#') ? url : `${url}#toolbar=0`;
+  }
+
+  // Office documents handling - use Google Docs Viewer proxy
+  const officeExtensions = ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+  if (officeExtensions.some(ext => lowerUrl.endsWith(ext))) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  }
+
+  // Fallback to direct URL (for standard links, images, etc.)
+  return url;
+};
+
 import {
   WorkdayTable,
   WorkdayTableColumn,
@@ -1071,7 +1093,7 @@ export default function Learning() {
                           </video>
                         ) : (selectedCourse.activeMaterial.type?.toUpperCase() === 'DOCUMENT' || selectedCourse.activeMaterial.type?.toUpperCase() === 'LINK') ? (
                           <iframe
-                            src={selectedCourse.activeMaterial.url || 'about:blank'}
+                            src={getViewerUrl(selectedCourse.activeMaterial.url)}
                             className="w-full h-full bg-white border-none"
                             title={selectedCourse.activeMaterial.title}
                           />
