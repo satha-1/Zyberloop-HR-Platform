@@ -22,8 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { useState } from "react";
-import { useLeaveRequests } from "../../lib/hooks";
+import { useState, useMemo } from "react";
+import {
+  useLeaveRequests,
+  useEmployees,
+  useEmployeeProfileAbsence,
+  useAttendanceRecords,
+} from "../../lib/hooks";
 import { api } from "../../lib/api";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -50,6 +55,74 @@ function LeaveContent() {
   };
   const { data: leaveRequests = [], loading, refetch } = useLeaveRequests();
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
+
+  // For testing purposes, fetch balances for a specific employee EMP-000051-80
+  //Future update needed after role devided logged in user info should show
+  const testEmployeeCode = "EMP-000051-80";
+  const { data: employees = [] } = useEmployees({ search: testEmployeeCode });
+  const testEmployee = employees.find(
+    (e: any) => e.employeeCode === testEmployeeCode,
+  );
+  const { data: absenceProfile, loading: balancesLoading } =
+    useEmployeeProfileAbsence(testEmployee?._id || "");
+
+  const getBalanceConfig = (planName: string) => {
+    const balance = absenceProfile?.balances?.find((b: any) =>
+      b.plan.toLowerCase().includes(planName.toLowerCase()),
+    );
+    return {
+      remaining: balance?.availableBalance || 0,
+      total: balance?.accruedYTD || 0,
+      percentage: balance?.accruedYTD
+        ? (balance.availableBalance / balance.accruedYTD) * 100
+        : 0,
+    };
+  };
+
+  const annualBalance = getBalanceConfig("Annual");
+  const sickBalance = getBalanceConfig("Sick");
+  const casualBalance = getBalanceConfig("Casual");
+
+  // Fetch attendance records for the current month for the test employee EMP-000051-80
+  //Future update needed after role devided logged in user info should show
+  const startOfMonth = useMemo(
+    () =>
+      new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        .toISOString()
+        .split("T")[0],
+    [],
+  );
+  const endOfMonth = useMemo(
+    () =>
+      new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+        .toISOString()
+        .split("T")[0],
+    [],
+  );
+
+  const { data: attendanceRecords = [], loading: attendanceLoading } =
+    useAttendanceRecords({
+      employeeId: testEmployee?._id,
+      startDate: startOfMonth,
+      endDate: endOfMonth,
+    });
+
+  const attendanceSummary = useMemo(() => {
+    const summary = { PRESENT: 0, ABSENT: 0, LEAVE: 0, HOLIDAY: 0 };
+    attendanceRecords.forEach((record: any) => {
+      const status = record.status?.toUpperCase();
+      if (status && summary[status as keyof typeof summary] !== undefined) {
+        summary[status as keyof typeof summary]++;
+      }
+    });
+    return summary;
+  }, [attendanceRecords]);
+
+  const currentMonthName = useMemo(
+    () =>
+      new Date().toLocaleString("default", { month: "long", year: "numeric" }),
+    [],
+  );
 
   const getStatusColor = (status: string) => {
     if (
@@ -231,16 +304,20 @@ function LeaveContent() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-blue-600">0</p>
+                  <p className="text-4xl font-bold text-blue-600">
+                    {balancesLoading ? "..." : annualBalance.remaining}
+                  </p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: "0%" }}
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${annualBalance.percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {annualBalance.remaining} of {annualBalance.total} days
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -251,36 +328,44 @@ function LeaveContent() {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-green-600">0</p>
+                  <p className="text-4xl font-bold text-green-600">
+                    {balancesLoading ? "..." : sickBalance.remaining}
+                  </p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: "0%" }}
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${sickBalance.percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {sickBalance.remaining} of {sickBalance.total} days
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Personal Leave</CardTitle>
+                <CardTitle>Casual Leave</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-purple-600">0</p>
+                  <p className="text-4xl font-bold text-purple-600">
+                    {balancesLoading ? "..." : casualBalance.remaining}
+                  </p>
                   <p className="text-sm text-gray-600 mt-2">days remaining</p>
                   <div className="mt-4">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-purple-500 h-2 rounded-full"
-                        style={{ width: "0%" }}
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${casualBalance.percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">0 of 0 days</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {casualBalance.remaining} of {casualBalance.total} days
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -301,20 +386,24 @@ function LeaveContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">Monthly Accrual</p>
-                    <p className="text-lg font-semibold">0 days</p>
+                    <p className="text-sm text-gray-600">
+                      Monthly Accrual (Casual)
+                    </p>
+                    <p className="text-lg font-semibold">0.5 days</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Annual Entitlement</p>
-                    <p className="text-lg font-semibold">0 days</p>
+                    <p className="text-lg font-semibold">14 days</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Carry Forward</p>
-                    <p className="text-lg font-semibold">0 days</p>
+                    <p className="text-sm text-gray-600">
+                      Active Service Period
+                    </p>
+                    <p className="text-lg font-semibold">since July 2023</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Encashment Eligible</p>
-                    <p className="text-lg font-semibold">N/A</p>
+                    <p className="text-sm text-gray-600">Carry Forward Limit</p>
+                    <p className="text-lg font-semibold">0 days</p>
                   </div>
                 </div>
               </div>
@@ -325,24 +414,32 @@ function LeaveContent() {
         <TabsContent value="attendance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Attendance Summary - February 2026</CardTitle>
+              <CardTitle>Attendance Summary - {currentMonthName}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-3xl font-bold text-green-700">0</p>
+                  <p className="text-3xl font-bold text-green-700">
+                    {attendanceLoading ? "..." : attendanceSummary.PRESENT}
+                  </p>
                   <p className="text-sm text-gray-600 mt-1">Present</p>
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-3xl font-bold text-red-700">0</p>
+                  <p className="text-3xl font-bold text-red-700">
+                    {attendanceLoading ? "..." : attendanceSummary.ABSENT}
+                  </p>
                   <p className="text-sm text-gray-600 mt-1">Absent</p>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <p className="text-3xl font-bold text-orange-700">0</p>
+                  <p className="text-3xl font-bold text-orange-700">
+                    {attendanceLoading ? "..." : attendanceSummary.LEAVE}
+                  </p>
                   <p className="text-sm text-gray-600 mt-1">On Leave</p>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-3xl font-bold text-blue-700">0</p>
+                  <p className="text-3xl font-bold text-blue-700">
+                    {attendanceLoading ? "..." : attendanceSummary.HOLIDAY}
+                  </p>
                   <p className="text-sm text-gray-600 mt-1">Holidays</p>
                 </div>
               </div>
