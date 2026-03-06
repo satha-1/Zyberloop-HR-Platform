@@ -29,14 +29,15 @@ export const cdata = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { deviceId, deviceSn } = ZKTecoService.extractDeviceInfo(req);
     
-    // Handle raw body data (Buffer or string)
+    // Handle raw body data - express.text() provides string body
+    // Fallback to Buffer.toString() if middleware didn't parse it
     let rawData: string;
-    if (Buffer.isBuffer(req.body)) {
-      rawData = req.body.toString('utf8');
-    } else if (typeof req.body === 'string') {
+    if (typeof req.body === 'string') {
       rawData = req.body;
+    } else if (Buffer.isBuffer(req.body)) {
+      rawData = req.body.toString('utf8');
     } else {
-      rawData = JSON.stringify(req.body);
+      rawData = String(req.body || '');
     }
     
     console.log(`[ZKTeco] CData received from device: ${deviceId} (SN: ${deviceSn || 'N/A'})`);

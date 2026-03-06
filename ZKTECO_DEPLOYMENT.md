@@ -158,7 +158,7 @@ Nginx will handle HTTP requests and forward them to your Node.js application.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -g nginx
+sudo apt-get install -y nginx
 ```
 
 ### Configure Nginx

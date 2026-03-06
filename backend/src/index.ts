@@ -33,9 +33,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// ZKTeco device routes need raw body parsing (before JSON middleware)
-// These routes must be registered before express.json() to handle raw text data
-app.use('/iclock/cdata', express.raw({ type: '*/*', limit: '10mb' }));
+// ZKTeco device routes need raw text body parsing (before JSON middleware)
+// CRITICAL: Must use express.text() not express.raw() for ZKTeco devices
+// This must be registered BEFORE express.json() to handle raw text data
+app.use('/iclock/cdata', express.text({ type: '*/*', limit: '10mb' }));
 
 // Standard JSON and URL-encoded parsing for other routes
 app.use(express.json());
@@ -89,6 +90,18 @@ async function startServer() {
     app.listen(config.port, () => {
       console.log(`🚀 Server running on http://localhost:${config.port}`);
       console.log(`📝 Environment: ${config.nodeEnv}`);
+      console.log('\n📋 Mounted Routes:');
+      console.log('  ✓ GET  /health');
+      console.log('  ✓ GET  /api/v1/health');
+      console.log('  ✓ GET  /iclock/ping          → ZKTeco health check');
+      console.log('  ✓ POST /iclock/cdata         → ZKTeco attendance data');
+      console.log('  ✓ GET  /iclock/getrequest     → ZKTeco command requests');
+      console.log('  ✓ GET  /iclock/devicecmd      → ZKTeco device commands');
+      console.log('  ✓ All /api/v1/* routes');
+      console.log('\n🔧 ZKTeco Integration:');
+      console.log(`  Device endpoints available at: http://YOUR_SERVER_IP/iclock/*`);
+      console.log(`  Ensure Nginx routes /iclock/* to this Express server (port ${config.port})`);
+      console.log('');
     });
   } catch (error) {
     console.error('Failed to start server:', error);
