@@ -29,6 +29,7 @@ import {
   CheckSquare,
   FileSignature,
   PenTool,
+  Activity,
 } from "lucide-react";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { TaskDropdown } from "./TaskDropdown";
@@ -128,6 +129,7 @@ const navigationSections: NavSection[] = [
         icon: PenTool,
       },
       { name: "System Audit Logs", href: "/admin/logs", icon: Settings },
+      { name: "ZKTeco Device Logs", href: "/admin/zkteco-logs", icon: Activity },
     ],
   },
 ];

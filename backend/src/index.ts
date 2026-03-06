@@ -24,6 +24,7 @@ import { esignRouter } from './modules/esign/esign.routes';
 import { esignReminderService } from './modules/esign/services/esignReminder.service';
 import { errorHandler } from './middlewares/errorHandler';
 import { zktecoRouter } from './modules/zkteco/zkteco.routes';
+import { zktecoLogsRouter } from './modules/zkteco/zkteco-logs.routes';
 
 const app = express();
 
@@ -78,6 +79,7 @@ app.use('/api/v1/documents', documentsRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/tasks', taskRouter);
 app.use('/api/v1/esign', esignRouter);
+app.use('/api/v1/zkteco', zktecoLogsRouter);
 
 // Error handler
 app.use(errorHandler);

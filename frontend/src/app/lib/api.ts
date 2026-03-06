@@ -1745,6 +1745,65 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // ZKTeco Device Logs
+  async getZKTecoLogs(params?: {
+    page?: number;
+    limit?: number;
+    deviceId?: string;
+    logType?: string;
+    processed?: boolean | string;
+  }): Promise<{
+    success: boolean;
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append("page", String(params.page));
+    if (params?.limit) query.append("limit", String(params.limit));
+    if (params?.deviceId) query.append("deviceId", params.deviceId);
+    if (params?.logType) query.append("logType", params.logType);
+    if (params?.processed !== undefined) query.append("processed", String(params.processed));
+    
+    const queryString = query.toString();
+    const url = `${this.baseUrl}/zkteco/logs${queryString ? `?${queryString}` : ""}`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
+    }
+
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.setToken(null);
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        throw new Error("Authentication required");
+      }
+
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+
+    return response.json();
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
