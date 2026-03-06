@@ -365,8 +365,12 @@ export default function ZKTecoLogsPage() {
                               ? 'bg-blue-100 text-blue-800'
                               : log.payloadType === 'status'
                               ? 'bg-purple-100 text-purple-800'
+                              : log.payloadType === 'config'
+                              ? 'bg-indigo-100 text-indigo-800'
                               : log.payloadType === 'heartbeat'
                               ? 'bg-gray-100 text-gray-800'
+                              : log.payloadType === 'user_sync'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-yellow-100 text-yellow-800'
                           }
                         >
@@ -384,15 +388,27 @@ export default function ZKTecoLogsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {log.parsedData?.userId || 
-                         log.parsedData?.attendanceEvent?.userId || 
-                         "N/A"}
+                        {log.payloadType === 'attendance'
+                          ? (log.parsedData?.userId || 
+                             log.parsedData?.attendanceEvent?.userId || 
+                             "N/A")
+                          : log.payloadType === 'status' || log.payloadType === 'config'
+                          ? (log.parsedData?.deviceStatus?.deviceName || 
+                             log.parsedData?.deviceStatus?.DeviceName ||
+                             "Device Info")
+                          : "N/A"}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {log.parsedData?.timestamp
-                          ? format(new Date(log.parsedData.timestamp), "yyyy-MM-dd HH:mm:ss")
-                          : log.parsedData?.attendanceEvent?.timestamp
-                          ? format(new Date(log.parsedData.attendanceEvent.timestamp), "yyyy-MM-dd HH:mm:ss")
+                        {log.payloadType === 'attendance'
+                          ? (log.parsedData?.timestamp
+                              ? format(new Date(log.parsedData.timestamp), "yyyy-MM-dd HH:mm:ss")
+                              : log.parsedData?.attendanceEvent?.timestamp
+                              ? format(new Date(log.parsedData.attendanceEvent.timestamp), "yyyy-MM-dd HH:mm:ss")
+                              : "N/A")
+                          : log.payloadType === 'status' || log.payloadType === 'config'
+                          ? (log.parsedData?.deviceStatus?.transactionCount !== undefined
+                              ? `Tx: ${log.parsedData.deviceStatus.transactionCount}`
+                              : "N/A")
                           : "N/A"}
                       </TableCell>
                       <TableCell>
@@ -545,8 +561,12 @@ export default function ZKTecoLogsPage() {
                           ? 'bg-blue-100 text-blue-800'
                           : selectedLog.payloadType === 'status'
                           ? 'bg-purple-100 text-purple-800'
+                          : selectedLog.payloadType === 'config'
+                          ? 'bg-indigo-100 text-indigo-800'
                           : selectedLog.payloadType === 'heartbeat'
                           ? 'bg-gray-100 text-gray-800'
+                          : selectedLog.payloadType === 'user_sync'
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-yellow-100 text-yellow-800'
                       }
                     >

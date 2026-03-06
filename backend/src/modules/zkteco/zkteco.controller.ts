@@ -56,7 +56,16 @@ export const cdata = async (req: Request, res: Response, next: NextFunction) => 
     const payloadType: PayloadType = ZKTecoParserService.detectPayloadType(rawData);
     const logType = ZKTecoParserService.getLogTypeFromPayloadType(payloadType, rawData);
 
-    console.log(`[ZKTeco] Detected payload type: ${payloadType}, log type: ${logType}`);
+    // Log payload classification
+    if (payloadType === 'status' || payloadType === 'config') {
+      console.log(`[ZKTeco] Detected device ${payloadType} payload, log type: ${logType}`);
+    } else if (payloadType === 'attendance') {
+      console.log(`[ZKTeco] Detected attendance payload, log type: ${logType}`);
+    } else if (payloadType === 'heartbeat') {
+      console.log(`[ZKTeco] Detected heartbeat payload`);
+    } else {
+      console.warn(`[ZKTeco] Unknown payload type detected: ${payloadType}, log type: ${logType}`);
+    }
 
     // Debug mode: print full payload for attendance events
     if (config.zkteco.debugMode && payloadType === 'attendance') {

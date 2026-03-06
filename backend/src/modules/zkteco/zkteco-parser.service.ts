@@ -18,6 +18,26 @@ export interface DeviceStatusPayload {
   maxUserPhotoCount?: number;
   fingerFunOn?: boolean;
   fpVersion?: number;
+  maxFingerCount?: number;
+  fpCount?: number;
+  faceFunOn?: boolean;
+  faceVersion?: number;
+  maxFaceCount?: number;
+  faceCount?: number;
+  fvFunOn?: boolean;
+  fvVersion?: number;
+  maxFvCount?: number;
+  fvCount?: number;
+  pvFunOn?: boolean;
+  pvVersion?: number;
+  maxPvCount?: number;
+  pvCount?: number;
+  language?: number;
+  ipAddress?: string;
+  platform?: string;
+  oemVendor?: string;
+  firmwareVersion?: string;
+  pushVersion?: string;
   [key: string]: any;
 }
 
@@ -45,14 +65,33 @@ export class ZKTecoParserService {
 
     // Comma-separated key=value format (SenseFace devices)
     if (trimmed.includes('=') && trimmed.includes(',')) {
-      // Check for device status/config indicators
-      if (trimmed.includes('DeviceName=') || trimmed.includes('~DeviceName=') || 
-          trimmed.includes('TransactionCount=') || trimmed.includes('UserCount=')) {
-        // Could be status or attendance event
-        if (trimmed.includes('PIN=') || trimmed.includes('Time=') || trimmed.includes('Verify=')) {
-          return 'attendance';
+      // First, check for attendance event indicators (must have user ID and timestamp)
+      const hasAttendanceIndicators = (trimmed.includes('PIN=') || trimmed.includes('UserID=') || trimmed.includes('UserId=')) &&
+                                      (trimmed.includes('Time=') || trimmed.includes('DateTime=') || trimmed.includes('Timestamp='));
+      
+      if (hasAttendanceIndicators) {
+        return 'attendance';
+      }
+
+      // Check for device status/config indicators (device info without attendance data)
+      const hasDeviceStatusIndicators = 
+        trimmed.includes('DeviceName=') || trimmed.includes('~DeviceName=') ||
+        trimmed.includes('TransactionCount=') || trimmed.includes('~TransactionCount=') ||
+        trimmed.includes('UserCount=') || trimmed.includes('~UserCount=') ||
+        trimmed.includes('MAC=') || trimmed.includes('IPAddress=') ||
+        trimmed.includes('FWVersion=') || trimmed.includes('FirmwareVersion=') ||
+        trimmed.includes('PushVersion=') || trimmed.includes('Platform=') ||
+        trimmed.includes('FPVersion=') || trimmed.includes('FaceVersion=') ||
+        trimmed.includes('FPCount=') || trimmed.includes('FaceCount=');
+
+      if (hasDeviceStatusIndicators) {
+        // Distinguish between status and config
+        // Config usually has more static info, status has dynamic counts
+        if (trimmed.includes('TransactionCount=') || trimmed.includes('UserCount=') || 
+            trimmed.includes('FPCount=') || trimmed.includes('FaceCount=')) {
+          return 'status';
         }
-        return 'status';
+        return 'config';
       }
 
       // Check for user sync indicators
@@ -60,12 +99,13 @@ export class ZKTecoParserService {
         return 'user_sync';
       }
 
-      // Check for heartbeat (usually minimal data)
-      if (trimmed.length < 100 && (trimmed.includes('SN=') || trimmed.includes('Status='))) {
+      // Check for heartbeat (usually minimal data, just device identifier)
+      if (trimmed.length < 100 && (trimmed.includes('SN=') || trimmed.includes('Status=') || trimmed.includes('DeviceID='))) {
         return 'heartbeat';
       }
 
-      // Default for key=value format
+      // If it's key=value format but we can't classify it, default to status
+      // (most key=value payloads from ZKTeco devices are status/config)
       return 'status';
     }
 
@@ -97,8 +137,14 @@ export class ZKTecoParserService {
       const equalIndex = trimmed.indexOf('=');
       if (equalIndex === -1) continue;
 
-      const key = trimmed.substring(0, equalIndex).trim().replace(/^~/, ''); // Remove ~ prefix
+      // Normalize key: remove ~ prefix and trim
+      let key = trimmed.substring(0, equalIndex).trim().replace(/^~+/, ''); // Remove one or more ~ prefixes
       const value = trimmed.substring(equalIndex + 1).trim();
+
+      // Skip empty values
+      if (value === '' || value === 'undefined' || value === 'null') {
+        continue;
+      }
 
       // Try to parse as number
       if (/^-?\d+$/.test(value)) {
@@ -169,17 +215,37 @@ export class ZKTecoParserService {
    */
   static parseDeviceStatus(payload: ParsedKeyValue): DeviceStatusPayload {
     return {
-      deviceName: payload.DeviceName as string,
-      mac: payload.MAC as string,
-      transactionCount: payload.TransactionCount as number,
-      maxAttLogCount: payload.MaxAttLogCount as number,
-      userCount: payload.UserCount as number,
-      maxUserCount: payload.MaxUserCount as number,
-      photoFunOn: payload.PhotoFunOn === true || payload.PhotoFunOn === 1,
-      maxUserPhotoCount: payload.MaxUserPhotoCount as number,
-      fingerFunOn: payload.FingerFunOn === true || payload.FingerFunOn === 1,
-      fpVersion: payload.FPVersion as number,
-      ...payload, // Include all other fields
+      deviceName: (payload.DeviceName || payload.deviceName) as string,
+      mac: (payload.MAC || payload.mac) as string,
+      transactionCount: (payload.TransactionCount || payload.transactionCount) as number,
+      maxAttLogCount: (payload.MaxAttLogCount || payload.maxAttLogCount) as number,
+      userCount: (payload.UserCount || payload.userCount) as number,
+      maxUserCount: (payload.MaxUserCount || payload.maxUserCount) as number,
+      photoFunOn: payload.PhotoFunOn === true || payload.PhotoFunOn === 1 || payload.photoFunOn === true || payload.photoFunOn === 1,
+      maxUserPhotoCount: (payload.MaxUserPhotoCount || payload.maxUserPhotoCount) as number,
+      fingerFunOn: payload.FingerFunOn === true || payload.FingerFunOn === 1 || payload.fingerFunOn === true || payload.fingerFunOn === 1,
+      fpVersion: (payload.FPVersion || payload.fpVersion) as number,
+      maxFingerCount: (payload.MaxFingerCount || payload.maxFingerCount) as number,
+      fpCount: (payload.FPCount || payload.fpCount) as number,
+      faceFunOn: payload.FaceFunOn === true || payload.FaceFunOn === 1 || payload.faceFunOn === true || payload.faceFunOn === 1,
+      faceVersion: (payload.FaceVersion || payload.faceVersion) as number,
+      maxFaceCount: (payload.MaxFaceCount || payload.maxFaceCount) as number,
+      faceCount: (payload.FaceCount || payload.faceCount) as number,
+      fvFunOn: payload.FvFunOn === true || payload.FvFunOn === 1 || payload.fvFunOn === true || payload.fvFunOn === 1,
+      fvVersion: (payload.FvVersion || payload.fvVersion) as number,
+      maxFvCount: (payload.MaxFvCount || payload.maxFvCount) as number,
+      fvCount: (payload.FvCount || payload.fvCount) as number,
+      pvFunOn: payload.PvFunOn === true || payload.PvFunOn === 1 || payload.pvFunOn === true || payload.pvFunOn === 1,
+      pvVersion: (payload.PvVersion || payload.pvVersion) as number,
+      maxPvCount: (payload.MaxPvCount || payload.maxPvCount) as number,
+      pvCount: (payload.PvCount || payload.pvCount) as number,
+      language: (payload.Language || payload.language) as number,
+      ipAddress: (payload.IPAddress || payload.ipAddress) as string,
+      platform: (payload.Platform || payload.platform) as string,
+      oemVendor: (payload.OEMVendor || payload.oemVendor) as string,
+      firmwareVersion: (payload.FWVersion || payload.firmwareVersion || payload.FirmwareVersion) as string,
+      pushVersion: (payload.PushVersion || payload.pushVersion) as string,
+      ...payload, // Include all other fields for completeness
     };
   }
 
