@@ -1,6 +1,14 @@
 import { ZKTecoDeviceLog, IZKTecoDeviceLog } from './zkteco-device-log.model';
 import { Employee, IEmployee } from '../employees/employee.model';
 import { AttendanceRecord } from '../attendance/attendance.model';
+import { 
+  ZKTecoParserService, 
+  ParsedKeyValue, 
+  DeviceStatusPayload, 
+  AttendanceEventPayload,
+  PayloadType 
+} from './zkteco-parser.service';
+import { config } from '../../config';
 
 export interface ParsedAttLog {
   userId: string;
@@ -91,7 +99,7 @@ export class ZKTecoService {
   }
 
   /**
-   * Save device log to database
+   * Save device log to database (legacy ATTLOG format)
    */
   static async saveDeviceLog(
     deviceId: string,
@@ -125,6 +133,7 @@ export class ZKTecoService {
           },
           employeeId: employee?._id,
           processed: false,
+          payloadType: 'attendance',
           ipAddress,
           userAgent,
         });
@@ -142,6 +151,110 @@ export class ZKTecoService {
     }
 
     return savedLogs;
+  }
+
+  /**
+   * Save device status/config log to database
+   */
+  static async saveDeviceStatusLog(
+    deviceId: string,
+    deviceSn: string | undefined,
+    logType: IZKTecoDeviceLog['logType'],
+    rawData: string,
+    deviceStatus: DeviceStatusPayload,
+    payloadType: PayloadType,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<IZKTecoDeviceLog> {
+    const deviceLog = new ZKTecoDeviceLog({
+      deviceId,
+      deviceSn,
+      logType,
+      rawData,
+      parsedData: {
+        deviceStatus,
+      },
+      processed: false,
+      payloadType,
+      ipAddress,
+      userAgent,
+    });
+
+    await deviceLog.save();
+    return deviceLog;
+  }
+
+  /**
+   * Save attendance event from SenseFace format
+   */
+  static async saveAttendanceEvent(
+    deviceId: string,
+    deviceSn: string | undefined,
+    logType: IZKTecoDeviceLog['logType'],
+    rawData: string,
+    attendanceEvent: AttendanceEventPayload,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<IZKTecoDeviceLog> {
+    // Find employee
+    const employee = attendanceEvent.userId 
+      ? await this.findEmployeeByDeviceUserId(attendanceEvent.userId)
+      : null;
+
+    const deviceLog = new ZKTecoDeviceLog({
+      deviceId,
+      deviceSn,
+      logType,
+      rawData,
+      parsedData: {
+        attendanceEvent,
+        userId: attendanceEvent.userId,
+        timestamp: attendanceEvent.timestamp,
+        verifyMode: attendanceEvent.verifyMode,
+        workCode: attendanceEvent.workCode,
+      },
+      employeeId: employee?._id,
+      processed: false,
+      payloadType: 'attendance',
+      ipAddress,
+      userAgent,
+    });
+
+    await deviceLog.save();
+
+    // Process attendance record if employee found
+    if (employee && attendanceEvent.timestamp) {
+      await this.processAttendanceRecord(deviceLog, employee._id.toString());
+    }
+
+    return deviceLog;
+  }
+
+  /**
+   * Save unknown/unparsed log to database
+   */
+  static async saveUnknownLog(
+    deviceId: string,
+    deviceSn: string | undefined,
+    logType: IZKTecoDeviceLog['logType'],
+    rawData: string,
+    payloadType: PayloadType,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<IZKTecoDeviceLog> {
+    const deviceLog = new ZKTecoDeviceLog({
+      deviceId,
+      deviceSn,
+      logType,
+      rawData,
+      processed: false,
+      payloadType,
+      ipAddress,
+      userAgent,
+    });
+
+    await deviceLog.save();
+    return deviceLog;
   }
 
   /**

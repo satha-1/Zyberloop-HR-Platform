@@ -1753,6 +1753,8 @@ class ApiClient {
     deviceId?: string;
     logType?: string;
     processed?: boolean | string;
+    startDate?: string; // ISO date string (YYYY-MM-DD)
+    endDate?: string; // ISO date string (YYYY-MM-DD)
   }): Promise<{
     success: boolean;
     data: any[];
@@ -1769,9 +1771,60 @@ class ApiClient {
     if (params?.deviceId) query.append("deviceId", params.deviceId);
     if (params?.logType) query.append("logType", params.logType);
     if (params?.processed !== undefined) query.append("processed", String(params.processed));
+    if (params?.startDate) query.append("startDate", params.startDate);
+    if (params?.endDate) query.append("endDate", params.endDate);
     
     const queryString = query.toString();
     const url = `${this.baseUrl}/zkteco/logs${queryString ? `?${queryString}` : ""}`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
+    }
+
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.setToken(null);
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        throw new Error("Authentication required");
+      }
+
+      const error = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(error.error?.message || error.message || "Request failed");
+    }
+
+    return response.json();
+  }
+
+  // Get ZKTeco logs statistics
+  async getZKTecoLogsStats(): Promise<{
+    success: boolean;
+    data: {
+      total: number;
+      processed: number;
+      pending: number;
+      uniqueDevices: number;
+      logTypeDistribution: Record<string, number>;
+      dateRange: {
+        oldest: string | null;
+        newest: string | null;
+      };
+    };
+  }> {
+    const url = `${this.baseUrl}/zkteco/logs/stats`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };

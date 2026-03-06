@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getZKTecoLogs } from './zkteco-logs.controller';
+import { getZKTecoLogs, getZKTecoLogsStats } from './zkteco-logs.controller';
 import { authenticate } from '../../middlewares/auth';
 
 const router = Router();
@@ -12,5 +12,8 @@ const router = Router();
 
 // Get ZKTeco device logs with pagination and filters
 router.get('/logs', authenticate, getZKTecoLogs);
+
+// Get statistics about ZKTeco logs
+router.get('/logs/stats', authenticate, getZKTecoLogsStats);
 
 export const zktecoLogsRouter = router;

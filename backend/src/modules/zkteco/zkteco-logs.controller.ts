@@ -18,6 +18,8 @@ export const getZKTecoLogs = async (
       deviceId,
       logType,
       processed,
+      startDate,
+      endDate,
     } = req.query;
 
     // Build query
@@ -35,6 +37,20 @@ export const getZKTecoLogs = async (
       // Query params are always strings, so check for string 'true'
       const processedValue = String(processed).toLowerCase() === 'true';
       query.processed = processedValue;
+    }
+
+    // Date range filter for createdAt
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        // Include the entire end date by setting to end of day
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
     }
 
     // Pagination
@@ -61,6 +77,7 @@ export const getZKTecoLogs = async (
       logType: log.logType,
       rawData: log.rawData,
       parsedData: log.parsedData,
+      payloadType: log.payloadType || 'unknown',
       employeeId: log.employeeId
         ? {
             _id: (log.employeeId as any)._id?.toString(),
@@ -87,6 +104,59 @@ export const getZKTecoLogs = async (
         limit: limitNum,
         total,
         pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/zkteco/logs/stats
+ * Get statistics about ZKTeco device logs
+ */
+export const getZKTecoLogsStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const totalLogs = await ZKTecoDeviceLog.countDocuments({});
+    const processedLogs = await ZKTecoDeviceLog.countDocuments({ processed: true });
+    const pendingLogs = await ZKTecoDeviceLog.countDocuments({ processed: false });
+    
+    // Get unique device count
+    const uniqueDevices = await ZKTecoDeviceLog.distinct('deviceId');
+    
+    // Get log type distribution
+    const logTypeStats = await ZKTecoDeviceLog.aggregate([
+      {
+        $group: {
+          _id: '$logType',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Get oldest and newest log dates
+    const oldestLog = await ZKTecoDeviceLog.findOne().sort({ createdAt: 1 }).lean();
+    const newestLog = await ZKTecoDeviceLog.findOne().sort({ createdAt: -1 }).lean();
+
+    res.json({
+      success: true,
+      data: {
+        total: totalLogs,
+        processed: processedLogs,
+        pending: pendingLogs,
+        uniqueDevices: uniqueDevices.length,
+        logTypeDistribution: logTypeStats.reduce((acc: any, item: any) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+        dateRange: {
+          oldest: oldestLog?.createdAt ? new Date(oldestLog.createdAt).toISOString() : null,
+          newest: newestLog?.createdAt ? new Date(newestLog.createdAt).toISOString() : null,
+        },
       },
     });
   } catch (error) {

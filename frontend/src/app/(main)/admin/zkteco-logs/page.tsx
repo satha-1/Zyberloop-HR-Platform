@@ -37,13 +37,24 @@ interface ZKTecoLog {
   deviceSn?: string;
   logType: string;
   rawData: string;
+  payloadType?: 'attendance' | 'status' | 'config' | 'user_sync' | 'heartbeat' | 'unknown';
   parsedData?: {
+    // Legacy ATTLOG format
     userId?: string;
     timestamp?: string;
     status?: number;
     verifyMode?: number;
     workCode?: number;
     reserved?: string;
+    // SenseFace format
+    deviceStatus?: Record<string, any>;
+    attendanceEvent?: {
+      userId?: string;
+      timestamp?: string;
+      verifyMode?: number;
+      workCode?: number;
+      [key: string]: any;
+    };
   };
   employeeId?: {
     _id: string;
@@ -105,14 +116,22 @@ export default function ZKTecoLogsPage() {
 
       const response = await api.getZKTecoLogs(params);
       
-      if (response.success) {
+      console.log("ZKTeco logs API response:", response);
+      
+      if (response && response.success) {
         setLogs(response.data || []);
         setPagination(response.pagination || pagination);
+        console.log(`Loaded ${response.data?.length || 0} logs, total: ${response.pagination?.total || 0}`);
       } else {
-        toast.error("Failed to fetch logs");
+        console.warn("API response missing success flag:", response);
+        setLogs([]);
+        setPagination({ ...pagination, total: 0, pages: 0 });
+        toast.error("Failed to fetch logs - invalid response format");
       }
     } catch (error: any) {
       console.error("Error fetching ZKTeco logs:", error);
+      setLogs([]);
+      setPagination({ ...pagination, total: 0, pages: 0 });
       toast.error(error.message || "Failed to fetch logs");
     } finally {
       setLoading(false);
@@ -302,7 +321,14 @@ export default function ZKTecoLogsPage() {
           {loading ? (
             <div className="text-center py-8 text-gray-500">Loading logs...</div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No logs found</div>
+            <div className="text-center py-8 space-y-2">
+              <p className="text-gray-500 font-medium">No logs found</p>
+              <p className="text-sm text-gray-400">
+                {pagination.total === 0
+                  ? "No device logs have been received yet. Logs will appear here when your ZKTeco device sends attendance data to /iclock/cdata."
+                  : "No logs match the current filters. Try adjusting your filters."}
+              </p>
+            </div>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <Table>
@@ -311,6 +337,7 @@ export default function ZKTecoLogsPage() {
                     <TableHead>Created At</TableHead>
                     <TableHead>Device ID</TableHead>
                     <TableHead>Device SN</TableHead>
+                    <TableHead>Payload Type</TableHead>
                     <TableHead>Log Type</TableHead>
                     <TableHead>Raw Data</TableHead>
                     <TableHead>User ID</TableHead>
@@ -332,6 +359,21 @@ export default function ZKTecoLogsPage() {
                         {log.deviceSn || "N/A"}
                       </TableCell>
                       <TableCell>
+                        <Badge
+                          className={
+                            log.payloadType === 'attendance'
+                              ? 'bg-blue-100 text-blue-800'
+                              : log.payloadType === 'status'
+                              ? 'bg-purple-100 text-purple-800'
+                              : log.payloadType === 'heartbeat'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }
+                        >
+                          {log.payloadType || 'unknown'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         <Badge className={getLogTypeColor(log.logType)}>
                           {log.logType}
                         </Badge>
@@ -342,11 +384,15 @@ export default function ZKTecoLogsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {log.parsedData?.userId || "N/A"}
+                        {log.parsedData?.userId || 
+                         log.parsedData?.attendanceEvent?.userId || 
+                         "N/A"}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {log.parsedData?.timestamp
                           ? format(new Date(log.parsedData.timestamp), "yyyy-MM-dd HH:mm:ss")
+                          : log.parsedData?.attendanceEvent?.timestamp
+                          ? format(new Date(log.parsedData.attendanceEvent.timestamp), "yyyy-MM-dd HH:mm:ss")
                           : "N/A"}
                       </TableCell>
                       <TableCell>
@@ -489,9 +535,48 @@ export default function ZKTecoLogsPage() {
                 </pre>
               </div>
 
+              {selectedLog.payloadType && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Payload Type</label>
+                  <div className="mt-1">
+                    <Badge
+                      className={
+                        selectedLog.payloadType === 'attendance'
+                          ? 'bg-blue-100 text-blue-800'
+                          : selectedLog.payloadType === 'status'
+                          ? 'bg-purple-100 text-purple-800'
+                          : selectedLog.payloadType === 'heartbeat'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }
+                    >
+                      {selectedLog.payloadType}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.parsedData?.deviceStatus && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Device Status</label>
+                  <pre className="mt-1 p-3 bg-blue-50 rounded border text-xs font-mono overflow-x-auto">
+                    {JSON.stringify(selectedLog.parsedData.deviceStatus, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {selectedLog.parsedData?.attendanceEvent && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Attendance Event</label>
+                  <pre className="mt-1 p-3 bg-green-50 rounded border text-xs font-mono overflow-x-auto">
+                    {JSON.stringify(selectedLog.parsedData.attendanceEvent, null, 2)}
+                  </pre>
+                </div>
+              )}
+
               {selectedLog.parsedData && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Parsed Data</label>
+                  <label className="text-sm font-medium text-gray-700">Parsed Data (Full)</label>
                   <pre className="mt-1 p-3 bg-gray-50 rounded border text-xs font-mono overflow-x-auto">
                     {JSON.stringify(selectedLog.parsedData, null, 2)}
                   </pre>

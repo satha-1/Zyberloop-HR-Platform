@@ -52,4 +52,7 @@ export const config = {
       },
     },
   },
+  zkteco: {
+    debugMode: process.env.ZKTECO_DEBUG_MODE === 'true',
+  },
 };
