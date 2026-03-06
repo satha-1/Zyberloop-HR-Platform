@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZKTecoService } from './zkteco.service';
-import { ZKTecoDeviceLog } from './zkteco-device-log.model';
+import { ZKTecoDeviceLog, IZKTecoDeviceLog } from './zkteco-device-log.model';
 import { 
   ZKTecoParserService, 
   PayloadType 
@@ -26,9 +26,33 @@ export const ping = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 /**
+ * GET /iclock/cdata
+ * Handshake/query endpoint for ZKTeco devices
+ * Devices call this to check server availability and send query parameters
+ * Must return plain text "OK"
+ */
+export const cdataGet = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { deviceId, deviceSn } = ZKTecoService.extractDeviceInfo(req);
+    const queryParams = req.query;
+    
+    console.log(`[ZKTeco] CData GET handshake from device: ${deviceId} (SN: ${deviceSn || 'N/A'})`);
+    console.log(`[ZKTeco] Query parameters:`, JSON.stringify(queryParams, null, 2));
+    console.log(`[ZKTeco] IP Address: ${req.ip || req.socket.remoteAddress}`);
+    
+    // Return plain text "OK" as required by ZKTeco protocol
+    res.setHeader('Content-Type', 'text/plain');
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[ZKTeco] Error processing GET cdata:', error);
+    next(error);
+  }
+};
+
+/**
  * POST /iclock/cdata
  * Receives attendance data from ZKTeco device
- * Accepts raw body data in ATTLOG format
+ * Accepts raw body data in ATTLOG format or SenseFace key=value format
  */
 export const cdata = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -48,7 +72,7 @@ export const cdata = async (req: Request, res: Response, next: NextFunction) => 
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.get('user-agent');
     
-    console.log(`[ZKTeco] CData received from device: ${deviceId} (SN: ${deviceSn || 'N/A'})`);
+    console.log(`[ZKTeco] CData POST payload from device: ${deviceId} (SN: ${deviceSn || 'N/A'})`);
     console.log(`[ZKTeco] Raw data length: ${rawData.length} bytes`);
     console.log(`[ZKTeco] Raw data preview: ${rawData.substring(0, 200)}`);
 
@@ -73,7 +97,7 @@ export const cdata = async (req: Request, res: Response, next: NextFunction) => 
       console.log(rawData);
     }
 
-    let savedLog: ZKTecoDeviceLog | null = null;
+    let savedLog: IZKTecoDeviceLog | null = null;
 
     // Handle different payload types
     if (payloadType === 'attendance') {

@@ -96,6 +96,7 @@ async function startServer() {
       console.log('  ✓ GET  /health');
       console.log('  ✓ GET  /api/v1/health');
       console.log('  ✓ GET  /iclock/ping          → ZKTeco health check');
+      console.log('  ✓ GET  /iclock/cdata         → ZKTeco handshake/query');
       console.log('  ✓ POST /iclock/cdata         → ZKTeco attendance data');
       console.log('  ✓ GET  /iclock/getrequest     → ZKTeco command requests');
       console.log('  ✓ GET  /iclock/devicecmd      → ZKTeco device commands');

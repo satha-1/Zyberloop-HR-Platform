@@ -169,13 +169,16 @@ export class ZKTecoParserService {
   static parseAttendanceEvent(payload: ParsedKeyValue): AttendanceEventPayload | null {
     // Common SenseFace attendance event fields
     const userId = payload.PIN || payload.UserID || payload.UserId || payload.userId;
-    const timeStr = payload.Time || payload.DateTime || payload.Timestamp;
+    const timeValue = payload.Time || payload.DateTime || payload.Timestamp;
     const verifyMode = payload.Verify || payload.VerifyMode || payload.VerifyType;
     const workCode = payload.WorkCode || payload.Workcode || payload.Work;
 
-    if (!userId || !timeStr) {
+    if (!userId || !timeValue) {
       return null;
     }
+
+    // Ensure timeValue is a string for parsing
+    const timeStr = typeof timeValue === 'string' ? timeValue : String(timeValue);
 
     // Parse timestamp - try different formats
     let timestamp: Date | undefined;

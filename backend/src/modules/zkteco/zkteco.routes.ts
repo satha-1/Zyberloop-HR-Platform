@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ping, cdata, getrequest, devicecmd } from './zkteco.controller';
+import { ping, cdata, cdataGet, getrequest, devicecmd } from './zkteco.controller';
 
 const router = Router();
 
@@ -19,8 +19,10 @@ const router = Router();
 // Health check endpoint - must return plain text "OK"
 router.get('/ping', ping);
 
-// Receive attendance data from device
-// Note: ZKTeco devices send raw text data, not JSON
+// CData endpoint - handles both GET (handshake) and POST (payload)
+// GET: Device handshake/query - returns "OK"
+// POST: Device sends attendance data - processes and returns "OK"
+router.get('/cdata', cdataGet);
 router.post('/cdata', cdata);
 
 // Device requests commands/data from server
