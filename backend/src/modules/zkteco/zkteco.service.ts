@@ -181,6 +181,12 @@ export class ZKTecoService {
     });
 
     await deviceLog.save();
+    
+    // Log transaction count for debugging
+    if (deviceStatus.transactionCount !== undefined) {
+      console.log(`[ZKTeco] [STATUS/CONFIG] Device ${deviceId} transaction count: ${deviceStatus.transactionCount}`);
+    }
+    
     return deviceLog;
   }
 
