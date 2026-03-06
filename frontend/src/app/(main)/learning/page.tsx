@@ -28,6 +28,28 @@ import {
   ArrowRight,
   RotateCcw
 } from "lucide-react";
+
+// Helper to get the best viewer URL for different file types
+const getViewerUrl = (url: string | undefined): string => {
+  if (!url) return "about:blank";
+
+  const lowerUrl = url.toLowerCase();
+
+  // PDF handling - add toolbar=0 for cleaner internal view
+  if (lowerUrl.endsWith('.pdf')) {
+    return url.includes('#') ? url : `${url}#toolbar=0`;
+  }
+
+  // Office documents handling - use Google Docs Viewer proxy
+  const officeExtensions = ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+  if (officeExtensions.some(ext => lowerUrl.endsWith(ext))) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  }
+
+  // Fallback to direct URL (for standard links, images, etc.)
+  return url;
+};
+
 import {
   WorkdayTable,
   WorkdayTableColumn,
@@ -327,9 +349,14 @@ export default function Learning() {
       }
 
       if (materialForm.sectionIndex >= 0) {
+        formData.append("sectionIndex", String(materialForm.sectionIndex));
+      }
+
+      if (materialForm.sectionIndex >= 0) {
         const result = await api.uploadLearningMaterial(selectedCourse?._id || "temp", formData);
         const newSections = [...courseForm.sections];
-        newSections[materialForm.sectionIndex].materials.push(result.data || result);
+        const addedMaterial = result.data || result;
+        newSections[materialForm.sectionIndex].materials.push(addedMaterial);
         setCourseForm({ ...courseForm, sections: newSections });
         toast.success("Material added to section");
       } else {
@@ -1022,9 +1049,9 @@ export default function Learning() {
                                 selectedCourse.activeMaterial?._id === material._id ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-200"
                               )}
                             >
-                              {material.type === 'VIDEO' ? <Video className="h-4 w-4" /> :
-                                material.type === 'DOCUMENT' ? <FileText className="h-4 w-4" /> :
-                                  material.type === 'QUIZ' ? <GraduationCap className="h-4 w-4" /> :
+                              {material.type?.toUpperCase() === 'VIDEO' ? <Video className="h-4 w-4" /> :
+                                material.type?.toUpperCase() === 'DOCUMENT' ? <FileText className="h-4 w-4" /> :
+                                  material.type?.toUpperCase() === 'QUIZ' ? <GraduationCap className="h-4 w-4" /> :
                                     <LinkIcon className="h-4 w-4" />}
                               <span className="truncate">{material.title}</span>
                             </button>
@@ -1055,7 +1082,7 @@ export default function Learning() {
                       </div>
 
                       <div className="flex-1 bg-black rounded-xl overflow-hidden shadow-2xl min-h-[400px]">
-                        {selectedCourse.activeMaterial.type === 'VIDEO' ? (
+                        {selectedCourse.activeMaterial.type?.toUpperCase() === 'VIDEO' ? (
                           <video
                             controls
                             key={selectedCourse.activeMaterial.url}
@@ -1064,13 +1091,13 @@ export default function Learning() {
                             <source src={selectedCourse.activeMaterial.url} />
                             Your browser does not support the video tag.
                           </video>
-                        ) : (selectedCourse.activeMaterial.type === 'DOCUMENT' || selectedCourse.activeMaterial.type === 'LINK') ? (
+                        ) : (selectedCourse.activeMaterial.type?.toUpperCase() === 'DOCUMENT' || selectedCourse.activeMaterial.type?.toUpperCase() === 'LINK') ? (
                           <iframe
-                            src={selectedCourse.activeMaterial.url || 'about:blank'}
+                            src={getViewerUrl(selectedCourse.activeMaterial.url)}
                             className="w-full h-full bg-white border-none"
                             title={selectedCourse.activeMaterial.title}
                           />
-                        ) : selectedCourse.activeMaterial.type === 'QUIZ' ? (
+                        ) : selectedCourse.activeMaterial.type?.toUpperCase() === 'QUIZ' ? (
                           <div className="w-full h-full bg-gray-50 flex overflow-hidden">
                             <QuizPlayer quiz={selectedCourse.activeMaterial.quizData} />
                           </div>
