@@ -1,5 +1,6 @@
 ﻿import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import {
   PerformanceCycle,
   Goal,
@@ -20,6 +21,8 @@ import {
   generateToken,
   hashToken,
 } from './performance.service';
+import { feedback360EmailService } from './services/feedback360Email.service';
+import { config } from '../../config';
 import { AppError } from '../../middlewares/errorHandler';
 import { Employee } from '../employees/employee.model';
 
@@ -392,7 +395,25 @@ export const get360Template = async (req: Request, res: Response, next: NextFunc
 export const create360Template = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { cycleId } = req.params;
-    const t = await Feedback360Template.create({ ...req.body, cycleId });
+    // Validate sections and questions
+    if (!req.body.sections || !Array.isArray(req.body.sections) || req.body.sections.length === 0) {
+      throw new AppError(400, 'At least one section is required');
+    }
+    for (const section of req.body.sections) {
+      if (!section.questions || !Array.isArray(section.questions) || section.questions.length === 0) {
+        throw new AppError(400, 'Each section must have at least one question');
+      }
+      for (const q of section.questions) {
+        if (q.type === 'LIKERT' && q.scaleMin >= q.scaleMax) {
+          throw new AppError(400, 'LIKERT questions must have scaleMin < scaleMax');
+        }
+      }
+    }
+    const t = await Feedback360Template.create({ 
+      ...req.body, 
+      cycleId: cycleId || null,
+      createdBy: req.user!.id 
+    });
     await auditPerf('Feedback360Template', t._id.toString(), 'CREATE', req);
     res.status(201).json({ success: true, data: t });
   } catch (e) { next(e); }
@@ -400,9 +421,52 @@ export const create360Template = async (req: Request, res: Response, next: NextF
 
 export const update360Template = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const t = await Feedback360Template.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Validate sections and questions if provided
+    if (req.body.sections) {
+      if (!Array.isArray(req.body.sections) || req.body.sections.length === 0) {
+        throw new AppError(400, 'At least one section is required');
+      }
+      for (const section of req.body.sections) {
+        if (!section.questions || !Array.isArray(section.questions) || section.questions.length === 0) {
+          throw new AppError(400, 'Each section must have at least one question');
+        }
+        for (const q of section.questions) {
+          if (q.type === 'LIKERT' && q.scaleMin >= q.scaleMax) {
+            throw new AppError(400, 'LIKERT questions must have scaleMin < scaleMax');
+          }
+        }
+      }
+    }
+    const t = await Feedback360Template.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!t) throw new AppError(404, 'Template not found');
+    await auditPerf('Feedback360Template', t._id.toString(), 'UPDATE', req);
     res.json({ success: true, data: t });
+  } catch (e) { next(e); }
+};
+
+export const delete360Template = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const t = await Feedback360Template.findByIdAndDelete(req.params.id);
+    if (!t) throw new AppError(404, 'Template not found');
+    await auditPerf('Feedback360Template', req.params.id, 'DELETE', req);
+    res.json({ success: true, message: 'Template deleted' });
+  } catch (e) { next(e); }
+};
+
+export const duplicate360Template = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const original = await Feedback360Template.findById(req.params.id);
+    if (!original) throw new AppError(404, 'Template not found');
+    const duplicated = await Feedback360Template.create({
+      name: `${original.name} (Copy)`,
+      cycleId: original.cycleId,
+      reusable: original.reusable,
+      sections: original.sections,
+      settings: original.settings,
+      createdBy: req.user!.id,
+    });
+    await auditPerf('Feedback360Template', duplicated._id.toString(), 'DUPLICATE', req);
+    res.status(201).json({ success: true, data: duplicated });
   } catch (e) { next(e); }
 };
 
@@ -412,37 +476,112 @@ export const update360Template = async (req: Request, res: Response, next: NextF
 export const generate360Assignments = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { cycleId } = req.params;
-    const { templateId, requiredResponsesCount, deadlineAt } = req.body;
+    const { templateId, targetEmployeeIds, ratersConfig, requiredResponsesCount, deadlineAt } = req.body;
     if (!templateId) throw new AppError(400, 'templateId is required');
-    const employees = await Employee.find({ status: 'active' }).lean();
+    
+    const template = await Feedback360Template.findById(templateId);
+    if (!template) throw new AppError(404, 'Template not found');
+    
+    const targetEmployees = targetEmployeeIds && targetEmployeeIds.length > 0
+      ? await Employee.find({ _id: { $in: targetEmployeeIds }, status: 'active' }).lean()
+      : await Employee.find({ status: 'active' }).lean();
+    
     const created: any[] = [];
-    for (const emp of employees) {
+    const frontendUrl = config.cors.frontendUrl || 'http://localhost:3000';
+    
+    for (const emp of targetEmployees) {
       const existing = await Feedback360Assignment.findOne({ cycleId, targetEmployeeId: emp._id });
-      if (!existing) {
-        // Self token
-        const selfToken = generateToken();
-        const assignment = await Feedback360Assignment.create({
-          cycleId,
-          templateId,
-          targetEmployeeId: emp._id,
-          requiredResponsesCount: requiredResponsesCount || 5,
-          deadlineAt,
-          status: 'NOT_STARTED',
-          collectedResponsesCount: 0,
-          raters: [
-            {
-              raterEmployeeId: emp._id,
-              name: `${(emp as any).firstName} ${(emp as any).lastName}`,
-              email: (emp as any).email,
-              roleType: 'SELF',
-              tokenHash: hashToken(selfToken),
-              status: 'SENT',
-            },
-          ],
-        });
-        created.push(assignment);
+      if (existing) continue; // Skip if already exists
+      
+      const raters: any[] = [];
+      const empData = emp as any;
+      
+      // Auto-add manager if available
+      if (ratersConfig?.includeManager !== false && empData.managerId) {
+        const manager = await Employee.findById(empData.managerId).lean();
+        if (manager) {
+          const token = generateToken();
+          raters.push({
+            id: crypto.randomBytes(16).toString('hex'),
+            raterEmployeeId: manager._id,
+            name: `${(manager as any).firstName} ${(manager as any).lastName}`,
+            email: (manager as any).email,
+            roleType: 'MANAGER',
+            tokenHash: hashToken(token),
+            status: 'SENT',
+          });
+        }
       }
+      
+      // Auto-add self if requested
+      if (ratersConfig?.includeSelf !== false) {
+        const selfToken = generateToken();
+        raters.push({
+          id: crypto.randomBytes(16).toString('hex'),
+          raterEmployeeId: emp._id,
+          name: `${empData.firstName} ${empData.lastName}`,
+          email: empData.email,
+          roleType: 'SELF',
+          tokenHash: hashToken(selfToken),
+          status: 'SENT',
+        });
+      }
+      
+      // Add custom raters from config
+      if (ratersConfig?.customRaters && Array.isArray(ratersConfig.customRaters)) {
+        for (const customRater of ratersConfig.customRaters) {
+          if (customRater.targetEmployeeId?.toString() === emp._id.toString()) {
+            const token = generateToken();
+            raters.push({
+              id: crypto.randomBytes(16).toString('hex'),
+              raterEmployeeId: customRater.employeeId || null,
+              name: customRater.name,
+              email: customRater.email,
+              roleType: customRater.roleType || 'PEER',
+              tokenHash: hashToken(token),
+              status: 'SENT',
+            });
+          }
+        }
+      }
+      
+      // Auto-add direct reports if requested
+      if (ratersConfig?.includeDirectReports) {
+        const directReports = await Employee.find({ managerId: emp._id, status: 'active' }).lean();
+        for (const dr of directReports) {
+          const token = generateToken();
+          raters.push({
+            id: crypto.randomBytes(16).toString('hex'),
+            raterEmployeeId: dr._id,
+            name: `${(dr as any).firstName} ${(dr as any).lastName}`,
+            email: (dr as any).email,
+            roleType: 'DIRECT_REPORT',
+            tokenHash: hashToken(token),
+            status: 'SENT',
+          });
+        }
+      }
+      
+      if (raters.length === 0) {
+        throw new AppError(400, `No raters configured for employee ${empData.firstName} ${empData.lastName}`);
+      }
+      
+      const assignment = await Feedback360Assignment.create({
+        cycleId,
+        templateId,
+        targetEmployeeId: emp._id,
+        requiredResponsesCount: requiredResponsesCount || raters.length,
+        deadlineAt: deadlineAt || null,
+        status: 'NOT_STARTED',
+        collectedResponsesCount: 0,
+        raters,
+        createdBy: req.user!.id,
+      });
+      
+      created.push(assignment);
     }
+    
+    await auditPerf('Feedback360Assignment', 'BATCH', 'GENERATE', req);
     res.status(201).json({ success: true, data: created, message: `${created.length} assignments created` });
   } catch (e) { next(e); }
 };
@@ -452,6 +591,7 @@ export const list360Assignments = async (req: Request, res: Response, next: Next
     const { cycleId } = req.params;
     const assignments = await Feedback360Assignment.find({ cycleId })
       .populate('targetEmployeeId', 'firstName lastName employeeCode')
+      .populate('templateId', 'name')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: assignments });
   } catch (e) { next(e); }
@@ -459,7 +599,9 @@ export const list360Assignments = async (req: Request, res: Response, next: Next
 
 export const get360Assignment = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const a = await Feedback360Assignment.findById(req.params.id).populate('targetEmployeeId', 'firstName lastName');
+    const a = await Feedback360Assignment.findById(req.params.id)
+      .populate('targetEmployeeId', 'firstName lastName employeeCode')
+      .populate('templateId', 'name sections settings');
     if (!a) throw new AppError(404, 'Assignment not found');
     res.json({ success: true, data: a });
   } catch (e) { next(e); }
@@ -475,13 +617,65 @@ export const update360Assignment = async (req: Request, res: Response, next: Nex
 
 export const send360Invites = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const a = await Feedback360Assignment.findById(req.params.id);
-    if (!a) throw new AppError(404, 'Assignment not found');
-    a.status = 'SENT';
-    // In production: send emails here with token links
-    await a.save();
-    await auditPerf('Feedback360Assignment', a._id.toString(), 'SEND_INVITES', req);
-    res.json({ success: true, data: a, message: 'Invitations sent (simulated)' });
+    const assignment = await Feedback360Assignment.findById(req.params.id)
+      .populate('targetEmployeeId', 'firstName lastName');
+    if (!assignment) throw new AppError(404, 'Assignment not found');
+    
+    if (assignment.status === 'LOCKED' || assignment.status === 'COMPLETED') {
+      throw new AppError(400, 'Cannot send invites for locked or completed assignments');
+    }
+    
+    const targetEmp = assignment.targetEmployeeId as any;
+    const targetName = `${targetEmp.firstName} ${targetEmp.lastName}`;
+    const frontendUrl = config.cors.frontendUrl || 'http://localhost:3000';
+    let sentCount = 0;
+    
+    // Generate new tokens for raters who haven't submitted
+    // Note: This regenerates tokens, so any previously sent links will no longer work
+    // In production, consider storing raw tokens securely or using a token service
+    for (let i = 0; i < assignment.raters.length; i++) {
+      const rater = assignment.raters[i];
+      if (rater.status === 'SUBMITTED') continue; // Skip already submitted
+      
+      // Generate new token and update hash
+      const token = generateToken();
+      const tokenHash = hashToken(token);
+      
+      // Update rater token hash and status
+      rater.tokenHash = tokenHash;
+      if (rater.status !== 'SENT') {
+        rater.status = 'SENT';
+      }
+      
+      const responseLink = `${frontendUrl}/performance/360/respond/${token}`;
+      
+      try {
+        await feedback360EmailService.send360InviteEmail({
+          name: rater.name,
+          email: rater.email,
+          reviewedEmployeeName: targetName,
+          link: responseLink,
+          deadlineAt: assignment.deadlineAt || null,
+          roleType: rater.roleType,
+        });
+        sentCount++;
+      } catch (emailError) {
+        console.error(`Failed to send email to ${rater.email}:`, emailError);
+        // Continue with other raters
+      }
+    }
+    
+    if (assignment.status === 'NOT_STARTED') {
+      assignment.status = 'SENT';
+    }
+    await assignment.save();
+    await auditPerf('Feedback360Assignment', assignment._id.toString(), 'SEND_INVITES', req);
+    
+    res.json({ 
+      success: true, 
+      data: assignment, 
+      message: `Invitations sent to ${sentCount} rater(s)` 
+    });
   } catch (e) { next(e); }
 };
 
@@ -548,15 +742,120 @@ export const submit360Response = async (req: Request, res: Response, next: NextF
 
 export const get360Aggregate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const assignment = await Feedback360Assignment.findById(req.params.id).populate('templateId');
+    const assignment = await Feedback360Assignment.findById(req.params.id)
+      .populate('templateId')
+      .populate('targetEmployeeId', 'firstName lastName');
     if (!assignment) throw new AppError(404, 'Assignment not found');
-    const settings = (assignment as any).templateId?.settings;
-    if (assignment.collectedResponsesCount < (settings?.minResponsesToShow ?? 3)) {
-      return res.json({ success: true, data: { tooFewResponses: true, collected: assignment.collectedResponsesCount } });
+    
+    const template = assignment.templateId as any;
+    const settings = template?.settings || { anonymous: true, minResponsesToShow: 3 };
+    
+    if (assignment.collectedResponsesCount < settings.minResponsesToShow) {
+      return res.json({ 
+        success: true, 
+        data: { 
+          tooFewResponses: true, 
+          collected: assignment.collectedResponsesCount,
+          required: settings.minResponsesToShow 
+        } 
+      });
     }
-    const peerScore = await computePeerScore(assignment._id.toString());
-    const responses = await Feedback360Response.find({ assignmentId: assignment._id, status: 'SUBMITTED' }).lean();
-    res.json({ success: true, data: { peerScore, responseCount: responses.length, assignment } });
+    
+    const responses = await Feedback360Response.find({ 
+      assignmentId: assignment._id, 
+      status: 'SUBMITTED' 
+    }).lean();
+    
+    // Compute section and question aggregates
+    const sectionAggregates: any[] = [];
+    const allLikertScores: number[] = [];
+    
+    for (const section of template.sections || []) {
+      const questionAggregates: any[] = [];
+      
+      for (const question of section.questions || []) {
+        if (question.type === 'LIKERT') {
+          const values: number[] = [];
+          responses.forEach((r: any) => {
+            const answer = r.answers.find((a: any) => a.questionId === question.id);
+            if (answer && typeof answer.value === 'number') {
+              values.push(answer.value);
+              allLikertScores.push(answer.value);
+            }
+          });
+          
+          if (values.length > 0) {
+            const avg = values.reduce((s, v) => s + v, 0) / values.length;
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            questionAggregates.push({
+              questionId: question.id,
+              prompt: question.prompt,
+              type: 'LIKERT',
+              average: Math.round(avg * 100) / 100,
+              min,
+              max,
+              count: values.length,
+              distribution: values.reduce((acc: any, v) => {
+                acc[v] = (acc[v] || 0) + 1;
+                return acc;
+              }, {}),
+            });
+          }
+        } else if (question.type === 'TEXT') {
+          const comments: any[] = [];
+          responses.forEach((r: any) => {
+            const answer = r.answers.find((a: any) => a.questionId === question.id);
+            if (answer && answer.value) {
+              comments.push({
+                text: answer.value,
+                raterName: settings.anonymous ? null : (r.raterEmployeeId ? 'Employee' : 'External'),
+                submittedAt: r.submittedAt,
+              });
+            }
+          });
+          
+          questionAggregates.push({
+            questionId: question.id,
+            prompt: question.prompt,
+            type: 'TEXT',
+            comments: settings.anonymous ? comments.map(c => ({ text: c.text, submittedAt: c.submittedAt })) : comments,
+            count: comments.length,
+          });
+        }
+      }
+      
+      sectionAggregates.push({
+        sectionId: section.id,
+        title: section.title,
+        questions: questionAggregates,
+      });
+    }
+    
+    // Compute overall peer score (average of all LIKERT responses, normalized to 0-5)
+    const overallPeerScore = allLikertScores.length > 0
+      ? Math.round((allLikertScores.reduce((s, v) => s + v, 0) / allLikertScores.length) * 100) / 100
+      : 0;
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        assignment: {
+          _id: assignment._id,
+          targetEmployee: assignment.targetEmployeeId,
+          collectedResponsesCount: assignment.collectedResponsesCount,
+          requiredResponsesCount: assignment.requiredResponsesCount,
+          status: assignment.status,
+        },
+        responseCount: responses.length,
+        overallPeerScore,
+        sectionAggregates,
+        settings: {
+          anonymous: settings.anonymous,
+          minResponsesToShow: settings.minResponsesToShow,
+        },
+      } 
+    });
   } catch (e) { next(e); }
 };
 

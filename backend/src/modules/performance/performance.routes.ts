@@ -6,7 +6,7 @@ import {
   getRatingFormula, upsertRatingFormula,
   getMeritMatrix, upsertMeritMatrix,
   generateAppraisals, listAppraisals, getAppraisal, updateAppraisal, submitByManager, submitByEmployee, approveAppraisal,
-  list360Templates, get360Template, create360Template, update360Template,
+  list360Templates, get360Template, create360Template, update360Template, delete360Template, duplicate360Template,
   generate360Assignments, list360Assignments, get360Assignment, update360Assignment,
   send360Invites, get360FormByToken, mark360Opened, submit360Response, get360Aggregate, sync360ToAppraisals,
   getBiasSummary, getBiasFlags, runBias, updateBiasFlag,
@@ -60,6 +60,8 @@ performanceRouter.get('/cycles/:cycleId/360/templates', list360Templates);
 performanceRouter.post('/cycles/:cycleId/360/templates', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), create360Template);
 performanceRouter.get('/360/templates/:id', get360Template);
 performanceRouter.patch('/360/templates/:id', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), update360Template);
+performanceRouter.delete('/360/templates/:id', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), delete360Template);
+performanceRouter.post('/360/templates/:id/duplicate', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), duplicate360Template);
 performanceRouter.post('/cycles/:cycleId/360/assignments/generate', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), generate360Assignments);
 performanceRouter.get('/cycles/:cycleId/360/assignments', list360Assignments);
 performanceRouter.get('/360/assignments/:id', get360Assignment);

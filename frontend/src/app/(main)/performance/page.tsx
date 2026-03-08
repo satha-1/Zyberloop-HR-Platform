@@ -688,19 +688,85 @@ function PerformanceContent() {
             ) : (
               <>
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-base font-semibold text-gray-800">360 Feedback â€” {activeCycle.name}</h2>
+                  <h2 className="text-base font-semibold text-gray-800">360 Feedback â€" {activeCycle.name}</h2>
                   <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => router.push(`/performance/360/templates?cycleId=${activeCycle._id}`)}
+                    >
+                      <Settings className="h-4 w-4 mr-1" /> Manage Templates
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => router.push(`/performance/360/assignments?cycleId=${activeCycle._id}`)}
+                    >
+                      <Users className="h-4 w-4 mr-1" /> Manage Assignments
+                    </Button>
                     <Button variant="outline" size="sm" onClick={handleSync360}>
                       <RefreshCw className="h-4 w-4 mr-1" /> Sync to Appraisals
                     </Button>
                   </div>
                 </div>
 
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="border-blue-200 hover:border-blue-400 transition-colors cursor-pointer" onClick={() => router.push(`/performance/360/templates/new?cycleId=${activeCycle._id}`)}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Settings className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">Create Feedback Template</h3>
+                          <p className="text-sm text-gray-600">
+                            Build a custom 360-degree feedback questionnaire with sections and questions
+                          </p>
+                        </div>
+                        <Plus className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-green-200 hover:border-green-400 transition-colors cursor-pointer" onClick={() => router.push(`/performance/360/assignments/generate?cycleId=${activeCycle._id}`)}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Users className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">Generate Assignments</h3>
+                          <p className="text-sm text-gray-600">
+                            Create feedback assignments for employees and configure raters
+                          </p>
+                        </div>
+                        <Plus className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 {assignments.length === 0 ? (
                   <div className="text-center py-10 text-gray-500">
                     <Users className="h-10 w-10 mx-auto mb-2 text-gray-300" />
                     <p className="font-medium">No 360 assignments yet</p>
-                    <p className="text-sm mt-1">Create a template and generate assignments to collect feedback</p>
+                    <p className="text-sm mt-1 mb-4">Create a template and generate assignments to collect feedback</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => router.push(`/performance/360/templates/new?cycleId=${activeCycle._id}`)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Create Template
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => router.push(`/performance/360/assignments/generate?cycleId=${activeCycle._id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" /> Generate Assignments
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -709,7 +775,11 @@ function PerformanceContent() {
                         ? Math.round((a.collectedResponsesCount / a.requiredResponsesCount) * 100)
                         : 0;
                       return (
-                        <Card key={a._id}>
+                        <Card 
+                          key={a._id} 
+                          className="hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => router.push(`/performance/360/assignments/${a._id}`)}
+                        >
                           <CardContent className="p-4">
                             <div className="flex items-center gap-4 flex-wrap">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -738,8 +808,25 @@ function PerformanceContent() {
                                 </Badge>
                               </div>
                               <div className="flex gap-2 flex-shrink-0">
-                                <Button size="sm" variant="outline" onClick={() => handleSendInvites(a._id)}>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSendInvites(a._id);
+                                  }}
+                                >
                                   <Send className="h-3.5 w-3.5 mr-1" /> Send Reminders
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/performance/360/assignments/${a._id}`);
+                                  }}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                             </div>

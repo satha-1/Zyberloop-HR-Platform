@@ -725,13 +725,27 @@ class ApiClient {
     return this.request(`/performance/cycles/${cycleId}/merit-matrix`, { method: "PUT", body: JSON.stringify(data) });
   }
 
-  // 360 Feedback
+  // 360 Feedback Templates
   async get360Templates(cycleId: string) {
     return this.request<any[]>(`/performance/cycles/${cycleId}/360/templates`);
+  }
+  async get360Template(id: string) {
+    return this.request(`/performance/360/templates/${id}`);
   }
   async create360Template(cycleId: string, data: any) {
     return this.request(`/performance/cycles/${cycleId}/360/templates`, { method: "POST", body: JSON.stringify(data) });
   }
+  async update360Template(id: string, data: any) {
+    return this.request(`/performance/360/templates/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+  async delete360Template(id: string) {
+    return this.request(`/performance/360/templates/${id}`, { method: "DELETE" });
+  }
+  async duplicate360Template(id: string) {
+    return this.request(`/performance/360/templates/${id}/duplicate`, { method: "POST" });
+  }
+
+  // 360 Feedback Assignments
   async generate360Assignments(cycleId: string, data: any) {
     return this.request(`/performance/cycles/${cycleId}/360/assignments/generate`, { method: "POST", body: JSON.stringify(data) });
   }
@@ -741,6 +755,9 @@ class ApiClient {
   async get360Assignment(id: string) {
     return this.request(`/performance/360/assignments/${id}`);
   }
+  async update360Assignment(id: string, data: any) {
+    return this.request(`/performance/360/assignments/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
   async send360Invites(assignmentId: string) {
     return this.request(`/performance/360/assignments/${assignmentId}/send`, { method: "POST" });
   }
@@ -749,6 +766,17 @@ class ApiClient {
   }
   async sync360ToAppraisals(cycleId: string) {
     return this.request(`/performance/cycles/${cycleId}/360/sync-to-appraisals`, { method: "POST" });
+  }
+
+  // 360 Feedback Public Response (no auth)
+  async get360ResponseForm(token: string) {
+    return this.request(`/performance/360/respond/${token}`);
+  }
+  async mark360Opened(token: string) {
+    return this.request(`/performance/360/respond/${token}/opened`, { method: "POST" });
+  }
+  async submit360Response(token: string, data: any) {
+    return this.request(`/performance/360/respond/${token}/submit`, { method: "POST", body: JSON.stringify(data) });
   }
 
   // Bias Detection

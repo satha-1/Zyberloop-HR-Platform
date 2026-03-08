@@ -109,35 +109,40 @@ export interface IFeedback360Question {
   required: boolean;
   scaleMin?: number;
   scaleMax?: number;
+  order: number;
 }
 
 export interface IFeedback360Section {
+  id: string;
   title: string;
+  order: number;
   questions: IFeedback360Question[];
 }
 
 export interface IFeedback360Template extends Document {
   name: string;
-  cycleId?: mongoose.Types.ObjectId;
+  cycleId?: mongoose.Types.ObjectId | null;
   reusable: boolean;
   sections: IFeedback360Section[];
   settings: {
     anonymous: boolean;
     minResponsesToShow: number;
   };
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface IFeedback360Rater {
-  raterEmployeeId?: mongoose.Types.ObjectId;
+  id: string;
+  raterEmployeeId?: mongoose.Types.ObjectId | null;
   name: string;
   email: string;
   roleType: 'MANAGER' | 'PEER' | 'DIRECT_REPORT' | 'SELF';
   tokenHash: string;
   status: FeedbackRaterStatus;
-  openedAt?: Date;
-  submittedAt?: Date;
+  openedAt?: Date | null;
+  submittedAt?: Date | null;
 }
 
 export interface IFeedback360Assignment extends Document {
@@ -145,10 +150,11 @@ export interface IFeedback360Assignment extends Document {
   templateId: mongoose.Types.ObjectId;
   targetEmployeeId: mongoose.Types.ObjectId;
   requiredResponsesCount: number;
-  deadlineAt?: Date;
+  deadlineAt?: Date | null;
   status: FeedbackAssignmentStatus;
   raters: IFeedback360Rater[];
   collectedResponsesCount: number;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -309,19 +315,22 @@ appraisalSchema.index({ cycleId: 1, employeeId: 1 }, { unique: true });
 const feedback360TemplateSchema = new Schema<IFeedback360Template>(
   {
     name: { type: String, required: true, trim: true },
-    cycleId: { type: Schema.Types.ObjectId, ref: 'PerformanceCycle', index: true },
+    cycleId: { type: Schema.Types.ObjectId, ref: 'PerformanceCycle', index: true, default: null },
     reusable: { type: Boolean, default: false },
     sections: [
       {
+        id: { type: String, required: true },
         title: { type: String, required: true },
+        order: { type: Number, default: 0 },
         questions: [
           {
             id: { type: String, required: true },
             type: { type: String, enum: ['LIKERT', 'TEXT'], required: true },
             prompt: { type: String, required: true },
             required: { type: Boolean, default: false },
-            scaleMin: Number,
-            scaleMax: Number,
+            scaleMin: { type: Number, default: 1 },
+            scaleMax: { type: Number, default: 5 },
+            order: { type: Number, default: 0 },
           },
         ],
       },
@@ -330,6 +339,7 @@ const feedback360TemplateSchema = new Schema<IFeedback360Template>(
       anonymous: { type: Boolean, default: true },
       minResponsesToShow: { type: Number, default: 3, min: 1 },
     },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
 );
@@ -340,7 +350,7 @@ const feedback360AssignmentSchema = new Schema<IFeedback360Assignment>(
     templateId: { type: Schema.Types.ObjectId, ref: 'Feedback360Template', required: true },
     targetEmployeeId: { type: Schema.Types.ObjectId, ref: 'Employee', required: true, index: true },
     requiredResponsesCount: { type: Number, required: true, min: 1 },
-    deadlineAt: Date,
+    deadlineAt: { type: Date, default: null },
     status: {
       type: String,
       enum: ['NOT_STARTED', 'SENT', 'IN_PROGRESS', 'COMPLETED', 'LOCKED'],
@@ -349,17 +359,19 @@ const feedback360AssignmentSchema = new Schema<IFeedback360Assignment>(
     },
     raters: [
       {
-        raterEmployeeId: { type: Schema.Types.ObjectId, ref: 'Employee' },
+        id: { type: String, required: true },
+        raterEmployeeId: { type: Schema.Types.ObjectId, ref: 'Employee', default: null },
         name: { type: String, required: true },
         email: { type: String, required: true, lowercase: true },
         roleType: { type: String, enum: ['MANAGER', 'PEER', 'DIRECT_REPORT', 'SELF'], required: true },
         tokenHash: { type: String, required: true },
         status: { type: String, enum: ['SENT', 'OPENED', 'SUBMITTED'], default: 'SENT' },
-        openedAt: Date,
-        submittedAt: Date,
+        openedAt: { type: Date, default: null },
+        submittedAt: { type: Date, default: null },
       },
     ],
     collectedResponsesCount: { type: Number, default: 0, min: 0 },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
 );
