@@ -124,3 +124,12 @@ export const uploadCandidateResume = multer({
     fileSize: 5 * 1024 * 1024, // 5MB
   },
 });
+
+// Generic upload middleware (for compliance, esign, etc.)
+export const upload = multer({
+  storage: memoryStorage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});

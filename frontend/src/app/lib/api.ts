@@ -2000,6 +2000,241 @@ class ApiClient {
   async activateWorkforcePlanningInput(id: string) {
     return this.request(`/workforce-planning/inputs/${id}/activate`, { method: "POST" });
   }
+
+  // ============================================================================
+  // COMPLIANCE
+  // ============================================================================
+
+  // Dashboard
+  async getComplianceDashboard() {
+    return this.request("/compliance/dashboard");
+  }
+
+  // Filing Types
+  async getComplianceFilingTypes() {
+    return this.request("/compliance/filing-types");
+  }
+
+  async createComplianceFilingType(payload: any) {
+    return this.request("/compliance/filing-types", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateComplianceFilingType(id: string, payload: any) {
+    return this.request(`/compliance/filing-types/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteComplianceFilingType(id: string) {
+    return this.request(`/compliance/filing-types/${id}`, { method: "DELETE" });
+  }
+
+  // Filing Periods
+  async ensureCompliancePeriod(payload: { year: number; month: number }) {
+    return this.request("/compliance/periods/ensure", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // Filings
+  async getComplianceFilings(params?: {
+    typeId?: string;
+    status?: string;
+    year?: number;
+    month?: number;
+    q?: string;
+  }) {
+    const query = new URLSearchParams();
+    if (params?.typeId) query.append("typeId", params.typeId);
+    if (params?.status) query.append("status", params.status);
+    if (params?.year) query.append("year", String(params.year));
+    if (params?.month) query.append("month", String(params.month));
+    if (params?.q) query.append("q", params.q);
+    const queryString = query.toString();
+    return this.request(`/compliance/filings${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getComplianceFiling(id: string) {
+    return this.request(`/compliance/filings/${id}`);
+  }
+
+  async createComplianceFiling(payload: any) {
+    return this.request("/compliance/filings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateComplianceFiling(id: string, payload: any) {
+    return this.request(`/compliance/filings/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async generateComplianceFilingReport(id: string) {
+    return this.request(`/compliance/filings/${id}/generate-report`, { method: "POST" });
+  }
+
+  async uploadComplianceFilingReceipt(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.request(`/compliance/filings/${id}/upload-receipt`, {
+      method: "POST",
+      body: formData,
+      headers: {}, // Let browser set Content-Type for FormData
+    });
+  }
+
+  async markComplianceFilingFiled(id: string, payload?: { filedAt?: string; paymentReference?: string }) {
+    return this.request(`/compliance/filings/${id}/mark-filed`, {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async recalculateComplianceFiling(id: string) {
+    return this.request(`/compliance/filings/${id}/recalculate`, { method: "POST" });
+  }
+
+  // Assets
+  async downloadComplianceAsset(assetId: string) {
+    return this.request(`/compliance/assets/${assetId}/download`);
+  }
+
+  // Permits
+  async getCompliancePermits(params?: { expiringDays?: number; q?: string }) {
+    const query = new URLSearchParams();
+    if (params?.expiringDays) query.append("expiringDays", String(params.expiringDays));
+    if (params?.q) query.append("q", params.q);
+    const queryString = query.toString();
+    return this.request(`/compliance/permits${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getCompliancePermit(id: string) {
+    return this.request(`/compliance/permits/${id}`);
+  }
+
+  async createCompliancePermit(payload: any) {
+    return this.request("/compliance/permits", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateCompliancePermit(id: string, payload: any) {
+    return this.request(`/compliance/permits/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteCompliancePermit(id: string) {
+    return this.request(`/compliance/permits/${id}`, { method: "DELETE" });
+  }
+
+  async uploadCompliancePermitDoc(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.request(`/compliance/permits/${id}/upload-doc`, {
+      method: "POST",
+      body: formData,
+      headers: {},
+    });
+  }
+
+  // Audit Reports
+  async getComplianceAudits() {
+    return this.request("/compliance/audits");
+  }
+
+  async getComplianceAudit(id: string) {
+    return this.request(`/compliance/audits/${id}`);
+  }
+
+  async createComplianceAudit(payload: any) {
+    return this.request("/compliance/audits", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateComplianceAudit(id: string, payload: any) {
+    return this.request(`/compliance/audits/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteComplianceAudit(id: string) {
+    return this.request(`/compliance/audits/${id}`, { method: "DELETE" });
+  }
+
+  async uploadComplianceAuditEvidence(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.request(`/compliance/audits/${id}/upload-evidence`, {
+      method: "POST",
+      body: formData,
+      headers: {},
+    });
+  }
+
+  async generateComplianceReport() {
+    return this.request("/compliance/audits/generate-compliance-report", { method: "POST" });
+  }
+
+  // Alerts
+  async getComplianceAlerts(params?: { severity?: string; resolved?: boolean }) {
+    const query = new URLSearchParams();
+    if (params?.severity) query.append("severity", params.severity);
+    if (params?.resolved !== undefined) query.append("resolved", String(params.resolved));
+    const queryString = query.toString();
+    return this.request(`/compliance/alerts${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async resolveComplianceAlert(id: string) {
+    return this.request(`/compliance/alerts/${id}/resolve`, { method: "POST" });
+  }
+
+  async snoozeComplianceAlert(id: string, until: string) {
+    return this.request(`/compliance/alerts/${id}/snooze`, {
+      method: "POST",
+      body: JSON.stringify({ until }),
+    });
+  }
+
+  // Automation Rules
+  async getComplianceAutomations() {
+    return this.request("/compliance/automations");
+  }
+
+  async createComplianceAutomation(payload: any) {
+    return this.request("/compliance/automations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateComplianceAutomation(id: string, payload: any) {
+    return this.request(`/compliance/automations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async toggleComplianceAutomation(id: string) {
+    return this.request(`/compliance/automations/${id}/toggle`, { method: "POST" });
+  }
+
+  async runComplianceAutomationNow(id: string) {
+    return this.request(`/compliance/automations/${id}/run-now`, { method: "POST" });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

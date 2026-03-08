@@ -8,6 +8,7 @@ import { Department } from "../modules/departments/department.model";
 import { generateEmployeeNumber } from "../modules/employees/employeeNumber.service";
 import { getNextEmployeeCode } from "../modules/employees/employeeCode.service";
 import { generateDepartmentCode } from "../modules/departments/departmentCode.service";
+import { seedComplianceFilingTypes } from "../modules/compliance/compliance.seed";
 
 async function seedData() {
   try {
@@ -29,6 +30,9 @@ async function seedData() {
     } else {
       console.log("✅ Admin user already exists");
     }
+
+    // Seed Compliance Filing Types
+    await seedComplianceFilingTypes();
 
     // Seed Leave Types
     const existingLeaveTypes = await LeaveType.countDocuments();
