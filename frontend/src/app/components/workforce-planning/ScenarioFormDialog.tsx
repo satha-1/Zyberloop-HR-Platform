@@ -128,6 +128,7 @@ export function ScenarioFormDialog({
       }
 
       onOpenChange(false);
+      // Call onSuccess immediately - the parent will handle the refresh
       onSuccess?.();
     } catch (error: any) {
       toast.error(error.message || "Failed to save scenario");
@@ -173,7 +174,11 @@ export function ScenarioFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="SUBMITTED_FOR_APPROVAL">Submitted for Approval</SelectItem>
+                  <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
                   <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
                   <SelectItem value="FROZEN">Frozen</SelectItem>
                   <SelectItem value="ARCHIVED">Archived</SelectItem>
                 </SelectContent>

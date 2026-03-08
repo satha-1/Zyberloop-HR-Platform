@@ -40,8 +40,9 @@ export function ScenarioImpactDialog({
     setLoading(true);
     setError(null);
     try {
-      const response = await api.getWorkforcePlanningScenarioImpact(scenarioId) as { success: boolean; data: ScenarioImpact };
-      setImpact(response.data);
+      // API client automatically extracts data from { success: true, data: {...} }
+      const impactData = await api.getWorkforcePlanningScenarioImpact(scenarioId) as ScenarioImpact;
+      setImpact(impactData);
     } catch (err: any) {
       setError(err.message || "Failed to load impact data");
     } finally {

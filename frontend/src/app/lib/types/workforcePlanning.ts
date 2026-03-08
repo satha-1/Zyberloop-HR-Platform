@@ -1,5 +1,34 @@
-export type ScenarioStatus = 'DRAFT' | 'ACTIVE' | 'FROZEN' | 'ARCHIVED';
+export type ScenarioStatus = 'DRAFT' | 'SUBMITTED_FOR_APPROVAL' | 'UNDER_REVIEW' | 'APPROVED' | 'ACTIVE' | 'REJECTED' | 'FROZEN' | 'ARCHIVED';
 export type FinanceApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ApprovalAction = 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export interface ApprovalHistory {
+  action: ApprovalAction;
+  userId: {
+    _id: string;
+    name?: string;
+    email?: string;
+  };
+  timestamp: string;
+  comment?: string;
+}
+
+export interface Approval {
+  submittedBy?: {
+    _id: string;
+    name?: string;
+    email?: string;
+  };
+  submittedAt?: string;
+  reviewerId?: {
+    _id: string;
+    name?: string;
+    email?: string;
+  };
+  reviewedAt?: string;
+  decision?: 'APPROVED' | 'REJECTED' | null;
+  comments?: string;
+}
 
 export interface WorkforcePlanningScenario {
   _id: string;
@@ -15,6 +44,8 @@ export interface WorkforcePlanningScenario {
   projectedAttritionPct?: number | null;
   projectedHiringPerMonthMin?: number | null;
   projectedHiringPerMonthMax?: number | null;
+  approval?: Approval;
+  approvalHistory?: ApprovalHistory[];
   createdBy?: {
     _id: string;
     name?: string;

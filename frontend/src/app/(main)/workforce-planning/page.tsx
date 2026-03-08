@@ -11,6 +11,15 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +49,11 @@ import {
   Archive,
   Loader2,
   AlertCircle,
+  RotateCcw,
+  Send,
+  CheckCircle,
+  XCircle,
+  FileCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../lib/api";
@@ -47,6 +61,7 @@ import {
   WorkforcePlanningScenario,
   WorkforcePlanningInput,
   WorkforcePlanningSummary,
+  ScenarioStatus,
 } from "../../lib/types/workforcePlanning";
 import { ScenarioFormDialog } from "../../components/workforce-planning/ScenarioFormDialog";
 import { ScenarioImpactDialog } from "../../components/workforce-planning/ScenarioImpactDialog";
@@ -56,8 +71,12 @@ export const dynamic = "force-dynamic";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-700",
-  ACTIVE: "bg-blue-100 text-blue-700",
-  FROZEN: "bg-orange-100 text-orange-700",
+  SUBMITTED_FOR_APPROVAL: "bg-blue-100 text-blue-700",
+  UNDER_REVIEW: "bg-orange-100 text-orange-700",
+  APPROVED: "bg-green-100 text-green-700",
+  ACTIVE: "bg-purple-100 text-purple-700",
+  REJECTED: "bg-red-100 text-red-700",
+  FROZEN: "bg-gray-200 text-gray-800",
   ARCHIVED: "bg-gray-100 text-gray-600",
 };
 
@@ -88,6 +107,17 @@ function WorkforcePlanningContent() {
   const [selectedImpactScenarioId, setSelectedImpactScenarioId] = useState<string>("");
   const [inputDialogOpen, setInputDialogOpen] = useState(false);
   const [selectedInput, setSelectedInput] = useState<WorkforcePlanningInput | null>(null);
+  
+  // Approval workflow dialog states
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [selectedSubmitScenarioId, setSelectedSubmitScenarioId] = useState<string>("");
+  const [submitComment, setSubmitComment] = useState("");
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [selectedApproveScenarioId, setSelectedApproveScenarioId] = useState<string>("");
+  const [approveComments, setApproveComments] = useState("");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRejectScenarioId, setSelectedRejectScenarioId] = useState<string>("");
+  const [rejectComments, setRejectComments] = useState("");
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -101,8 +131,9 @@ function WorkforcePlanningContent() {
 
   const loadSummary = async () => {
     try {
-      const response = await api.getWorkforcePlanningSummary() as { success: boolean; data: WorkforcePlanningSummary };
-      setSummary(response.data);
+      // API client automatically extracts data from { success: true, data: {...} }
+      const summaryData = await api.getWorkforcePlanningSummary() as WorkforcePlanningSummary;
+      setSummary(summaryData);
     } catch (error: any) {
       console.error("Failed to load summary:", error);
     }
@@ -111,13 +142,24 @@ function WorkforcePlanningContent() {
   const loadScenarios = async () => {
     setScenariosLoading(true);
     try {
-      const response = await api.getWorkforcePlanningScenarios({
+      // API client automatically extracts data from { success: true, data: [...] }
+      const scenarios = await api.getWorkforcePlanningScenarios({
         search: searchQuery || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
-      }) as { success: boolean; data: WorkforcePlanningScenario[] };
-      setScenarios(response.data || []);
+      }) as WorkforcePlanningScenario[];
+      
+      console.log("Loaded scenarios:", scenarios);
+      
+      if (Array.isArray(scenarios)) {
+        setScenarios(scenarios);
+      } else {
+        console.warn("Unexpected response format, expected array:", scenarios);
+        setScenarios([]);
+      }
     } catch (error: any) {
+      console.error("Failed to load scenarios:", error);
       toast.error(error.message || "Failed to load scenarios");
+      setScenarios([]);
     } finally {
       setScenariosLoading(false);
     }
@@ -126,10 +168,12 @@ function WorkforcePlanningContent() {
   const loadPlanningInputs = async () => {
     setInputsLoading(true);
     try {
-      const response = await api.getWorkforcePlanningInputs() as { success: boolean; data: WorkforcePlanningInput[] };
-      setPlanningInputs(response.data || []);
+      // API client automatically extracts data from { success: true, data: [...] }
+      const inputs = await api.getWorkforcePlanningInputs() as WorkforcePlanningInput[];
+      setPlanningInputs(Array.isArray(inputs) ? inputs : []);
     } catch (error: any) {
       toast.error(error.message || "Failed to load planning inputs");
+      setPlanningInputs([]);
     } finally {
       setInputsLoading(false);
     }
@@ -201,6 +245,102 @@ function WorkforcePlanningContent() {
     } catch (error: any) {
       toast.error(error.message || "Failed to archive scenario");
     }
+  };
+
+  const handleRestoreScenario = async (id: string) => {
+    try {
+      // Restore by changing status to DRAFT
+      await api.updateWorkforcePlanningScenario(id, { status: "DRAFT" });
+      toast.success("Scenario restored to Draft status");
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to restore scenario");
+    }
+  };
+
+  const handleChangeStatus = async (id: string, newStatus: ScenarioStatus) => {
+    try {
+      await api.updateWorkforcePlanningScenario(id, { status: newStatus });
+      toast.success(`Scenario status changed to ${newStatus}`);
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to change scenario status");
+    }
+  };
+
+  const handleSubmitForApproval = async (id: string, comment?: string) => {
+    try {
+      await api.submitWorkforcePlanningScenario(id, comment);
+      toast.success("Scenario submitted for approval");
+      setSubmitDialogOpen(false);
+      setSubmitComment("");
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to submit scenario for approval");
+    }
+  };
+
+  const handleStartReview = async (id: string) => {
+    try {
+      await api.startReviewWorkforcePlanningScenario(id);
+      toast.success("Review started");
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start review");
+    }
+  };
+
+  const handleApprove = async (id: string, comments?: string) => {
+    try {
+      await api.approveWorkforcePlanningScenario(id, comments);
+      toast.success("Scenario approved");
+      setApproveDialogOpen(false);
+      setApproveComments("");
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to approve scenario");
+    }
+  };
+
+  const handleReject = async (id: string, comments: string) => {
+    if (!comments || comments.trim() === "") {
+      toast.error("Rejection comments are required");
+      return;
+    }
+    try {
+      await api.rejectWorkforcePlanningScenario(id, comments);
+      toast.success("Scenario rejected");
+      setRejectDialogOpen(false);
+      setRejectComments("");
+      loadScenarios();
+      loadSummary();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reject scenario");
+    }
+  };
+
+  // Check user roles (simplified - in production, get from auth context)
+  const getUserRoles = (): string[] => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return payload.roles || [];
+      }
+    } catch (e) {
+      console.error("Error getting user roles:", e);
+    }
+    return [];
+  };
+
+  const hasRole = (requiredRoles: string[]): boolean => {
+    const userRoles = getUserRoles();
+    return requiredRoles.some((role) => userRoles.includes(role));
   };
 
   const handleViewImpact = (scenarioId: string) => {
@@ -335,6 +475,7 @@ function WorkforcePlanningContent() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border rounded-md"
+              suppressHydrationWarning
             >
               <option value="all">All Status</option>
               <option value="DRAFT">Draft</option>
@@ -388,6 +529,81 @@ function WorkforcePlanningContent() {
                         {scenario.description && (
                           <p className="text-sm text-gray-600">{scenario.description}</p>
                         )}
+                        {/* Approval Timeline */}
+                        {scenario.approval && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg border text-xs">
+                            {scenario.approval.submittedBy && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-gray-600">Submitted by:</span>
+                                <span className="font-medium">
+                                  {scenario.approval.submittedBy.name || scenario.approval.submittedBy.email}
+                                </span>
+                                {scenario.approval.submittedAt && (
+                                  <span className="text-gray-500">
+                                    on {new Date(scenario.approval.submittedAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {scenario.approval.reviewerId && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-gray-600">Reviewed by:</span>
+                                <span className="font-medium">
+                                  {scenario.approval.reviewerId.name || scenario.approval.reviewerId.email}
+                                </span>
+                                {scenario.approval.reviewedAt && (
+                                  <span className="text-gray-500">
+                                    on {new Date(scenario.approval.reviewedAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {scenario.approval.decision && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Decision:</span>
+                                <Badge
+                                  className={
+                                    scenario.approval.decision === "APPROVED"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-red-100 text-red-700"
+                                  }
+                                >
+                                  {scenario.approval.decision}
+                                </Badge>
+                              </div>
+                            )}
+                            {scenario.approval.comments && (
+                              <div className="mt-2 pt-2 border-t">
+                                <p className="text-gray-600 mb-1">Comments:</p>
+                                <p className="text-gray-800">{scenario.approval.comments}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {/* Approval History */}
+                        {scenario.approvalHistory && scenario.approvalHistory.length > 0 && (
+                          <div className="mt-2 p-3 bg-blue-50 rounded-lg border text-xs">
+                            <p className="font-medium text-gray-700 mb-2">Approval History:</p>
+                            <div className="space-y-1">
+                              {scenario.approvalHistory.map((history, idx) => (
+                                <div key={idx} className="flex items-start gap-2">
+                                  <span className="text-gray-600">
+                                    {new Date(history.timestamp).toLocaleDateString()}:
+                                  </span>
+                                  <span className="font-medium">{history.action}</span>
+                                  {history.userId && (
+                                    <span className="text-gray-500">
+                                      by {history.userId.name || history.userId.email}
+                                    </span>
+                                  )}
+                                  {history.comment && (
+                                    <span className="text-gray-600">- {history.comment}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -439,7 +655,57 @@ function WorkforcePlanningContent() {
                         <Edit className="h-3.5 w-3.5 mr-1" />
                         Edit
                       </Button>
-                      {scenario.status === "DRAFT" && (
+                      {/* Approval Workflow Buttons */}
+                      {scenario.status === "DRAFT" && hasRole(["ADMIN", "HR_ADMIN", "HRBP"]) && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => {
+                            setSelectedSubmitScenarioId(scenario._id);
+                            setSubmitDialogOpen(true);
+                          }}
+                        >
+                          <Send className="h-3.5 w-3.5 mr-1" />
+                          Submit for Approval
+                        </Button>
+                      )}
+                      {scenario.status === "SUBMITTED_FOR_APPROVAL" && hasRole(["FINANCE", "HR_ADMIN"]) && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleStartReview(scenario._id)}
+                        >
+                          <FileCheck className="h-3.5 w-3.5 mr-1" />
+                          Start Review
+                        </Button>
+                      )}
+                      {scenario.status === "UNDER_REVIEW" && hasRole(["FINANCE", "HR_ADMIN"]) && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => {
+                              setSelectedApproveScenarioId(scenario._id);
+                              setApproveDialogOpen(true);
+                            }}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedRejectScenarioId(scenario._id);
+                              setRejectDialogOpen(true);
+                            }}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {scenario.status === "APPROVED" && hasRole(["ADMIN", "HR_ADMIN"]) && (
                         <Button
                           size="sm"
                           variant="default"
@@ -447,6 +713,16 @@ function WorkforcePlanningContent() {
                         >
                           <Play className="h-3.5 w-3.5 mr-1" />
                           Activate
+                        </Button>
+                      )}
+                      {scenario.status === "REJECTED" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditScenario(scenario)}
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-1" />
+                          Edit Scenario
                         </Button>
                       )}
                       {scenario.status === "ACTIVE" && (
@@ -459,6 +735,36 @@ function WorkforcePlanningContent() {
                           Freeze
                         </Button>
                       )}
+                      {scenario.status === "ARCHIVED" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleRestoreScenario(scenario._id)}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            Restore to Draft
+                          </Button>
+                          <Select
+                            value={scenario.status}
+                            onValueChange={(value) => handleChangeStatus(scenario._id, value as ScenarioStatus)}
+                          >
+                            <SelectTrigger className="w-[140px] h-8 text-xs">
+                              <SelectValue placeholder="Change Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="DRAFT">Draft</SelectItem>
+                              <SelectItem value="SUBMITTED_FOR_APPROVAL">Submitted for Approval</SelectItem>
+                              <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                              <SelectItem value="APPROVED">Approved</SelectItem>
+                              <SelectItem value="ACTIVE">Active</SelectItem>
+                              <SelectItem value="REJECTED">Rejected</SelectItem>
+                              <SelectItem value="FROZEN">Frozen</SelectItem>
+                              <SelectItem value="ARCHIVED">Archived</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
                       {scenario.status !== "ARCHIVED" && (
                         <Button
                           size="sm"
@@ -469,7 +775,7 @@ function WorkforcePlanningContent() {
                           Archive
                         </Button>
                       )}
-                      {scenario.status !== "ACTIVE" && (
+                      {scenario.status !== "ACTIVE" && scenario.status !== "ARCHIVED" && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -653,9 +959,8 @@ function WorkforcePlanningContent() {
         open={scenarioDialogOpen}
         onOpenChange={setScenarioDialogOpen}
         scenario={selectedScenario}
-        onSuccess={() => {
-          loadScenarios();
-          loadSummary();
+        onSuccess={async () => {
+          await Promise.all([loadScenarios(), loadSummary()]);
         }}
       />
 
@@ -674,6 +979,115 @@ function WorkforcePlanningContent() {
           loadSummary();
         }}
       />
+
+      {/* Submit for Approval Dialog */}
+      <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit Scenario for Approval</DialogTitle>
+            <DialogDescription>
+              Add an optional comment before submitting this scenario for approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="submitComment">Comment (Optional)</Label>
+              <Textarea
+                id="submitComment"
+                value={submitComment}
+                onChange={(e) => setSubmitComment(e.target.value)}
+                placeholder="Add any notes for reviewers..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleSubmitForApproval(selectedSubmitScenarioId, submitComment || undefined)}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Submit for Approval
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Scenario</DialogTitle>
+            <DialogDescription>
+              Add optional comments before approving this scenario.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="approveComments">Comments (Optional)</Label>
+              <Textarea
+                id="approveComments"
+                value={approveComments}
+                onChange={(e) => setApproveComments(e.target.value)}
+                placeholder="Add approval comments..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => handleApprove(selectedApproveScenarioId, approveComments || undefined)}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Scenario</DialogTitle>
+            <DialogDescription>
+              Please provide comments explaining why this scenario is being rejected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejectComments">Rejection Comments *</Label>
+              <Textarea
+                id="rejectComments"
+                value={rejectComments}
+                onChange={(e) => setRejectComments(e.target.value)}
+                placeholder="Explain why this scenario is being rejected..."
+                rows={4}
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleReject(selectedRejectScenarioId, rejectComments)}
+                disabled={!rejectComments || rejectComments.trim() === ""}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Reject
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

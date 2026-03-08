@@ -10,6 +10,10 @@ import {
   freezeScenario,
   archiveScenario,
   getScenarioImpact,
+  submitForApproval,
+  startReview,
+  approveScenario,
+  rejectScenario,
   getPlanningInputs,
   getActivePlanningInput,
   getPlanningInput,
@@ -38,10 +42,16 @@ workforcePlanningRouter.get('/scenarios/:id', getScenario);
 workforcePlanningRouter.post('/scenarios', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), createScenario);
 workforcePlanningRouter.patch('/scenarios/:id', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), updateScenario);
 workforcePlanningRouter.delete('/scenarios/:id', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), deleteScenario);
-workforcePlanningRouter.post('/scenarios/:id/activate', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), activateScenarioStatus);
+workforcePlanningRouter.post('/scenarios/:id/activate', requireRole('ADMIN', 'HR_ADMIN'), activateScenarioStatus);
 workforcePlanningRouter.post('/scenarios/:id/freeze', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), freezeScenario);
 workforcePlanningRouter.post('/scenarios/:id/archive', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), archiveScenario);
 workforcePlanningRouter.get('/scenarios/:id/impact', getScenarioImpact);
+
+// Approval workflow endpoints
+workforcePlanningRouter.post('/scenarios/:id/submit', requireRole('ADMIN', 'HR_ADMIN', 'HRBP'), submitForApproval);
+workforcePlanningRouter.post('/scenarios/:id/review', requireRole('FINANCE', 'HR_ADMIN'), startReview);
+workforcePlanningRouter.post('/scenarios/:id/approve', requireRole('FINANCE', 'HR_ADMIN'), approveScenario);
+workforcePlanningRouter.post('/scenarios/:id/reject', requireRole('FINANCE', 'HR_ADMIN'), rejectScenario);
 
 // ────────────────────────────────────────────────────────────────────────────────
 // PLANNING INPUTS

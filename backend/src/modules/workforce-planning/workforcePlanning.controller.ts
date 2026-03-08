@@ -32,6 +32,9 @@ export const getScenarios = async (req: Request, res: Response, next: NextFuncti
     const scenarios = await WorkforcePlanningScenario.find(query)
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email')
+      .populate('approval.submittedBy', 'name email')
+      .populate('approval.reviewerId', 'name email')
+      .populate('approvalHistory.userId', 'name email')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: scenarios });
@@ -44,7 +47,10 @@ export const getScenario = async (req: Request, res: Response, next: NextFunctio
   try {
     const scenario = await WorkforcePlanningScenario.findById(req.params.id)
       .populate('createdBy', 'name email')
-      .populate('updatedBy', 'name email');
+      .populate('updatedBy', 'name email')
+      .populate('approval.submittedBy', 'name email')
+      .populate('approval.reviewerId', 'name email')
+      .populate('approvalHistory.userId', 'name email');
 
     if (!scenario) {
       throw new AppError(404, 'Scenario not found');
@@ -227,6 +233,243 @@ export const getScenarioImpact = async (req: Request, res: Response, next: NextF
   try {
     const impact = await calculateScenarioImpact(req.params.id);
     res.json({ success: true, data: impact });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// APPROVAL WORKFLOW
+// ────────────────────────────────────────────────────────────────────────────────
+
+export const submitForApproval = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const scenario = await WorkforcePlanningScenario.findById(req.params.id);
+    if (!scenario) {
+      throw new AppError(404, 'Scenario not found');
+    }
+
+    if (scenario.status !== 'DRAFT') {
+      throw new AppError(400, 'Only DRAFT scenarios can be submitted for approval');
+    }
+
+    // Check permissions: Admin, HR Admin, HRBP can submit
+    const userRoles = req.user!.roles || [];
+    const canSubmit = userRoles.some(role => ['ADMIN', 'HR_ADMIN', 'HRBP'].includes(role));
+    if (!canSubmit) {
+      throw new AppError(403, 'You do not have permission to submit scenarios for approval');
+    }
+
+    scenario.status = 'SUBMITTED_FOR_APPROVAL';
+    scenario.approval = {
+      submittedBy: req.user!.id as any,
+      submittedAt: new Date(),
+      decision: null,
+      comments: '',
+    };
+    
+    // Add to approval history
+    if (!scenario.approvalHistory) {
+      scenario.approvalHistory = [];
+    }
+    scenario.approvalHistory.push({
+      action: 'SUBMITTED',
+      userId: req.user!.id as any,
+      timestamp: new Date(),
+      comment: req.body.comment || '',
+    });
+
+    await scenario.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'SUBMIT_FOR_APPROVAL',
+      module: 'WorkforcePlanning',
+      resourceType: 'scenario',
+      resourceId: req.params.id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const updated = await WorkforcePlanningScenario.findById(req.params.id)
+      .populate('approval.submittedBy', 'name email')
+      .populate('approvalHistory.userId', 'name email');
+
+    res.json({ success: true, data: updated, message: 'Scenario submitted for approval' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const startReview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const scenario = await WorkforcePlanningScenario.findById(req.params.id);
+    if (!scenario) {
+      throw new AppError(404, 'Scenario not found');
+    }
+
+    if (scenario.status !== 'SUBMITTED_FOR_APPROVAL') {
+      throw new AppError(400, 'Only SUBMITTED_FOR_APPROVAL scenarios can be reviewed');
+    }
+
+    // Check permissions: Finance, HR Admin can review
+    const userRoles = req.user!.roles || [];
+    const canReview = userRoles.some(role => ['FINANCE', 'HR_ADMIN'].includes(role));
+    if (!canReview) {
+      throw new AppError(403, 'You do not have permission to review scenarios');
+    }
+
+    scenario.status = 'UNDER_REVIEW';
+    if (!scenario.approval) {
+      scenario.approval = {};
+    }
+    scenario.approval.reviewerId = req.user!.id as any;
+    scenario.approval.reviewedAt = new Date();
+
+    await scenario.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'START_REVIEW',
+      module: 'WorkforcePlanning',
+      resourceType: 'scenario',
+      resourceId: req.params.id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const updated = await WorkforcePlanningScenario.findById(req.params.id)
+      .populate('approval.reviewerId', 'name email');
+
+    res.json({ success: true, data: updated, message: 'Review started' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const approveScenario = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const scenario = await WorkforcePlanningScenario.findById(req.params.id);
+    if (!scenario) {
+      throw new AppError(404, 'Scenario not found');
+    }
+
+    if (scenario.status !== 'UNDER_REVIEW') {
+      throw new AppError(400, 'Only UNDER_REVIEW scenarios can be approved');
+    }
+
+    // Check permissions: Finance, HR Admin can approve
+    const userRoles = req.user!.roles || [];
+    const canApprove = userRoles.some(role => ['FINANCE', 'HR_ADMIN'].includes(role));
+    if (!canApprove) {
+      throw new AppError(403, 'You do not have permission to approve scenarios');
+    }
+
+    scenario.status = 'APPROVED';
+    if (!scenario.approval) {
+      scenario.approval = {};
+    }
+    scenario.approval.decision = 'APPROVED';
+    scenario.approval.reviewerId = req.user!.id as any;
+    scenario.approval.reviewedAt = new Date();
+    scenario.approval.comments = req.body.comments || '';
+
+    // Add to approval history
+    if (!scenario.approvalHistory) {
+      scenario.approvalHistory = [];
+    }
+    scenario.approvalHistory.push({
+      action: 'APPROVED',
+      userId: req.user!.id as any,
+      timestamp: new Date(),
+      comment: req.body.comments || '',
+    });
+
+    await scenario.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'APPROVE',
+      module: 'WorkforcePlanning',
+      resourceType: 'scenario',
+      resourceId: req.params.id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const updated = await WorkforcePlanningScenario.findById(req.params.id)
+      .populate('approval.reviewerId', 'name email')
+      .populate('approvalHistory.userId', 'name email');
+
+    res.json({ success: true, data: updated, message: 'Scenario approved' });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const rejectScenario = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const scenario = await WorkforcePlanningScenario.findById(req.params.id);
+    if (!scenario) {
+      throw new AppError(404, 'Scenario not found');
+    }
+
+    if (scenario.status !== 'UNDER_REVIEW') {
+      throw new AppError(400, 'Only UNDER_REVIEW scenarios can be rejected');
+    }
+
+    // Check permissions: Finance, HR Admin can reject
+    const userRoles = req.user!.roles || [];
+    const canReject = userRoles.some(role => ['FINANCE', 'HR_ADMIN'].includes(role));
+    if (!canReject) {
+      throw new AppError(403, 'You do not have permission to reject scenarios');
+    }
+
+    if (!req.body.comments || req.body.comments.trim() === '') {
+      throw new AppError(400, 'Rejection comments are required');
+    }
+
+    scenario.status = 'REJECTED';
+    if (!scenario.approval) {
+      scenario.approval = {};
+    }
+    scenario.approval.decision = 'REJECTED';
+    scenario.approval.reviewerId = req.user!.id as any;
+    scenario.approval.reviewedAt = new Date();
+    scenario.approval.comments = req.body.comments || '';
+
+    // Add to approval history
+    if (!scenario.approvalHistory) {
+      scenario.approvalHistory = [];
+    }
+    scenario.approvalHistory.push({
+      action: 'REJECTED',
+      userId: req.user!.id as any,
+      timestamp: new Date(),
+      comment: req.body.comments || '',
+    });
+
+    await scenario.save();
+
+    await createAuditLog({
+      actorId: req.user!.id,
+      actorName: req.user!.name || req.user!.email || 'Unknown',
+      actorRoles: req.user!.roles || [],
+      action: 'REJECT',
+      module: 'WorkforcePlanning',
+      resourceType: 'scenario',
+      resourceId: req.params.id,
+      ipAddress: req.ip || 'unknown',
+    });
+
+    const updated = await WorkforcePlanningScenario.findById(req.params.id)
+      .populate('approval.reviewerId', 'name email')
+      .populate('approvalHistory.userId', 'name email');
+
+    res.json({ success: true, data: updated, message: 'Scenario rejected' });
   } catch (e) {
     next(e);
   }

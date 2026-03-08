@@ -1,7 +1,24 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type ScenarioStatus = 'DRAFT' | 'ACTIVE' | 'FROZEN' | 'ARCHIVED';
+export type ScenarioStatus = 'DRAFT' | 'SUBMITTED_FOR_APPROVAL' | 'UNDER_REVIEW' | 'APPROVED' | 'ACTIVE' | 'REJECTED' | 'FROZEN' | 'ARCHIVED';
 export type FinanceApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ApprovalAction = 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export interface IApprovalHistory {
+  action: ApprovalAction;
+  userId: mongoose.Types.ObjectId;
+  timestamp: Date;
+  comment?: string;
+}
+
+export interface IApproval {
+  submittedBy?: mongoose.Types.ObjectId;
+  submittedAt?: Date;
+  reviewerId?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  decision?: 'APPROVED' | 'REJECTED' | null;
+  comments?: string;
+}
 
 export interface IWorkforcePlanningScenario extends Document {
   name: string;
@@ -16,6 +33,8 @@ export interface IWorkforcePlanningScenario extends Document {
   projectedAttritionPct?: number | null;
   projectedHiringPerMonthMin?: number | null;
   projectedHiringPerMonthMax?: number | null;
+  approval?: IApproval;
+  approvalHistory?: IApprovalHistory[];
   createdBy: mongoose.Types.ObjectId;
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -43,7 +62,7 @@ const workforcePlanningScenarioSchema = new Schema<IWorkforcePlanningScenario>(
     description: { type: String, default: '' },
     status: {
       type: String,
-      enum: ['DRAFT', 'ACTIVE', 'FROZEN', 'ARCHIVED'],
+      enum: ['DRAFT', 'SUBMITTED_FOR_APPROVAL', 'UNDER_REVIEW', 'APPROVED', 'ACTIVE', 'REJECTED', 'FROZEN', 'ARCHIVED'],
       default: 'DRAFT',
       index: true,
     },
@@ -56,6 +75,22 @@ const workforcePlanningScenarioSchema = new Schema<IWorkforcePlanningScenario>(
     projectedAttritionPct: { type: Number, default: null, min: 0, max: 100 },
     projectedHiringPerMonthMin: { type: Number, default: null, min: 0 },
     projectedHiringPerMonthMax: { type: Number, default: null, min: 0 },
+    approval: {
+      submittedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+      submittedAt: { type: Date },
+      reviewerId: { type: Schema.Types.ObjectId, ref: 'User' },
+      reviewedAt: { type: Date },
+      decision: { type: String, enum: ['APPROVED', 'REJECTED'], default: null },
+      comments: { type: String, default: '' },
+    },
+    approvalHistory: [
+      {
+        action: { type: String, enum: ['SUBMITTED', 'APPROVED', 'REJECTED'], required: true },
+        userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        timestamp: { type: Date, default: Date.now },
+        comment: { type: String, default: '' },
+      },
+    ],
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },

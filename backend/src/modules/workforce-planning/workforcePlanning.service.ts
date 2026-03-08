@@ -72,6 +72,7 @@ export async function calculateScenarioImpact(scenarioId: string): Promise<{
 
 /**
  * Activate a scenario (only one can be active at a time)
+ * Only APPROVED scenarios can be activated
  */
 export async function activateScenario(scenarioId: string): Promise<void> {
   const scenario = await WorkforcePlanningScenario.findById(scenarioId);
@@ -79,10 +80,14 @@ export async function activateScenario(scenarioId: string): Promise<void> {
     throw new AppError(404, 'Scenario not found');
   }
 
-  // Find and deactivate any currently active scenario
+  if (scenario.status !== 'APPROVED') {
+    throw new AppError(400, 'Only APPROVED scenarios can be activated');
+  }
+
+  // Find and freeze any currently active scenario
   const activeScenario = await WorkforcePlanningScenario.findOne({ status: 'ACTIVE' });
   if (activeScenario && activeScenario._id.toString() !== scenarioId) {
-    activeScenario.status = 'DRAFT';
+    activeScenario.status = 'FROZEN';
     await activeScenario.save();
   }
 

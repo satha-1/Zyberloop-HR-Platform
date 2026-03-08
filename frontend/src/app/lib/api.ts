@@ -1941,6 +1941,31 @@ class ApiClient {
     return this.request(`/workforce-planning/scenarios/${id}/impact`);
   }
 
+  async submitWorkforcePlanningScenario(id: string, comment?: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ comment }),
+    });
+  }
+
+  async startReviewWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/review`, { method: "POST" });
+  }
+
+  async approveWorkforcePlanningScenario(id: string, comments?: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ comments }),
+    });
+  }
+
+  async rejectWorkforcePlanningScenario(id: string, comments: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ comments }),
+    });
+  }
+
   // Planning Inputs
   async getWorkforcePlanningInputs() {
     return this.request("/workforce-planning/inputs");
