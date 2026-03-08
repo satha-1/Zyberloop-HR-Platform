@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../../components/ui/card";
 import { Button } from "../../../../../components/ui/button";
@@ -19,7 +19,9 @@ import {
 import { toast } from "sonner";
 import { api } from "../../../../../lib/api";
 
-export default function GenerateAssignmentsPage() {
+export const dynamic = "force-dynamic";
+
+function GenerateAssignmentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cycleId = searchParams.get("cycleId");
@@ -274,5 +276,25 @@ export default function GenerateAssignmentsPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function GenerateAssignmentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="h-9 w-9 bg-gray-200 animate-pulse rounded" />
+            <div>
+              <div className="h-7 w-64 bg-gray-200 animate-pulse rounded mb-2" />
+              <div className="h-4 w-48 bg-gray-200 animate-pulse rounded" />
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <GenerateAssignmentsContent />
+    </Suspense>
   );
 }

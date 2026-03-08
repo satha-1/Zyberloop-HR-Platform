@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../../components/ui/card";
 import { Button } from "../../../../../components/ui/button";
@@ -26,6 +26,8 @@ import {
 import { toast } from "sonner";
 import { api } from "../../../../../lib/api";
 
+export const dynamic = "force-dynamic";
+
 interface Section {
   id: string;
   title: string;
@@ -43,7 +45,7 @@ interface Question {
   order: number;
 }
 
-export default function NewTemplatePage() {
+function NewTemplateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cycleId = searchParams.get("cycleId");
@@ -499,5 +501,23 @@ export default function NewTemplatePage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function NewTemplatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-9 w-9 bg-gray-200 animate-pulse rounded" />
+            <div className="h-7 w-64 bg-gray-200 animate-pulse rounded" />
+          </div>
+          <div className="h-96 bg-gray-100 animate-pulse rounded" />
+        </div>
+      }
+    >
+      <NewTemplateContent />
+    </Suspense>
   );
 }

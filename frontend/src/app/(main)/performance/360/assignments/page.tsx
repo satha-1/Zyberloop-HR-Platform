@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../../lib/api";
+
+export const dynamic = "force-dynamic";
 
 interface Assignment {
   _id: string;
@@ -38,7 +40,7 @@ const statusColors: Record<string, string> = {
   LOCKED: "bg-red-100 text-red-800",
 };
 
-export default function AssignmentsPage() {
+function AssignmentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cycleId = searchParams.get("cycleId");
@@ -232,5 +234,23 @@ export default function AssignmentsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AssignmentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="h-8 w-48 bg-gray-200 animate-pulse rounded" />
+            <div className="h-10 w-32 bg-gray-200 animate-pulse rounded" />
+          </div>
+          <div className="h-96 bg-gray-100 animate-pulse rounded" />
+        </div>
+      }
+    >
+      <AssignmentsContent />
+    </Suspense>
   );
 }

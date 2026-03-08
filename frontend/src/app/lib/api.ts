@@ -1885,6 +1885,96 @@ class ApiClient {
 
     return response.json();
   }
+
+  // ────────────────────────────────────────────────────────────────────────────────
+  // WORKFORCE PLANNING
+  // ────────────────────────────────────────────────────────────────────────────────
+
+  async getWorkforcePlanningSummary() {
+    return this.request("/workforce-planning/summary");
+  }
+
+  // Scenarios
+  async getWorkforcePlanningScenarios(params?: { search?: string; status?: string }) {
+    const query = new URLSearchParams();
+    if (params?.search) query.append("search", params.search);
+    if (params?.status) query.append("status", params.status);
+    const queryString = query.toString();
+    return this.request(`/workforce-planning/scenarios${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}`);
+  }
+
+  async createWorkforcePlanningScenario(payload: any) {
+    return this.request("/workforce-planning/scenarios", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateWorkforcePlanningScenario(id: string, payload: any) {
+    return this.request(`/workforce-planning/scenarios/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}`, { method: "DELETE" });
+  }
+
+  async activateWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/activate`, { method: "POST" });
+  }
+
+  async freezeWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/freeze`, { method: "POST" });
+  }
+
+  async archiveWorkforcePlanningScenario(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/archive`, { method: "POST" });
+  }
+
+  async getWorkforcePlanningScenarioImpact(id: string) {
+    return this.request(`/workforce-planning/scenarios/${id}/impact`);
+  }
+
+  // Planning Inputs
+  async getWorkforcePlanningInputs() {
+    return this.request("/workforce-planning/inputs");
+  }
+
+  async getActiveWorkforcePlanningInput() {
+    return this.request("/workforce-planning/inputs/active");
+  }
+
+  async getWorkforcePlanningInput(id: string) {
+    return this.request(`/workforce-planning/inputs/${id}`);
+  }
+
+  async createWorkforcePlanningInput(payload: any) {
+    return this.request("/workforce-planning/inputs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateWorkforcePlanningInput(id: string, payload: any) {
+    return this.request(`/workforce-planning/inputs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteWorkforcePlanningInput(id: string) {
+    return this.request(`/workforce-planning/inputs/${id}`, { method: "DELETE" });
+  }
+
+  async activateWorkforcePlanningInput(id: string) {
+    return this.request(`/workforce-planning/inputs/${id}/activate`, { method: "POST" });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
